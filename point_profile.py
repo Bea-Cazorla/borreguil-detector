@@ -368,29 +368,47 @@ def chart_decision_counts(rows):
     ).properties(height=max(120, 30 * len(df)))
 
 
+_AMB_ORDER = ['arroyo', 'laguna', 'ladera']
+_HUM_ORDER = ['húmedo', 'seco']
+_PUR_ORDER = ['mixto-agua', 'mixto-roca', 'puro']
+_PUR_SCALE = alt.Scale(domain=_PUR_ORDER, range=['#1565c0', '#8d6e63', '#2e7d32'])
+
+
 def chart_hierarchy(rows):
-    """Recuento de tipos de borreguil por nivel jerárquico (ambiente / humedad /
-    pureza) sobre los puntos detectados como borreguil. Devuelve (chart|None, n)."""
+    """Vista ANIDADA de la clasificación jerárquica sobre los borreguiles detectados:
+    para cada AMBIENTE (filas) y cada HUMEDAD (columnas), barras apiladas por PUREZA.
+    Devuelve (chart|None, n)."""
     sub = [r for r in rows if is_borreguil_decision(r.get('decision', ''))]
-    if not sub:
-        return None, 0
-
-    def _count_chart(key, title):
-        recs = [{'cat': r.get(key)} for r in sub
-                if (r.get(key) or '') not in ('', '—', None)]
-        if not recs:
-            return None
-        df = pd.DataFrame(recs)
-        return alt.Chart(df).mark_bar().encode(
-            x=alt.X('count():Q', title='nº'),
-            y=alt.Y('cat:N', sort='-x', title=None),
-            color=alt.Color('cat:N', legend=None),
-            tooltip=['cat:N', alt.Tooltip('count():Q', title='nº')],
-        ).properties(title=title, width=200, height=140)
-
-    charts = [c for c in (_count_chart('ambiente', 'Ambiente'),
-                          _count_chart('humedad', 'Humedad'),
-                          _count_chart('pureza', 'Pureza')) if c is not None]
-    if not charts:
+    recs = [{'ambiente': r.get('ambiente'), 'humedad': r.get('humedad'),
+             'pureza': r.get('pureza')}
+            for r in sub
+            if r.get('ambiente') not in ('', '—', None)
+            and r.get('humedad') not in ('', '—', None)
+            and r.get('pureza') not in ('', '—', None)]
+    if not recs:
         return None, len(sub)
-    return alt.hconcat(*charts).resolve_scale(color='independent'), len(sub)
+    df = pd.DataFrame(recs)
+    chart = alt.Chart(df).mark_bar().encode(
+        y=alt.Y('ambiente:N', sort=_AMB_ORDER, title=None),
+        x=alt.X('count():Q', title='nº de borreguiles'),
+        color=alt.Color('pureza:N', scale=_PUR_SCALE, sort=_PUR_ORDER,
+                        legend=alt.Legend(orient='bottom', title='Pureza')),
+        column=alt.Column('humedad:N', sort=_HUM_ORDER, title='Humedad'),
+        tooltip=['ambiente:N', 'humedad:N', 'pureza:N',
+                 alt.Tooltip('count():Q', title='nº')],
+    ).properties(width=240, height=180)
+    return chart, len(sub)
+
+
+def hierarchy_table(rows):
+    """Tabla con el recuento de cada combinación completa ambiente·humedad·pureza
+    (los 'tipos' de borreguil), ordenada por frecuencia. Devuelve un DataFrame|None."""
+    from collections import Counter
+    sub = [r for r in rows if is_borreguil_decision(r.get('decision', ''))]
+    c = Counter(r.get('tipo_borreguil') for r in sub
+                if r.get('tipo_borreguil') and '—' not in r.get('tipo_borreguil'))
+    if not c:
+        return None
+    df = pd.DataFrame([{'Tipo de borreguil': k, 'Nº puntos': v}
+                       for k, v in c.most_common()])
+    return df

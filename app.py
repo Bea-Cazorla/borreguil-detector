@@ -1903,16 +1903,22 @@ git push
         with tab6:
             n_borr = sum(1 for r in rows if pp.is_borreguil_decision(r.get('decision', '')))
 
-            # Clasificación jerárquica del tipo de borreguil
+            # Clasificación jerárquica del tipo de borreguil (vista anidada)
             hier_chart, n_hier = pp.chart_hierarchy(rows)
             if hier_chart is not None:
                 st.markdown(f'**🌿 Tipos de borreguil** (clasificación jerárquica de los '
-                            f'{n_hier} detectados): **ambiente** → **humedad** → **pureza**.')
-                st.altair_chart(hier_chart, use_container_width=True)
-                st.caption('Reglas sobre las variables ya calculadas (NDWI, TWI, NDMI, '
-                           'roca/agua alrededor…). Los umbrales se pueden afinar en '
-                           '`borreguil_pipeline.py` (HIER_THRESH). Un nivel sale como «—» '
-                           'si faltan sus variables (p. ej. distancia al agua necesita OSM).')
+                            f'{n_hier} detectados): **ambiente** → **humedad** → **pureza**. '
+                            f'Cada columna es una humedad; cada fila, un ambiente; el color '
+                            f'reparte la pureza.')
+                st.altair_chart(hier_chart)
+                hier_df = pp.hierarchy_table(rows)
+                if hier_df is not None:
+                    st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')
+                    st.dataframe(hier_df, hide_index=True, use_container_width=True)
+                st.caption('Reglas sobre las variables ya calculadas (cercanía a lagunas, '
+                           'TWI, pendiente, NDMI, NDWI, roca/agua…). Los umbrales se afinan '
+                           'en `borreguil_pipeline.py` (HIER_THRESH). Arroyo se detecta por '
+                           'topografía (TWI alto o pendiente baja) cuando no hay capa OSM.')
                 st.divider()
 
             st.markdown(

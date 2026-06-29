@@ -1862,19 +1862,19 @@ def decision_color(dec):
 # ============================================================
 # Clasificación jerárquica del TIPO de borreguil (reglas sobre las features ya
 # calculadas; no necesita puntos etiquetados por subtipo). Tres niveles:
-#   1) AMBIENTE : arroyo | laguna | ladera
-#   2) HUMEDAD  : húmedo | seco
-#   3) PUREZA   : puro | mixto-agua | mixto-roca | mixto-otros
-# Los umbrales son AJUSTABLES aquí. Cada nivel vale '—' si faltan las variables
-# necesarias (p. ej. dist_water_m solo existe con OSM activado; surr_* solo si no
-# se saltan las imágenes; cir_/ps_vegfrac solo con esas fuentes).
+#   1) AMBIENTE : arroyo | laguna | ladera   (siempre una de las tres)
+#   2) HUMEDAD  : húmedo | seco              (siempre una de las dos)
+#   3) PUREZA   : mixto-agua | mixto-roca | puro   (siempre una de las tres)
+# Los umbrales son AJUSTABLES aquí. Un nivel solo vale '—' si faltan TODAS sus
+# variables (p. ej. sin topografía no hay ambiente).
 # ============================================================
 HIER_THRESH = {
     'dist_laguna_m':      120.0,  # a < 120 m de una laguna conocida (capa) → laguna
     'ndwi_laguna':        0.05,   # NDWI medio alto → lámina de agua estancada cerca
     'surr_water_laguna':  0.15,   # fracción de agua alrededor (imagen) alta
     'dist_arroyo_m':      30.0,   # a < 30 m de un cauce OSM → arroyo
-    'twi_arroyo':         8.0,    # acumulación de flujo alta → fondo de vaguada/arroyo
+    'twi_arroyo':         6.5,    # acumulación de flujo alta → fondo de vaguada/arroyo
+    'slope_arroyo':       7.0,    # pendiente baja (fondo de valle) → arroyo (sin OSM)
     'ndmi_humedo':        0.10,   # NDMI (humedad) medio por encima → húmedo
     'twi_humedo':         7.0,    # respaldo de humedad si no hay NDMI
     'ndwi_pixel_agua':    0.0,    # NDWI del píxel positivo → mezcla con agua
@@ -1945,7 +1945,9 @@ def classify_hierarchy(r, th=None):
          (ndwi is not None and ndwi > th['ndwi_laguna']):
         amb = 'laguna'
     elif (dist_w is not None and dist_w < th['dist_arroyo_m']) or \
-         (twi is not None and twi > th['twi_arroyo']):
+         (twi is not None and twi > th['twi_arroyo']) or \
+         (slope is not None and slope < th['slope_arroyo']):
+        # fondo de vaguada/cauce: cerca de agua OSM, mucho flujo (TWI) o muy llano
         amb = 'arroyo'
     elif slope is not None or twi is not None:
         amb = 'ladera'
@@ -1960,18 +1962,17 @@ def classify_hierarchy(r, th=None):
     else:
         hum = '—'
 
-    # ---- Nivel 3: PUREZA (agua > roca > puro > otros) ----
+    # ---- Nivel 3: PUREZA (agua → roca → puro por defecto) ----
+    # Siempre una de las tres: agua si hay firma de agua en el píxel; roca si hay
+    # roca/suelo desnudo; en otro caso vegetación dominante = puro.
     if ndwi is not None and ndwi > th['ndwi_pixel_agua']:
         pur = 'mixto-agua'
     elif (surr_rock is not None and surr_rock > th['surr_rock_mixto']) or \
          (albedo is not None and ndvi is not None and
           albedo > th['albedo_roca'] and ndvi < th['ndvi_puro']):
         pur = 'mixto-roca'
-    elif (vegfrac is not None and vegfrac >= th['vegfrac_puro']) or \
-         (ndvi is not None and ndvi >= th['ndvi_puro']):
+    elif any(v is not None for v in (ndwi, ndvi, albedo, vegfrac, surr_rock)):
         pur = 'puro'
-    elif ndvi is not None or albedo is not None or ndwi is not None:
-        pur = 'mixto-otros'
     else:
         pur = '—'
 
