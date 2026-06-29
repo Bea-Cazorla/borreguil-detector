@@ -1846,6 +1846,27 @@ def decide(r, threshold=0.5):
     return 'INCIERTO'
 
 
+def auto_threshold(probs, lo=0.30, hi=0.80, default=0.50):
+    """Umbral RF automático por el método de Otsu sobre la distribución de
+    probabilidades: el corte que mejor separa los dos grupos (no-borreguil /
+    borreguil). Sin variación o con muy pocos puntos devuelve `default`. Se acota
+    a [lo, hi] para evitar cortes extremos."""
+    import numpy as np
+    vals = [float(p) for p in (probs or [])
+            if isinstance(p, (int, float)) and p == p]
+    if len(vals) < 8:
+        return default
+    arr = np.asarray(vals, dtype=float)
+    if float(arr.max() - arr.min()) < 1e-3:
+        return default
+    try:
+        from skimage.filters import threshold_otsu
+        t = float(threshold_otsu(arr))
+    except Exception:
+        t = float(np.median(arr))
+    return float(min(max(t, lo), hi))
+
+
 def decision_color(dec):
     """Color hex para una decisión (compartido por la app y el mapa exportado)."""
     d = (dec or '').lower()

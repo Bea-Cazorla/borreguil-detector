@@ -726,7 +726,14 @@ with st.sidebar:
     st.header('Opciones')
     years_str = st.text_input('Años Sentinel-2 (admite rangos, p. ej. 2017-2025)',
                                 value='2017-2025')
-    threshold = st.slider('Umbral RF para BORREGUIL', 0.30, 0.80, 0.50, 0.05)
+    auto_thr = st.checkbox(
+        '⚙ Umbral automático (Otsu)', value=False,
+        help='Calcula el umbral óptimo a partir de la distribución de '
+             'probabilidades RF (método de Otsu): el corte que mejor separa los '
+             'dos grupos. Si lo activas, el deslizador se ignora y el valor se '
+             'calcula tras la predicción.')
+    threshold = st.slider('Umbral RF para BORREGUIL', 0.30, 0.80, 0.50, 0.05,
+                          disabled=auto_thr)
     img_src_label = st.radio('Fuente de imágenes', [
         '🌐  ESRI World Imagery (global, ~0,5 m)',
         '🇪🇸  PNOA IGN + autonómica (España, 0,25 m)',
@@ -1180,6 +1187,13 @@ with tab_analisis:
 
         set_prog(1.0, '✓ Proceso completado')
 
+        # Umbral automático (Otsu) sobre las probabilidades RF, si se pidió.
+        if auto_thr:
+            threshold = bp.auto_threshold([r.get('rf_proba') for r in rows])
+            st.info(f'⚙ Umbral automático (Otsu): **{threshold:.2f}** '
+                    '(corte que mejor separa los dos grupos de probabilidad).')
+        st.session_state.eff_threshold = threshold
+
         # Decision
         for r in rows:
             r['decision'] = bp.decide(r, threshold=threshold)
@@ -1270,6 +1284,8 @@ with tab_analisis:
         rows = st.session_state.rows
         work = st.session_state.work
         sg = st.session_state.get('study_geom')
+        # Umbral efectivo (el automático calculado en la ejecución manda sobre el slider)
+        threshold = st.session_state.get('eff_threshold', threshold)
         MODEL_PATH = st.session_state.get('start_model_path') or str(APP_DIR / 'rf_sierra_nevada.joblib')
 
         st.divider()
