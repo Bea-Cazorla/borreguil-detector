@@ -1449,6 +1449,41 @@ git push
                                     color=color, fill=True, fill_color=color, fill_opacity=0.85,
                                     popup=folium.Popup(popup, max_width=300)).add_to(fmap)
 
+        # Leyenda de colores de los puntos (decisión del Random Forest).
+        _LEGEND_ITEMS = [
+            ('BORREGUIL VERIFICADO', 'Verificado (campo)'),
+            ('BORREGUIL PROBABLE', 'Probable'),
+            ('POSIBLE BORREGUIL', 'Posible'),
+            ('BORREGUIL (auto)', 'Auto (iteración)'),
+            ('DUDOSO', 'Dudoso'),
+            ('INCIERTO', 'Incierto'),
+            ('NO BORREGUIL', 'No borreguil'),
+        ]
+
+        def _add_legend(fmap, rows=None):
+            """Añade una leyenda HTML fija (abajo-izda) con los colores de decisión.
+            Si se pasan `rows`, solo muestra las categorías presentes."""
+            present = None
+            if rows is not None:
+                present = {bp.decision_color(r.get('decision', '')) for r in rows}
+            filas = ''
+            for dec, lab in _LEGEND_ITEMS:
+                col = bp.decision_color(dec)
+                if present is not None and col not in present:
+                    continue
+                filas += (f'<div style="margin:2px 0;"><span style="display:inline-block;'
+                          f'width:12px;height:12px;border-radius:50%;background:{col};'
+                          f'margin-right:6px;vertical-align:middle;border:1px solid #555;">'
+                          f'</span>{lab}</div>')
+            html = (
+                '<div style="position:fixed;bottom:24px;left:12px;z-index:9999;'
+                'background:rgba(255,255,255,0.92);padding:8px 10px;border-radius:6px;'
+                'border:1px solid #999;font-size:12px;line-height:1.1;'
+                'box-shadow:0 1px 4px rgba(0,0,0,0.3);">'
+                '<div style="font-weight:bold;margin-bottom:4px;">Clasificación</div>'
+                f'{filas}</div>')
+            fmap.get_root().html.add_child(folium.Element(html))
+
         def _base_map(center, zoom):
             # max_zoom alto para acercar bastante a los puntos (over-zoom de las
             # ortofotos); Google Satélite tiene resolución nativa mayor que ESRI.
@@ -1542,13 +1577,15 @@ git push
         sel = st.session_state.get('sel_point')
 
         # Tabs
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(
-            ['Mapa', 'Tabla', 'Histograma RF', 'Descargas', '🔑 Variables'])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+            ['Mapa', 'Tabla', 'Histograma RF', 'Descargas', '🔑 Variables',
+             '📊 Distribuciones'])
 
         with tab1:
-            st.markdown('Mapa interactivo. Haz click en los marcadores para ver detalles. '
-                        'Al seleccionar filas en la pestaña **Tabla**, el mapa se centra en '
-                        'el **último punto seleccionado**.')
+            st.markdown('Mapa interactivo. Haz click en un marcador para ver sus detalles y '
+                        'poder **quitarlo** del análisis. Al seleccionar filas en la pestaña '
+                        '**Tabla**, el mapa se centra en el **último punto seleccionado**. '
+                        'La **leyenda de colores** está abajo a la izquierda.')
             lat_med = sum(r['lat'] for r in rows)/len(rows)
             lon_med = sum(r['lon'] for r in rows)/len(rows)
             st.caption('Capas activables (control ▤ arriba a la derecha): **Píxel S2 '
@@ -1558,12 +1595,51 @@ git push
             m = _base_map([lat_med, lon_med], 12)
             _add_points(m, rows, highlight_id=(sel.get('ID') if sel else None))
             _add_pixel_layers(m, rows, show=False)
+            _add_legend(m, rows)
             folium.LayerControl(collapsed=False).add_to(m)
             if sel:
-                st_folium(m, width=None, height=600, returned_objects=[],
-                          center=[sel['lat'], sel['lon']], zoom=18, key='mainmap')
+                map_state = st_folium(m, width=None, height=600,
+                                      returned_objects=['last_object_clicked'],
+                                      center=[sel['lat'], sel['lon']], zoom=18, key='mainmap')
             else:
-                st_folium(m, width=None, height=600, returned_objects=[], key='mainmap')
+                map_state = st_folium(m, width=None, height=600,
+                                      returned_objects=['last_object_clicked'], key='mainmap')
+
+            # Quitar un punto pinchando directamente en su marcador
+            clicked = (map_state or {}).get('last_object_clicked') if isinstance(map_state, dict) else None
+            if clicked and clicked.get('lat') is not None:
+                clat, clon = clicked['lat'], clicked['lng']
+                ni, nd = None, 1e18
+                for i, r in enumerate(rows):
+                    d = (r['lat'] - clat)**2 + (r['lon'] - clon)**2
+                    if d < nd:
+                        nd, ni = d, i
+                # last_object_clicked devuelve las coords exactas del marcador → match casi
+                # perfecto; toleramos ~50 m por redondeos.
+                if ni is not None and nd < (0.00045)**2:
+                    rr = rows[ni]
+                    _rfp = rr.get('rf_proba')
+                    _rftxt = f'{_rfp*100:.0f}%' if isinstance(_rfp, (int, float)) and not _m.isnan(_rfp) else '—'
+                    ci, cb = st.columns([3, 2])
+                    with ci:
+                        st.markdown(f"📍 Marcador seleccionado: **{rr.get('ID','?')}** — "
+                                    f"{rr.get('decision','—')} (RF {_rftxt})")
+                    with cb:
+                        if st.button('🗑 Quitar este punto del análisis', key='remove_map_pt'):
+                            keep = [r for j, r in enumerate(rows) if j != ni]
+                            if not keep:
+                                st.warning('No puedes quitar todos los puntos.')
+                            else:
+                                bp.save_csv(keep, work / 'classification.csv')
+                                bp.save_xlsx(keep, work / 'Clasificacion_puntos.xlsx',
+                                             threshold=threshold)
+                                bp.save_map(keep, work / 'mapa.html', study_geom=sg)
+                                st.session_state.rows = keep
+                                st.session_state.sel_point = None
+                                st.session_state.sel_idx = None
+                                st.session_state.prev_sel_set = set()
+                                st.success(f"Punto {rr.get('ID','?')} quitado del análisis.")
+                                st.rerun()
 
         with tab2:
             st.caption('Selecciona una o varias filas (casilla izquierda). El **último punto '
@@ -1752,3 +1828,29 @@ git push
             else:
                 st.info('El modelo actual no expone importancias de variables '
                         '(reentrena o usa un modelo guardado con `train_v5.py`).')
+
+        with tab6:
+            n_borr = sum(1 for r in rows if pp.is_borreguil_decision(r.get('decision', '')))
+            st.markdown(
+                f'Distribución de las variables comparando los **{n_borr} puntos '
+                f'clasificados como borreguil** (verde) frente al **resto** '
+                f'({len(rows) - n_borr}, rojo). Cada caja muestra mediana, cuartiles '
+                f'(p25–p75) y bigotes; los puntos sueltos son valores atípicos.')
+            box_chart, _ = pp.chart_boxplots(rows)
+            if box_chart is not None:
+                st.altair_chart(box_chart, use_container_width=True)
+            else:
+                st.info('No hay variables numéricas suficientes para los boxplots.')
+
+            st.divider()
+            st.markdown('**Dispersión Altitud × NDVI** — separación entre clases. '
+                        'Pasa el ratón por un punto para ver su ID y probabilidad RF.')
+            sc = pp.chart_scatter(rows)
+            if sc is not None:
+                st.altair_chart(sc, use_container_width=True)
+
+            st.divider()
+            st.markdown('**Recuento de puntos por categoría de decisión.**')
+            dc = pp.chart_decision_counts(rows)
+            if dc is not None:
+                st.altair_chart(dc, use_container_width=True)

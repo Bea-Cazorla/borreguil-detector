@@ -267,3 +267,102 @@ def chart_importance(rs, topn=12):
     txt = alt.Chart(df).mark_text(align='left', dx=4, fontSize=10, color='#2e7d32').encode(
         x=alt.X('imp:Q', scale=xsc), y=alt.Y('label:N', sort=order), text='rango:N')
     return (bars + txt).properties(height=max(150, 26 * len(recs))), recs
+
+
+# ============================================================
+# Distribuciones del conjunto de puntos (no de un punto suelto): boxplots por
+# clase, dispersión y recuento. Operan sobre la lista `rows` completa.
+# ============================================================
+
+# Variables más interpretables para comparar borreguil vs. resto.
+BOX_VARS = [
+    ('elev_dem_m', 'Altitud (m)'), ('slope_deg', 'Pendiente (°)'),
+    ('twi', 'TWI (humedad topo.)'), ('ndvi_late', 'NDVI fin verano'),
+    ('ndmi_late', 'NDMI (humedad)'), ('ndwi_late', 'NDWI (agua)'),
+    ('evi_late', 'EVI fin'), ('clre_late', 'Clorofila red-edge'),
+    ('ndvi_drop', 'Caída NDVI'), ('dist_water_m', 'Distancia al agua (m)'),
+]
+_CLS_BORR = 'Borreguil'
+_CLS_REST = 'No / resto'
+_CLS_SCALE = alt.Scale(domain=[_CLS_BORR, _CLS_REST], range=['#2e7d32', '#8e0000'])
+
+
+def is_borreguil_decision(dec):
+    """True si la decisión corresponde a (posible/probable/auto/verificado) borreguil."""
+    d = (dec or '').lower()
+    if 'no borreguil' in d:
+        return False
+    return any(k in d for k in ('borreguil', 'probable', 'posible', 'auto', 'verificado'))
+
+
+def _class_of(r):
+    return _CLS_BORR if is_borreguil_decision(r.get('decision', '')) else _CLS_REST
+
+
+def chart_boxplots(rows, vars=BOX_VARS, ncols=5):
+    """Boxplots de cada variable comparando puntos BORREGUIL vs. resto. Cada panel
+    tiene su propia escala Y (rangos muy distintos). Devuelve (chart|None, n_borr)."""
+    recs = []
+    for r in rows:
+        klass = _class_of(r)
+        for key, lab in vars:
+            v = fnum(r.get(key))
+            if v is None:
+                continue
+            recs.append({'clase': klass, 'variable': lab, 'valor': v})
+    if not recs:
+        return None, 0
+    df = pd.DataFrame(recs)
+    order = [lab for _, lab in vars if lab in set(df['variable'])]
+    n_borr = sum(1 for r in rows if _class_of(r) == _CLS_BORR)
+    box = alt.Chart(df).mark_boxplot(size=26, outliers={'size': 6}).encode(
+        x=alt.X('clase:N', title=None, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y('valor:Q', title=None, scale=alt.Scale(zero=False)),
+        color=alt.Color('clase:N', scale=_CLS_SCALE,
+                        legend=alt.Legend(orient='top', title=None)),
+    ).properties(width=120, height=170)
+    chart = box.facet(
+        facet=alt.Facet('variable:N', title=None, sort=order, header=alt.Header(labelFontWeight='bold')),
+        columns=ncols,
+    ).resolve_scale(y='independent')
+    return chart, n_borr
+
+
+def chart_scatter(rows, xkey='elev_dem_m', ykey='ndvi_late',
+                  xlab='Altitud (m)', ylab='NDVI fin verano'):
+    """Dispersión de dos variables clave, coloreada por clase. Muestra la separación
+    altitud–verdor entre borreguil y el resto. Devuelve chart|None."""
+    recs = []
+    for r in rows:
+        x, y = fnum(r.get(xkey)), fnum(r.get(ykey))
+        if x is None or y is None:
+            continue
+        recs.append({'clase': _class_of(r), xlab: x, ylab: y,
+                     'ID': r.get('ID', ''), 'rf': fnum(r.get('rf_proba'))})
+    if not recs:
+        return None
+    df = pd.DataFrame(recs)
+    return alt.Chart(df).mark_circle(size=55, opacity=0.6).encode(
+        x=alt.X(f'{xlab}:Q', scale=alt.Scale(zero=False)),
+        y=alt.Y(f'{ylab}:Q', scale=alt.Scale(zero=False)),
+        color=alt.Color('clase:N', scale=_CLS_SCALE,
+                        legend=alt.Legend(orient='top', title=None)),
+        tooltip=['ID:N', 'clase:N', alt.Tooltip(f'{xlab}:Q', format='.2f'),
+                 alt.Tooltip(f'{ylab}:Q', format='.3f'),
+                 alt.Tooltip('rf:Q', title='prob. RF', format='.2f')],
+    ).properties(height=380)
+
+
+def chart_decision_counts(rows):
+    """Nº de puntos por categoría de decisión (barras horizontales). Devuelve chart|None."""
+    from collections import Counter
+    c = Counter(r.get('decision', '—') or '—' for r in rows)
+    if not c:
+        return None
+    df = pd.DataFrame([{'decision': k, 'n': v} for k, v in c.items()])
+    return alt.Chart(df).mark_bar().encode(
+        x=alt.X('n:Q', title='Nº de puntos'),
+        y=alt.Y('decision:N', sort='-x', title=None),
+        color=alt.Color('decision:N', legend=None),
+        tooltip=['decision:N', 'n:Q'],
+    ).properties(height=max(120, 30 * len(df)))
