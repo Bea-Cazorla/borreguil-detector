@@ -1940,6 +1940,10 @@ HIER_THRESH = {
     'albedo_roca':        0.22,   # albedo alto + NDVI bajo → roca/suelo desnudo
     'ndvi_puro':          0.45,   # NDVI fin de verano alto → vegetación dominante
     'vegfrac_puro':       0.75,   # fracción vegetal (CIR/Planet) alta → píxel puro
+    # Pureza RELATIVA a la población de borreguiles (percentiles): los del NDWI más
+    # alto → mixto-agua; los de albedo más alto / NDVI más bajo → mixto-roca.
+    'agua_pct':           85,     # percentil de NDWI por encima del cual → mixto-agua
+    'roca_pct':           85,     # percentil de albedo (y 100−pct de NDVI) → mixto-roca
 }
 
 
@@ -2036,6 +2040,39 @@ def classify_hierarchy(r, th=None):
 
     tipo = f'{amb} · {hum} · {pur}'
     return {'ambiente': amb, 'humedad': hum, 'pureza': pur, 'tipo': tipo}
+
+
+def assign_pureza(borr_rows, th=None):
+    """Reasigna la PUREZA de forma RELATIVA a la población de borreguiles detectados.
+    A 10 m no se mide la fracción sub-píxel absoluta, así que se marcan como
+    'mixto-agua' los puntos con mayor firma de agua (NDWI alto o agua alrededor) y
+    como 'mixto-roca' los de mayor albedo / menor NDVI / roca alrededor, frente al
+    resto ('puro'). Los cortes son percentiles (HIER_THRESH['agua_pct'/'roca_pct'])
+    sobre el propio conjunto. Actualiza r['pureza'] y r['tipo_borreguil']."""
+    import numpy as np
+    th = th or HIER_THRESH
+    if not borr_rows:
+        return
+    ndwi_vals = [v for r in borr_rows if (v := _hier_num(r, 'ndwi_mean', 'ndwi_late')) is not None]
+    alb_vals  = [v for r in borr_rows if (v := _hier_num(r, 'albedo_mean')) is not None]
+    ndvi_vals = [v for r in borr_rows if (v := _hier_num(r, 'ndvi_late')) is not None]
+    water_cut = float(np.percentile(ndwi_vals, th['agua_pct'])) if len(ndwi_vals) >= 5 else None
+    alb_cut   = float(np.percentile(alb_vals, th['roca_pct'])) if len(alb_vals) >= 5 else None
+    ndvi_cut  = float(np.percentile(ndvi_vals, 100 - th['roca_pct'])) if len(ndvi_vals) >= 5 else None
+    for r in borr_rows:
+        sw = _hier_num(r, 'surr_water'); nd = _hier_num(r, 'ndwi_mean', 'ndwi_late')
+        sr = _hier_num(r, 'surr_rock'); al = _hier_num(r, 'albedo_mean'); nv = _hier_num(r, 'ndvi_late')
+        if (sw is not None and sw > th['surr_water_laguna']) or \
+           (water_cut is not None and nd is not None and nd >= water_cut):
+            pur = 'mixto-agua'
+        elif (sr is not None and sr > th['surr_rock_mixto']) or \
+             (alb_cut is not None and al is not None and al >= alb_cut) or \
+             (ndvi_cut is not None and nv is not None and nv <= ndvi_cut):
+            pur = 'mixto-roca'
+        else:
+            pur = 'puro'
+        r['pureza'] = pur
+        r['tipo_borreguil'] = f"{r.get('ambiente', '—')} · {r.get('humedad', '—')} · {pur}"
 
 
 def run_rf_and_decide(rows, threshold=0.5, default_model_path=None, neg_buffer_m=250):

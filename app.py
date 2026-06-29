@@ -1247,6 +1247,9 @@ with tab_analisis:
             else:
                 r['ambiente'] = ''; r['humedad'] = ''
                 r['pureza'] = ''; r['tipo_borreguil'] = ''
+        # Pureza relativa a la población de borreguiles (los más agua/roca vs. el resto)
+        bp.assign_pureza([r for r in rows
+                          if pp.is_borreguil_decision(r.get('decision', ''))])
 
         # Verdad-terreno "solo entrenar": el modelo ya se entrenó con ella arriba;
         # ahora se quitan del conjunto los puntos AÑADIDOS desde el fichero de campo
@@ -1954,9 +1957,13 @@ git push
                     st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')
                     st.dataframe(hier_df, hide_index=True, use_container_width=True)
                 st.caption('Reglas sobre las variables ya calculadas (cercanía a lagunas, '
-                           'TWI, pendiente, NDMI, NDWI, roca/agua…). Los umbrales se afinan '
-                           'en `borreguil_pipeline.py` (HIER_THRESH). Arroyo se detecta por '
-                           'topografía (TWI alto o pendiente baja) cuando no hay capa OSM.')
+                           'TWI, pendiente, NDMI, NDWI, roca/agua…). Arroyo se detecta por '
+                           'topografía (TWI alto o pendiente baja) cuando no hay capa OSM. '
+                           'La **pureza es relativa** a esta población: marca como mixto-agua/'
+                           'mixto-roca el ~15% con más firma de agua (NDWI) o roca (albedo/'
+                           'NDVI bajo), porque a 10 m no se mide la fracción sub-píxel '
+                           'absoluta (para eso harían falta PlanetScope o CIR). Umbrales '
+                           'en `borreguil_pipeline.py` (HIER_THRESH).')
                 st.divider()
 
             st.markdown(
