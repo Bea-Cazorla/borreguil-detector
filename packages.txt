@@ -1,0 +1,5 @@
+# Dependencias de sistema (apt) para Streamlit Community Cloud.
+# Normalmente NO son necesarias: rasterio/geopandas/pyproj/shapely traen wheels
+# con GDAL incluido. Descomenta solo si el build falla al instalar rasterio/fiona.
+# libgdal-dev
+# gdal-bin

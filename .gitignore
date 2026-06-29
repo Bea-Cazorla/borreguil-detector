@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.DS_Store
+._*
+output/
+out/
+*.tif
+.streamlit/secrets.toml
+.venv/
+venv/
+
+# Los modelos Random Forest (.joblib) se incluyen INTENCIONADAMENTE en el repo
+# para que estén disponibles en el deploy online para todos los usuarios.
+# NO añadir *.joblib aquí.
+planet_data/

@@ -1,0 +1,1707 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="puntos_nicole_corrected" id="puntos_nicole_corrected">
+	<SimpleField name="fid" type="float"></SimpleField>
+	<SimpleField name="laguna" type="string"></SimpleField>
+	<SimpleField name="fuente_bor" type="string"></SimpleField>
+</Schema>
+<Folder><name>puntos_nicole_corrected</name>
+  <Placemark id="puntos_nicole_corrected.1">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">1</SimpleData>
+		<SimpleData name="laguna">Laguna del Caballo</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.43576041781211,37.0132880155699</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.2">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">2</SimpleData>
+		<SimpleData name="laguna">Laguna del Caballo</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.4333578752346,37.0127190422345</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.3">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">3</SimpleData>
+		<SimpleData name="laguna">Laguna del Caballo</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.4336664750865,37.0158270836001</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.4">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">4</SimpleData>
+		<SimpleData name="laguna">Laguna de Náreja</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.4317354559766,37.0163460183425</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.5">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">5</SimpleData>
+		<SimpleData name="laguna">Laguna de Nájera</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.43058922795526,37.0172403281174</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.6">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">6</SimpleData>
+		<SimpleData name="laguna">Laguna de Nájera</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.42864945745761,37.0146487191571</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.7">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">7</SimpleData>
+		<SimpleData name="laguna">Laguna Cuadrada</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41784135502539,37.0260837209063</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.8">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">8</SimpleData>
+		<SimpleData name="laguna">Laguna Cuadrada</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41889086404611,37.026113716349</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.9">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">9</SimpleData>
+		<SimpleData name="laguna">Laguna Cuadrada</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, REDIAM, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41667240898833,37.0234858941407</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.10">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">10</SimpleData>
+		<SimpleData name="laguna">Laguna de Tajos Altos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40911889002001,37.0282232898203</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.11">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">11</SimpleData>
+		<SimpleData name="laguna">Laguna de Tajos Altos</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40992324489552,37.0269735126212</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.12">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">12</SimpleData>
+		<SimpleData name="laguna">Laguna de Tajos Altos</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41090922829131,37.0270340554613</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.13">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">13</SimpleData>
+		<SimpleData name="laguna">Charca de Tajos Altos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40839093444271,37.0310587128313</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.14">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">14</SimpleData>
+		<SimpleData name="laguna">Charca de Tajos Altos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.4057385814482,37.0310846597627</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.15">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">15</SimpleData>
+		<SimpleData name="laguna">Charca de Tajos Altos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40757504759766,37.0321830798615</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.16">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">16</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Puesto del Cura</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.4288688293558,37.0383699815204</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.17">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">17</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Puesto del Cura</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.43081773220829,37.0379317666779</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.18">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">18</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Puesto del Cura</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.42875350966038,37.036458557569</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.19">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">19</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Lanjarón</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40615869466059,37.0350305101462</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.20">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">20</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Lanjarón</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40527923727687,37.0349279067848</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.21">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">21</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Lanjarón</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40491279670033,37.0359905844568</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.22">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">22</SimpleData>
+		<SimpleData name="laguna">Laguna de Lanjarón</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40001731937788,37.0383364023787</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.23">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">23</SimpleData>
+		<SimpleData name="laguna">Laguna de Lanjarón</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.39994931970896,37.0379794041169</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.24">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">24</SimpleData>
+		<SimpleData name="laguna">Laguna de Lanjarón</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.40145381238366,37.0378482618983</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.25">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">25</SimpleData>
+		<SimpleData name="laguna">Laguna del Carnero</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41013834152767,37.0480474027154</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.26">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">26</SimpleData>
+		<SimpleData name="laguna">Laguna del Carnero</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41168938159478,37.0475131196025</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.27">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">27</SimpleData>
+		<SimpleData name="laguna">Laguna del Carnero</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41049776834907,37.0498704414581</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.28">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">28</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mula</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41265432927745,37.0623435235844</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.29">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">29</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mula</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41449355841757,37.0602193434508</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.30">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">30</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mula</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.41823677828724,37.0598696308678</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.31">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">31</SimpleData>
+		<SimpleData name="laguna">Lagunillo Misterioso</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.39912563324327,37.049718251723</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.32">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">32</SimpleData>
+		<SimpleData name="laguna">Lagunillo Misterioso</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.4004532458268,37.0513567199358</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.33">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">33</SimpleData>
+		<SimpleData name="laguna">Lagunillo Misterioso</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.39887306304445,37.0507738656309</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.34">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">34</SimpleData>
+		<SimpleData name="laguna">Lagunillo Inferior de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.39753897430197,37.0505795808625</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.35">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">35</SimpleData>
+		<SimpleData name="laguna">Lagunillo Inferior de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.39659345509613,37.0506184378162</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.36">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">36</SimpleData>
+		<SimpleData name="laguna">Lagunillo Inferior de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.39081024515907,37.0537982318578</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.37">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">37</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38880425492614,37.0528478555327</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.38">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">38</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3858446502887,37.0496065379812</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.39">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">39</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38633360028898,37.050730151558</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.40">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">40</SimpleData>
+		<SimpleData name="laguna">Lagunillo Medio de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38505779697699,37.0497295850012</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.41">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">41</SimpleData>
+		<SimpleData name="laguna">Lagunillo Medio de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR, REDIAM, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38545931883153,37.0493798724182</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.42">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">42</SimpleData>
+		<SimpleData name="laguna">Lagunillo Medio de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3854852234673,37.0486933995701</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.43">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">43</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38375663825764,37.0496701529803</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.44">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">44</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38419821590539,37.0493859693456</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.45">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">45</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38375226620172,37.0489618799215</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.46">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">46</SimpleData>
+		<SimpleData name="laguna">Charca de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38210837317642,37.0507675390158</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.47">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">47</SimpleData>
+		<SimpleData name="laguna">Charca de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38380473087274,37.0517906001007</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.48">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">48</SimpleData>
+		<SimpleData name="laguna">Charca de la Ermita</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMA SUR, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38344622228744,37.0525076172713</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.49">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">49</SimpleData>
+		<SimpleData name="laguna">Lagunillo Grande de la Virgen</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38331724663785,37.0504746112693</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.50">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">50</SimpleData>
+		<SimpleData name="laguna">Lagunillo Grande de la Virgen</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, REDIAM, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38006880909051,37.0505052156607</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.51">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">51</SimpleData>
+		<SimpleData name="laguna">Lagunillo Grande de la Virgen</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38315548056887,37.0533077035044</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.52">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">52</SimpleData>
+		<SimpleData name="laguna">Lagunillo de la Virgen que drena aguas abajo de las Yeguas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37971904461704,37.051825576548</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.53">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">53</SimpleData>
+		<SimpleData name="laguna">Lagunillo de la Virgen que drena aguas abajo de las Yeguas</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37936928014357,37.051401487124</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.54">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">54</SimpleData>
+		<SimpleData name="laguna">Lagunillo de la Virgen que drena aguas abajo de las Yeguas</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38229418555296,37.0536181194746</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.55">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">55</SimpleData>
+		<SimpleData name="laguna">Lagunillo tributario a la laguna de las Yeguas (ALTO)</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37875033849981,37.0517419391807</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.56">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">56</SimpleData>
+		<SimpleData name="laguna">Lagunillo tributario a la laguna de las Yeguas (ALTO)</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37789769488473,37.0508589985844</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.57">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">57</SimpleData>
+		<SimpleData name="laguna">Lagunillo tributario a la laguna de las Yeguas (ALTO)</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37878929176142,37.0525123481324</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.58">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">58</SimpleData>
+		<SimpleData name="laguna">Lagunillo tributario a la laguna de las Yeguas (BAJO)</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37795819030432,37.0531948353014</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.59">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">59</SimpleData>
+		<SimpleData name="laguna">Lagunillo tributario a la laguna de las Yeguas (BAJO)</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37983026034376,37.0546177812713</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.60">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">60</SimpleData>
+		<SimpleData name="laguna">Lagunillo tributario a la laguna de las Yeguas (BAJO)</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37863403565881,37.0531689242973</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.61">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">61</SimpleData>
+		<SimpleData name="laguna">Laguna de las Yeguas</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37991467383116,37.0582490062299</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.62">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">62</SimpleData>
+		<SimpleData name="laguna">Laguna de las Yeguas</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37825508722522,37.0571397927331</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.63">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">63</SimpleData>
+		<SimpleData name="laguna">Laguna de las Yeguas</SimpleData>
+		<SimpleData name="fuente_bor">GESTEMASUR, OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.38215003538201,37.0571059236186</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.64">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">64</SimpleData>
+		<SimpleData name="laguna">Laguna de Aguas Verdes</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36749740976175,37.0461450314688</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.65">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">65</SimpleData>
+		<SimpleData name="laguna">Laguna de Aguas Verdes</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36727726051811,37.0469197874608</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.66">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">66</SimpleData>
+		<SimpleData name="laguna">Laguna de Aguas Verdes</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36854735230836,37.0493922328125</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.67">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">67</SimpleData>
+		<SimpleData name="laguna">Charca del Veleta</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36808376880492,37.0495001906147</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.68">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">68</SimpleData>
+		<SimpleData name="laguna">Charca del Veleta</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36666761645879,37.0500061105112</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.69">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">69</SimpleData>
+		<SimpleData name="laguna">Charca del Veleta</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36368290075168,37.0511237912866</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.70">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">70</SimpleData>
+		<SimpleData name="laguna">Laguna del Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36791654005254,37.0608526944</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.71">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">71</SimpleData>
+		<SimpleData name="laguna">Laguna del Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36608760787457,37.0614200020663</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.72">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">72</SimpleData>
+		<SimpleData name="laguna">Laguna del Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36606220603876,37.0628086357569</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.73">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">73</SimpleData>
+		<SimpleData name="laguna">Laguna del Alto Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36596059869554,37.0634352143735</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.74">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">74</SimpleData>
+		<SimpleData name="laguna">Laguna del Alto Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36331880777181,37.0633082051945</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.75">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">75</SimpleData>
+		<SimpleData name="laguna">Laguna del Alto Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36580395404141,37.0637654382389</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.76">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">76</SimpleData>
+		<SimpleData name="laguna">Laguna del Bajo Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36563460846937,37.0642819422336</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.77">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">77</SimpleData>
+		<SimpleData name="laguna">Laguna del Bajo Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36272186463039,37.0634013452591</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.78">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">78</SimpleData>
+		<SimpleData name="laguna">Laguna del Bajo Corral</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.36520277726069,37.0646460352135</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.79">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">79</SimpleData>
+		<SimpleData name="laguna">Lagunillo del San Juan</SimpleData>
+		<SimpleData name="fuente_bor">LINARIA, OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37179032001282,37.0877066684852</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.80">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">80</SimpleData>
+		<SimpleData name="laguna">Lagunillo del San Juan</SimpleData>
+		<SimpleData name="fuente_bor">LINARIA, OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37364465402659,37.0872748372765</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.81">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">81</SimpleData>
+		<SimpleData name="laguna">Lagunillo del San Juan</SimpleData>
+		<SimpleData name="fuente_bor">LINARIA, OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.37438977454354,37.0885279945096</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.82">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">82</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Púlpito</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.35480495913779,37.0485116358379</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.83">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">83</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Púlpito</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.35311150341745,37.048892663375</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.84">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">84</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Púlpito</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.35807332867805,37.0481983465297</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.85">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">85</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo del Púlpito</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.35565168699796,37.0472923477193</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.86">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">86</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo del Púlpito</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.35445780071512,37.0464371525805</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.87">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">87</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo del Púlpito</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3553468649683,37.050933277518</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.88">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">88</SimpleData>
+		<SimpleData name="laguna">Laguna de las Cabras</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34605826034223,37.0420341677076</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.89">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">89</SimpleData>
+		<SimpleData name="laguna">Laguna de las Cabras</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34748923042592,37.0429655683538</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.90">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">90</SimpleData>
+		<SimpleData name="laguna">Laguna de las Cabras</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34906414424583,37.0453194718051</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.91">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">91</SimpleData>
+		<SimpleData name="laguna">Laguna Baja Rio Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3384758123544,37.0517334353459</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.92">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">92</SimpleData>
+		<SimpleData name="laguna">Laguna Baja Rio Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34121074334275,37.048160243776</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.93">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">93</SimpleData>
+		<SimpleData name="laguna">Laguna Baja Rio Seco</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34004649253501,37.050018811429</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.94">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">94</SimpleData>
+		<SimpleData name="laguna">Laguna de Rio Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3429719372919,37.048934999768</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.95">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">95</SimpleData>
+		<SimpleData name="laguna">Laguna de Rio Seco</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34228608772516,37.0518181081319</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.96">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">96</SimpleData>
+		<SimpleData name="laguna">Laguna de Rio Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34373399236606,37.0493202609444</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.97">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">97</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo de Río Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34651549338672,37.0519832200646</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.98">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">98</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo de Río Seco</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34433093550748,37.0530839662828</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.99">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">99</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto de Río Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34515226153184,37.0486555795741</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.100">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">100</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto de Río Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3454062798899,37.0490027379968</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.101">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">101</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto de Río Seco</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34678644630197,37.052186434751</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.102">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">102</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Valdeinfierno</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34578730742697,37.0495107747129</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.103">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">103</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Valdeinfierno</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34661286709064,37.0520890610471</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.104">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">104</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Valdeinfierno</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34504642054932,37.052144098358</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.105">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">105</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo de Río Seco</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34578307378767,37.0499595404788</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.106">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">106</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo del Valdeinfierno</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34561372821564,37.0580034551504</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.107">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">107</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo del Valdeinfierno</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34735798760759,37.0606706479099</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.108">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">108</SimpleData>
+		<SimpleData name="laguna">Lagunillo Bajo del Valdeinfierno</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.34933933080039,37.0595021634629</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.109">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">109</SimpleData>
+		<SimpleData name="laguna">Laguna de la Gabata</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.33571723622704,37.0641696190398</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.110">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">110</SimpleData>
+		<SimpleData name="laguna">Laguna de la Gabata</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.33639461851518,37.0632043492792</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.111">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">111</SimpleData>
+		<SimpleData name="laguna">Laguna de la Gabata</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.33686878611687,37.0602069326542</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.112">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">112</SimpleData>
+		<SimpleData name="laguna">Laguna Larga</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.33457415361581,37.0629460972819</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.113">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">113</SimpleData>
+		<SimpleData name="laguna">Laguna Larga</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.33422276155384,37.0623322195833</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.114">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">114</SimpleData>
+		<SimpleData name="laguna">Laguna Larga</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.33584847904537,37.0620866685038</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.115">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">116</SimpleData>
+		<SimpleData name="laguna">Laguna de la Caldera</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32668322566311,37.0527462682237</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.116">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">117</SimpleData>
+		<SimpleData name="laguna">Laguna de la Caldera</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32787583653997,37.0516347873385</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.117">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">118</SimpleData>
+		<SimpleData name="laguna">Lagunillo de la Calderilla</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32719434461034,37.0501501084918</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.118">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">119</SimpleData>
+		<SimpleData name="laguna">Lagunillo de la Calderilla</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32439535989934,37.0516915783326</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.119">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">120</SimpleData>
+		<SimpleData name="laguna">Lagunillo de la Calderilla</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32688605064217,37.0500446395026</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.120">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">121</SimpleData>
+		<SimpleData name="laguna">Laguna de la Caldereta</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32312161903086,37.0524217482572</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.121">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">122</SimpleData>
+		<SimpleData name="laguna">Laguna de la Caldereta</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3235434949873,37.0510425383996</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.122">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">123</SimpleData>
+		<SimpleData name="laguna">Laguna de la Caldereta</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32284577705934,37.0494361645655</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.123">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">124</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Majano</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32322708801997,37.0477811127364</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.124">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">125</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Majano</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3257177787628,37.0493712605722</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.125">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">126</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Majano</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32446026389264,37.0484220396702</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.126">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">127</SimpleData>
+		<SimpleData name="laguna">Laguna del Majano</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32456573288175,37.0479677117171</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.127">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">128</SimpleData>
+		<SimpleData name="laguna">Laguna del Majano</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32411140492866,37.0437732911502</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.128">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">133</SimpleData>
+		<SimpleData name="laguna">Lagunillo Alto del Juego de Bolos</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.32064411191168,37.0595155518998</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.129">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">136</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mosca</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.31369938462875,37.0608663662603</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.130">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">137</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mosca</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.31437276355922,37.0594384784078</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.131">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">138</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mosca</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.31199565480466,37.0619372821498</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.132">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">139</SimpleData>
+		<SimpleData name="laguna">Laguna Altera</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30490900723732,37.0581952828382</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.133">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">140</SimpleData>
+		<SimpleData name="laguna">Laguna Altera</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30441343264396,37.0585575649547</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.134">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">141</SimpleData>
+		<SimpleData name="laguna">Laguna Altera</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30185467278948,37.0573340083725</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.135">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">142</SimpleData>
+		<SimpleData name="laguna">Lagunillo Altero</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30414912619416,37.0565000759533</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.136">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">143</SimpleData>
+		<SimpleData name="laguna">Lagunillo Altero</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30446811673702,37.0567347618527</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.137">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">144</SimpleData>
+		<SimpleData name="laguna">Lagunillo Altero</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30166327846376,37.0573476793957</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.138">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">145</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Tajos Coloraos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30154935326988,37.0574889466361</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.139">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">146</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Tajos Coloraos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30119390666499,37.0574752756129</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.140">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">147</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Tajos Coloraos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30135340193642,37.0574935036439</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.141">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">148</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Tanto</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30150378319233,37.0548960092235</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.142">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">149</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Tanto</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30170429153356,37.0549689213476</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.143">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">150</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Tanto</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30188201483601,37.0551010745725</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.144">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">151</SimpleData>
+		<SimpleData name="laguna">Laguna de Tajos Coloraos</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30065617974989,37.0571517280623</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.145">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">152</SimpleData>
+		<SimpleData name="laguna">Laguna de Tajos Coloraos</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30033718920703,37.0569102066513</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.146">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">153</SimpleData>
+		<SimpleData name="laguna">Laguna de Tajos Coloraos</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, REDIAM, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.30010022480377,37.0567461543721</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.147">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">154</SimpleData>
+		<SimpleData name="laguna">Laguna de la Loma de Culo de Perro</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, REDIAM, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29705158661561,37.0545724616729</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.148">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">155</SimpleData>
+		<SimpleData name="laguna">Laguna de la Loma de Culo de Perro</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, REDIAM, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29788096202704,37.05470005789</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.149">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">156</SimpleData>
+		<SimpleData name="laguna">Laguna de la Loma de Culo de Perro</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, REDIAM, OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29689664835194,37.0539982786958</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.150">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">157</SimpleData>
+		<SimpleData name="laguna">Laguna del Borreguil</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29947591474132,37.0538433404321</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.151">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">158</SimpleData>
+		<SimpleData name="laguna">Laguna del Borreguil</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29980401929969,37.0518747130819</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.152">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">159</SimpleData>
+		<SimpleData name="laguna">Laguna del Borreguil</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3001776939356,37.0526767464468</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.153">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">160</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Borreguil</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29833666280255,37.0503982425692</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.154">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">161</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Borreguil</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29852805712826,37.0491313944133</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.155">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">162</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Borreguil</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29573916838215,37.0483202470329</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.156">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">163</SimpleData>
+		<SimpleData name="laguna">Laguna Hondera</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29488245092419,37.0488306319015</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.157">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">164</SimpleData>
+		<SimpleData name="laguna">Laguna Hondera</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29305964782215,37.0505805228794</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.158">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">165</SimpleData>
+		<SimpleData name="laguna">Laguna Hondera</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29291382357399,37.0475911257921</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.159">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">166</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Peñon Negro</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29180191368175,37.0374381125137</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.160">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">167</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Peñon Negro</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29119127464257,37.0379484973823</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.161">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">168</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Peñon Negro</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29394370732664,37.0368548155211</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.162">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">169</SimpleData>
+		<SimpleData name="laguna">Laguna del Peñon Negro</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29591233467684,37.0290486612366</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.163">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">170</SimpleData>
+		<SimpleData name="laguna">Laguna del Peñon Negro</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.2949827050948,37.0256764754979</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.164">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">171</SimpleData>
+		<SimpleData name="laguna">Laguna del Peñon Negro</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29385256717154,37.0252754588154</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.165">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">172</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Goterón</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29701513055357,37.068357410132</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.166">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">173</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Goterón</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29697867449153,37.0678287972324</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.167">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">174</SimpleData>
+		<SimpleData name="laguna">Lagunillo del Goterón</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29603537388623,37.0673730964569</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.168">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">175</SimpleData>
+		<SimpleData name="laguna">Laguna Alta de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.2901431628589,37.0744000024152</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.169">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">176</SimpleData>
+		<SimpleData name="laguna">Laguna Alta de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28988797042461,37.0739625296708</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.170">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">177</SimpleData>
+		<SimpleData name="laguna">Laguna Alta de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.29000645262624,37.0738622755001</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.171">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">178</SimpleData>
+		<SimpleData name="laguna">Laguna Media de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28981505830053,37.0735706270038</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.172">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">179</SimpleData>
+		<SimpleData name="laguna">Laguna Media de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28853909612911,37.0743726603687</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.173">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">180</SimpleData>
+		<SimpleData name="laguna">Laguna Media de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28870998391992,37.0744660790277</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.174">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">181</SimpleData>
+		<SimpleData name="laguna">Laguna Baja de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28801048322951,37.0742473426554</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.175">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">182</SimpleData>
+		<SimpleData name="laguna">Laguna Baja de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28779174685727,37.0743658248571</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.176">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">183</SimpleData>
+		<SimpleData name="laguna">Laguna Baja de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28843884195849,37.0747303854775</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.177">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">184</SimpleData>
+		<SimpleData name="laguna">Chancales de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28544033085564,37.0708478148701</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.178">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">185</SimpleData>
+		<SimpleData name="laguna">Chancales de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28544944487115,37.0731810028407</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.179">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">186</SimpleData>
+		<SimpleData name="laguna">Chancales de las Calderetas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28255118793892,37.0695262826212</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.180">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">187</SimpleData>
+		<SimpleData name="laguna">Laguna de Vacares</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28143927804667,37.0858403703844</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.181">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">188</SimpleData>
+		<SimpleData name="laguna">Laguna de Vacares</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28078306892994,37.0844914960889</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.182">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">189</SimpleData>
+		<SimpleData name="laguna">Laguna de Vacares</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.28680743318217,37.084525673647</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.183">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">193</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mojonera</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26723280637018,37.1016767318346</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.184">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">194</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mojonera</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26745154274242,37.1018468601241</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.185">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">195</SimpleData>
+		<SimpleData name="laguna">Laguna de la Mojonera</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.2672510344012,37.1017435679483</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.186">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">196</SimpleData>
+		<SimpleData name="laguna">Charca de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26445606964474,37.1037486513606</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.187">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">197</SimpleData>
+		<SimpleData name="laguna">Charca de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26535531917508,37.1042711882498</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.188">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">198</SimpleData>
+		<SimpleData name="laguna">Charca de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.2662059606227,37.10445346856</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.189">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">199</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26852699657262,37.1078681863712</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.190">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">200</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26680140963603,37.1075400818128</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.191">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">201</SimpleData>
+		<SimpleData name="laguna">Lagunillo de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">OBSNEV, LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26619380860202,37.1063977918689</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.192">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">202</SimpleData>
+		<SimpleData name="laguna">Chancales de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26648545709834,37.1114044243891</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.193">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">203</SimpleData>
+		<SimpleData name="laguna">Chancales de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26659482528447,37.110116310197</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.194">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">204</SimpleData>
+		<SimpleData name="laguna">Chancales de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26798015564201,37.108901108129</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.195">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">205</SimpleData>
+		<SimpleData name="laguna">Laguna de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26379986052801,37.1110034077067</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.196">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">206</SimpleData>
+		<SimpleData name="laguna">Laguna de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.2641158130657,37.1105416309208</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.197">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">207</SimpleData>
+		<SimpleData name="laguna">Laguna de Juntillas</SimpleData>
+		<SimpleData name="fuente_bor">LORITE, OBSNEV, REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26468695803767,37.109204908646</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.198">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">208</SimpleData>
+		<SimpleData name="laguna">Laguna de los Lavaderos de la Reina</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.27212803864443,37.1256863766277</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.199">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">209</SimpleData>
+		<SimpleData name="laguna">Laguna de los Lavaderos de la Reina</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.27298624359039,37.1239013103401</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.200">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">210</SimpleData>
+		<SimpleData name="laguna">Laguna de los Lavaderos de la Reina</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.27437653560286,37.1212408750076</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.201">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">211</SimpleData>
+		<SimpleData name="laguna">Lagunillo de los Lavaderos de la Reina</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26850641377245,37.1267848789586</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.202">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">212</SimpleData>
+		<SimpleData name="laguna">Lagunillo de los Lavaderos de la Reina</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.2707720748298,37.1258065253202</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.203">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">213</SimpleData>
+		<SimpleData name="laguna">Lagunillo de los Lavaderos de la Reina</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.27044595695034,37.1228371362071</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.204">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">214</SimpleData>
+		<SimpleData name="laguna">Chancales de Covatillas</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26642955780322,37.1188893934557</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.205">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">215</SimpleData>
+		<SimpleData name="laguna">Chancales de Covatillas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.27169893617145,37.120949085326</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.206">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">216</SimpleData>
+		<SimpleData name="laguna">Chancales de Covatillas</SimpleData>
+		<SimpleData name="fuente_bor">REDIAM</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.26860939836597,37.1221505722504</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.207">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">217</SimpleData>
+		<SimpleData name="laguna">Laguna del Puerto de Trevélez</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.23262408846247,37.097978740841</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.208">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">218</SimpleData>
+		<SimpleData name="laguna">Laguna del Puerto de Trevélez</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.23874870688531,37.1002147126462</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.209">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">219</SimpleData>
+		<SimpleData name="laguna">Laguna del Puerto de Trevélez</SimpleData>
+		<SimpleData name="fuente_bor">LORITE</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.23777654523089,37.101818779376</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.210">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">220</SimpleData>
+		<SimpleData name="laguna">Laguna Seca</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-2.96866169275273,37.0974451911831</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.211">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">221</SimpleData>
+		<SimpleData name="laguna">Laguna Seca</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-2.96883789705259,37.0980208931628</coordinates></Point>
+  </Placemark>
+  <Placemark id="puntos_nicole_corrected.212">
+	<ExtendedData><SchemaData schemaUrl="#puntos_nicole_corrected">
+		<SimpleData name="fid">222</SimpleData>
+		<SimpleData name="laguna">Laguna Seca</SimpleData>
+		<SimpleData name="fuente_bor">No coincide</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-2.96869738931348,37.0974573432037</coordinates></Point>
+  </Placemark>
+</Folder>
+</Document></kml>
