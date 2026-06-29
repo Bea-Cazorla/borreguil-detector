@@ -564,6 +564,14 @@ with st.sidebar:
 
     f_truth = st.file_uploader('Opcional: verdad-terreno (presencias y/o ausencias)',
                                   type=['kml','geojson','shp','json'])
+    truth_train_only = st.checkbox(
+        'Usar verdad-terreno solo para entrenar (no mostrarla en el mapa)',
+        value=False, disabled=(f_truth is None),
+        help='El modelo aprende de tus puntos de campo, pero estos NO se añaden al '
+             'mapa, la tabla ni las descargas: solo verás tus puntos candidatos. '
+             'Útil cuando subes muchos borreguiles verificados y no quieres que '
+             'saturen el resultado. Los candidatos que coincidan (<20 m) con un punto '
+             'de campo sí se marcan como verificados y se muestran.')
     with st.expander('ℹ ¿Cómo estructurar la verdad-terreno?'):
         st.markdown(
             '**Solo presencias** (lo más simple): un KML/GeoJSON/Shapefile con puntos '
@@ -1169,6 +1177,19 @@ with tab_analisis:
         # Decision
         for r in rows:
             r['decision'] = bp.decide(r, threshold=threshold)
+
+        # Verdad-terreno "solo entrenar": el modelo ya se entrenó con ella arriba;
+        # ahora se quitan del conjunto los puntos AÑADIDOS desde el fichero de campo
+        # (source=='truth') para no saturar mapa/tabla/descargas. Los candidatos que
+        # coincidieron con un punto de campo conservan su source y siguen visibles.
+        if truth_train_only:
+            _n0 = len(rows)
+            rows = [r for r in rows if r.get('source') != 'truth']
+            _n_hidden = _n0 - len(rows)
+            if _n_hidden:
+                st.info(f'🎓 {_n_hidden} puntos de verdad-terreno usados **solo para '
+                        f'entrenar** (ocultos del mapa, la tabla y las descargas). '
+                        f'Se muestran tus {len(rows)} candidatos.')
 
         # Save outputs
         bp.save_csv(rows, work / 'classification.csv')
