@@ -1,66 +1,864 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-<Document id="root_doc">
-<Schema name="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830" id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
-	<SimpleField name="id" type="string"></SimpleField>
-	<SimpleField name="timestamp" type="string"></SimpleField>
-	<SimpleField name="begin" type="string"></SimpleField>
-	<SimpleField name="end" type="string"></SimpleField>
-	<SimpleField name="altitudeMode" type="string"></SimpleField>
-	<SimpleField name="tessellate" type="int"></SimpleField>
-	<SimpleField name="extrude" type="int"></SimpleField>
-	<SimpleField name="visibility" type="int"></SimpleField>
-	<SimpleField name="drawOrder" type="int"></SimpleField>
-	<SimpleField name="icon" type="string"></SimpleField>
-</Schema>
-<Folder><name>lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830</name>
-  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.1">
-	<name>Laguna de Aguas Verdes</name>
-	<description>Poqueira</description>
-	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
-		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.15</SimpleData>
-		<SimpleData name="altitudeMode">absolute</SimpleData>
-		<SimpleData name="tessellate">-1</SimpleData>
-		<SimpleData name="extrude">0</SimpleData>
-		<SimpleData name="visibility">-1</SimpleData>
-	</SchemaData></ExtendedData>
-      <Point><coordinates>-3.3683744,37.0485133,3106</coordinates></Point>
-  </Placemark>
-  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.2">
-	<name>Laguna de Río Seco</name>
-	<description>Poqueira</description>
-	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
-		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.21</SimpleData>
-		<SimpleData name="altitudeMode">absolute</SimpleData>
-		<SimpleData name="tessellate">-1</SimpleData>
-		<SimpleData name="extrude">0</SimpleData>
-		<SimpleData name="visibility">-1</SimpleData>
-	</SchemaData></ExtendedData>
-      <Point><coordinates>-3.3456963,37.0521161,3030</coordinates></Point>
-  </Placemark>
-  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.3">
-	<name>Laguna de la Caldera</name>
-	<description>Poqueira</description>
-	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
-		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.27</SimpleData>
-		<SimpleData name="altitudeMode">absolute</SimpleData>
-		<SimpleData name="tessellate">-1</SimpleData>
-		<SimpleData name="extrude">0</SimpleData>
-		<SimpleData name="visibility">-1</SimpleData>
-	</SchemaData></ExtendedData>
-      <Point><coordinates>-3.3292678,37.0548089,3024</coordinates></Point>
-  </Placemark>
-  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.4">
-	<name>Laguna Larga</name>
-	<description>Genil</description>
-	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
-		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.37</SimpleData>
-		<SimpleData name="altitudeMode">absolute</SimpleData>
-		<SimpleData name="tessellate">-1</SimpleData>
-		<SimpleData name="extrude">0</SimpleData>
-		<SimpleData name="visibility">-1</SimpleData>
-	</SchemaData></ExtendedData>
-      <Point><coordinates>-3.3342782,37.0596422,2783</coordinates></Point>
-  </Placemark>
+<?xml version="1.0" encoding="UTF-8" ?>
+<kml xmlns="http://earth.google.com/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+<Document>
+<name><![CDATA[Waypoints]]></name>
+<description><![CDATA[<p>Distancia recorrida: 0 km (00:00)<br/></p><hr align="center" width="480" style="height: 2px; width: 517px"/>]]></description>
+<StyleMap id="multiTrack"><Pair><key>normal</key><styleUrl>#multiTrack_n</styleUrl></Pair><Pair><key>highlight</key><styleUrl>#multiTrack_h</styleUrl></Pair></StyleMap><Style id="multiTrack_n"><IconStyle><Icon><href>http://earth.google.com/images/kml-icons/track-directional/track-0.png</href></Icon></IconStyle><LineStyle><color>99ffac59</color><width>6</width></LineStyle></Style><Style id="multiTrack_h"><IconStyle><scale>1.2</scale><Icon><href>http://earth.google.com/images/kml-icons/track-directional/track-0.png</href></Icon></IconStyle><LineStyle><color>99ffac59</color><width>8</width></LineStyle></Style><Style id="50000"><BalloonStyle><text><![CDATA[<p align="left"><font size="+1"><b>$[name]</b></font></p> <p align="left">$[description]</p>]]></text></BalloonStyle><IconStyle><Icon><href>https://www.oruxmaps.com/iconos/wpts_pin1.png</href></Icon><color>FFFFFFFF</color><colorMode>normal</colorMode><hotSpot x="0.5" xunits="fraction" y="0" yunits="fraction" /></IconStyle><LabelStyle><color>FFFFFFFF</color></LabelStyle></Style>
+<Style id="50002"><BalloonStyle><text><![CDATA[<p align="left"><font size="+1"><b>$[name]</b></font></p> <p align="left">$[description]</p>]]></text></BalloonStyle><IconStyle><Icon><href>https://www.oruxmaps.com/iconos/wpts_pin1.png</href></Icon><color>FFFFFFFF</color><colorMode>normal</colorMode><hotSpot x="0.5" xunits="fraction" y="0" yunits="fraction" /></IconStyle><LabelStyle><color>FFFFFFFF</color></LabelStyle></Style>
+<Style id="50003"><BalloonStyle><text><![CDATA[<p align="left"><font size="+1"><b>$[name]</b></font></p> <p align="left">$[description]</p>]]></text></BalloonStyle><IconStyle><Icon><href>https://www.oruxmaps.com/iconos/wpts_pin1.png</href></Icon><color>FFFFFFFF</color><colorMode>normal</colorMode><hotSpot x="0.5" xunits="fraction" y="0" yunits="fraction" /></IconStyle><LabelStyle><color>FFFFFFFF</color></LabelStyle></Style>
+<Style id="50001"><BalloonStyle><text><![CDATA[<p align="left"><font size="+1"><b>$[name]</b></font></p> <p align="left">$[description]</p>]]></text></BalloonStyle><IconStyle><Icon><href>https://www.oruxmaps.com/iconos/wpts_pin1.png</href></Icon><color>FFFFFFFF</color><colorMode>normal</colorMode><hotSpot x="0.5" xunits="fraction" y="0" yunits="fraction" /></IconStyle><LabelStyle><color>FFFFFFFF</color></LabelStyle></Style>
+<Folder>
+<name>Waypoints</name>
+<Placemark>
+<name><![CDATA[Laguna de la Mula]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.4169975,37.0598626,2492.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna del Carnero]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.4105468,37.0483463,2673.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Misterioso]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3991098,37.0491362,2691.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Inferior de la Ermita]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3926725,37.0522787,2734.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Bajo de la Ermita]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3857954,37.0495430,2858.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Medio de la Ermita]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3850336,37.0499090,2858.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Alto de la Ermita]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3845079,37.0503008,2861.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Charca de la Ermita]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50003</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3841351,37.0510072,2857.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Grande de la Virgen]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3800045,37.0507332,2940.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de la Virgen que drena aguas abajo de las Yeguas]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3796933,37.0519427,2942.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo tributario a la laguna de las Yeguas (Bajo)]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3786875,37.0528332,2945.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo tributario a la laguna de las Yeguas (Alto)]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3788055,37.0519234,2947.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de las Yeguas]]></name>
+<description><![CDATA[Dílar]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3804685,37.0560890,2881.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Charca del Veleta]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50003</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3644557,37.0526619,3152.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de Aguas Verdes]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3683744,37.0485133,3106.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Alto del Púlpito]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3562535,37.0476227,2910.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Bajo del Púlpito]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3558619,37.0469869,2894.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de las Cabras]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3493146,37.0451779,2903.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Alto de Río Seco]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3481291,37.0518784,3066.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Bajo de Río Seco]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3466002,37.0528032,3065.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de Río Seco]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3456963,37.0521161,3030.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Baja de Río Seco]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3420002,37.0518014,3016.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna del Majano]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3256978,37.0463661,2904.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo del Majano]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3236942,37.0480915,2925.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de la Caldereta]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3242333,37.0535224,3047.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de la Calderilla]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3257139,37.0550294,3083.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de la Caldera]]></name>
+<description><![CDATA[Poqueira]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3292678,37.0548089,3024.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo del Puesto del Cura]]></name>
+<description><![CDATA[Dúrcal]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.4284452,37.0360253,2668.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Seca]]></name>
+<description><![CDATA[Otros valles]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-2.9683444,37.0978884,2261.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo del San Juan]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3717513,37.0879804,2509.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Bajo del Corral]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3667678,37.0604941,3042.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Alto del Corral]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3662876,37.0597834,3067.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna del Corral]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3652335,37.0587667,3085.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Alto del Valdeinfierno]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3466458,37.0569837,2883.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Bajo del Valdeinfierno]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3457446,37.0580754,2861.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de la Gabata]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3369604,37.0600103,2756.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Larga]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3342782,37.0596422,2783.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Bajo de Juego de Bolos]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3187079,37.0619495,2886.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Alto de Juego de Bolos]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3172461,37.0596293,2910.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de la Mosca]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3146819,37.0597513,2894.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna del Puerto de Trevélez]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2367209,37.0980916,2761.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de Peñón Negro]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2963490,37.0286746,2838.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de Peñón Negro]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2937312,37.0367747,2925.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Hondera]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2944071,37.0479481,2896.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo del Borreguil]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2992566,37.0497763,2956.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna del Borreguil]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2997742,37.0527026,2985.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de la Loma de Culo de Perro]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2966575,37.0545842,2987.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo del Tanto]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3012602,37.0546570,3023.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de Tajos Coloraos]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2993746,37.0566327,3025.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de Tajos Coloraos]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3018100,37.0582188,3068.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Altera]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3042052,37.0585634,3094.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo Altero]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.3047739,37.0568060,3069.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo del Goterón]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2937232,37.0696052,2934.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Chancales de las Calderetas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50001</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2860816,37.0726313,2856.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Baja de las Calderetas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2870311,37.0747371,2890.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Media de las Calderetas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2891500,37.0735430,2898.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna Alta de las Calderetas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2903463,37.0746836,2933.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de Vacares]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2859877,37.0851411,2902.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de la Atalaya]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2960808,37.0973300,2909.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de los Lavaderos de la Reina]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2732874,37.1238042,2637.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de los Lavaderos de la Reina]]></name>
+<description><![CDATA[Genil]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2697442,37.1249655,2612.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de Juntillas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2642779,37.1101308,2948.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Lagunillo de Juntillas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50002</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2682100,37.1080645,2930.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Charca de Juntillas]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50003</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2688242,37.1058698,2938.00</coordinates>
+</Point>
+</Placemark>
+<Placemark>
+<name><![CDATA[Laguna de la Mojonera]]></name>
+<description><![CDATA[Trevélez]]></description>
+<styleUrl>#50000</styleUrl>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:minZoomLevel>0</om:minZoomLevel>
+<om:maxZoomLevel>25</om:maxZoomLevel>
+</ExtendedData>
+<Point>
+<altitudeMode>absolute</altitudeMode>
+<coordinates>-3.2705489,37.1043938,2945.00</coordinates>
+</Point>
+</Placemark>
+<visibility>1</visibility>
 </Folder>
-</Document></kml>
+<open>1</open>
+<visibility>1</visibility>
+<ExtendedData xmlns:om="http://www.oruxmaps.com/oruxmapsextensions/1/0">
+<om:TrackType type="7" subtype="0" /></ExtendedData>
+ </Document>
+</kml>

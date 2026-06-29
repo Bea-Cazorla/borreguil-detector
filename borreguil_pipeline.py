@@ -92,16 +92,33 @@ def read_points(path):
     if path.lower().endswith('.kml'):
         rows = []
         root = ET.parse(path).getroot()
-        for pm in root.findall('.//kml:Placemark', NS):
-            d = {sd.get('name'): sd.text for sd in pm.findall('.//kml:SimpleData', NS)}
-            coord = pm.find('.//kml:coordinates', NS)
-            if coord is None: continue
-            parts = coord.text.strip().split(',')
+        # Independiente del namespace: hay KML con xmlns opengis.net y otros con
+        # earth.google.com (OruxMaps, etc.). Se compara por el nombre local de la
+        # etiqueta (sin el prefijo de namespace).
+        _local = lambda tag: tag.rsplit('}', 1)[-1]
+        for pm in root.iter():
+            if _local(pm.tag) != 'Placemark':
+                continue
+            d = {}
+            coord_el = None; name_txt = None
+            for el in pm.iter():
+                lt = _local(el.tag)
+                if lt == 'SimpleData' and el.get('name'):
+                    d[el.get('name')] = el.text
+                elif lt == 'coordinates' and coord_el is None:
+                    coord_el = el
+                elif lt == 'name' and name_txt is None and el.text:
+                    name_txt = el.text.strip()
+            if coord_el is None or not (coord_el.text and coord_el.text.strip()):
+                continue
+            parts = coord_el.text.strip().split()[0].split(',')
             d['lon'] = float(parts[0]); d['lat'] = float(parts[1])
+            if name_txt:
+                d.setdefault('name', name_txt)
             if 'ID' not in d and 'id' in d:
                 d['ID'] = d['id']
             elif 'ID' not in d:
-                d['ID'] = pm.get('id', f'pt_{len(rows)}')
+                d['ID'] = pm.get('id') or name_txt or f'pt_{len(rows)}'
             rows.append(d)
         return rows
     else:
