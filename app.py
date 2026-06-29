@@ -726,14 +726,25 @@ with st.sidebar:
     st.header('Opciones')
     years_str = st.text_input('Años Sentinel-2 (admite rangos, p. ej. 2017-2025)',
                                 value='2017-2025')
-    auto_thr = st.checkbox(
-        '⚙ Umbral automático (Otsu)', value=False,
-        help='Calcula el umbral óptimo a partir de la distribución de '
-             'probabilidades RF (método de Otsu): el corte que mejor separa los '
-             'dos grupos. Si lo activas, el deslizador se ignora y el valor se '
-             'calcula tras la predicción.')
-    threshold = st.slider('Umbral RF para BORREGUIL', 0.30, 0.80, 0.50, 0.05,
-                          disabled=auto_thr)
+    thr_mode = st.radio(
+        'Umbral RF para BORREGUIL', [
+            'Manual (deslizador)',
+            'Automático · Otsu',
+            'Automático · verdad-terreno',
+        ], index=0,
+        help=('**Manual**: eliges el valor con el deslizador.\n\n'
+              '**Otsu**: calcula el corte automáticamente a partir de la *forma* '
+              'de la distribución de probabilidades RF (método de Otsu, el clásico '
+              'para binarizar imágenes). Encuentra el valor que mejor separa los '
+              'dos grupos —probable no-borreguil vs. borreguil— minimizando la '
+              'varianza dentro de cada grupo. **No necesita verdad-terreno.**\n\n'
+              '**Verdad-terreno**: usa tus puntos de campo. Con presencias y '
+              'ausencias, el corte que maximiza el índice de Youden '
+              '(sensibilidad + especificidad − 1). Solo con presencias, el corte '
+              'que captura el 90% de los borreguiles conocidos. Si no hay '
+              'suficiente verdad-terreno, recurre a Otsu.'))
+    threshold = st.slider('Valor del umbral', 0.30, 0.80, 0.50, 0.05,
+                          disabled=not thr_mode.startswith('Manual'))
     img_src_label = st.radio('Fuente de imágenes', [
         '🌐  ESRI World Imagery (global, ~0,5 m)',
         '🇪🇸  PNOA IGN + autonómica (España, 0,25 m)',
@@ -1187,11 +1198,22 @@ with tab_analisis:
 
         set_prog(1.0, '✓ Proceso completado')
 
-        # Umbral automático (Otsu) sobre las probabilidades RF, si se pidió.
-        if auto_thr:
-            threshold = bp.auto_threshold([r.get('rf_proba') for r in rows])
+        # Umbral RF: manual, automático por Otsu, o automático por verdad-terreno.
+        _probas = [r.get('rf_proba') for r in rows]
+        if thr_mode.startswith('Automático · Otsu'):
+            threshold = bp.auto_threshold(_probas)
             st.info(f'⚙ Umbral automático (Otsu): **{threshold:.2f}** '
                     '(corte que mejor separa los dos grupos de probabilidad).')
+        elif thr_mode.startswith('Automático · verdad'):
+            _t = bp.auto_threshold_truth(rows)
+            if _t is not None:
+                threshold = _t
+                st.info(f'⚙ Umbral por verdad-terreno: **{threshold:.2f}** '
+                        '(óptimo según tus puntos de campo).')
+            else:
+                threshold = bp.auto_threshold(_probas)
+                st.warning('No hay suficiente verdad-terreno etiquetada para fijar el '
+                           f'umbral; se usa Otsu: **{threshold:.2f}**.')
         st.session_state.eff_threshold = threshold
 
         # Decision

@@ -1867,6 +1867,43 @@ def auto_threshold(probs, lo=0.30, hi=0.80, default=0.50):
     return float(min(max(t, lo), hi))
 
 
+def auto_threshold_truth(rows, lo=0.30, hi=0.80, recall_target=0.90, min_n=5):
+    """Umbral RF a partir de la VERDAD-TERRENO. Devuelve None si no hay datos
+    suficientes (para poder caer en Otsu). Acota a [lo, hi].
+      - Con presencias ('si') Y ausencias ('no'): corte que maximiza el índice de
+        Youden (J = sensibilidad + especificidad − 1).
+      - Solo con presencias (presence-only): corte que captura `recall_target`
+        (90%) de los borreguiles conocidos (percentil de sus probabilidades)."""
+    import numpy as np
+    def _proba(r):
+        v = r.get('rf_proba')
+        return float(v) if isinstance(v, (int, float)) and v == v else None
+    pos = [p for r in rows if str(r.get('Borreguil', '')).lower() == 'si'
+           and (p := _proba(r)) is not None]
+    neg = [p for r in rows if str(r.get('Borreguil', '')).lower() == 'no'
+           and (p := _proba(r)) is not None]
+    if len(pos) < min_n:
+        return None
+    if len(neg) >= min_n:
+        scores = np.array(pos + neg, dtype=float)
+        labels = np.array([1] * len(pos) + [0] * len(neg))
+        best_t, best_j = 0.5, -1.0
+        for t in np.unique(np.round(scores, 3)):
+            tp = int(np.sum((scores >= t) & (labels == 1)))
+            fn = int(np.sum((scores < t) & (labels == 1)))
+            tn = int(np.sum((scores < t) & (labels == 0)))
+            fp = int(np.sum((scores >= t) & (labels == 0)))
+            sens = tp / (tp + fn) if (tp + fn) else 0.0
+            spec = tn / (tn + fp) if (tn + fp) else 0.0
+            j = sens + spec - 1.0
+            if j > best_j:
+                best_j, best_t = j, float(t)
+        return float(min(max(best_t, lo), hi))
+    # Presence-only: percentil que mantiene recall_target de los positivos
+    t = float(np.percentile(pos, (1.0 - recall_target) * 100.0))
+    return float(min(max(t, lo), hi))
+
+
 def decision_color(dec):
     """Color hex para una decisión (compartido por la app y el mapa exportado)."""
     d = (dec or '').lower()
