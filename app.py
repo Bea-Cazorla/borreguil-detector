@@ -1178,6 +1178,17 @@ with tab_analisis:
         for r in rows:
             r['decision'] = bp.decide(r, threshold=threshold)
 
+        # Clasificación jerárquica del tipo (ambiente/humedad/pureza), solo para los
+        # puntos detectados como borreguil; el resto deja las columnas vacías.
+        for r in rows:
+            if pp.is_borreguil_decision(r.get('decision', '')):
+                h = bp.classify_hierarchy(r)
+                r['ambiente'] = h['ambiente']; r['humedad'] = h['humedad']
+                r['pureza'] = h['pureza']; r['tipo_borreguil'] = h['tipo']
+            else:
+                r['ambiente'] = ''; r['humedad'] = ''
+                r['pureza'] = ''; r['tipo_borreguil'] = ''
+
         # Verdad-terreno "solo entrenar": el modelo ya se entrenó con ella arriba;
         # ahora se quitan del conjunto los puntos AÑADIDOS desde el fichero de campo
         # (source=='truth') para no saturar mapa/tabla/descargas. Los candidatos que
@@ -1471,7 +1482,9 @@ git push
                 color = bp.decision_color(dec)
                 rf = r.get('rf_proba', float('nan'))
                 rf_txt = f'{rf*100:.0f}%' if isinstance(rf, (int, float)) and not _m.isnan(rf) else '—'
-                popup = (f"<b>{r.get('ID','?')}</b><br><b>{dec}</b><br>RF: {rf_txt}<br>"
+                _tipo = r.get('tipo_borreguil') or ''
+                _tipo_html = f"<br>🌿 Tipo: <b>{_tipo}</b>" if _tipo else ''
+                popup = (f"<b>{r.get('ID','?')}</b><br><b>{dec}</b><br>RF: {rf_txt}{_tipo_html}<br>"
                          f"Patrón: {r.get('mat_signature','—')}<br>"
                          f"Altitud: {r.get('elev_dem_m','—')} m · Slope: {r.get('slope_deg','—')}°<br>"
                          f"NDVI: {r.get('ndvi_late','—')} · Clre: {r.get('clre_late','—')}")
@@ -1681,6 +1694,7 @@ git push
                        'anteriores. Con varias seleccionadas puedes **marcarlas como '
                        'borreguil verificado** y reentrenar.')
             cols_show = ['ID','cuenca_id','source','origin','Borreguil','decision','rf_proba',
+                          'ambiente','humedad','pureza',
                           'mat_signature','elev_dem_m','slope_deg','twi','dist_water_m',
                           'ndvi_late','clre_late','ndmi_late','evi_late','lat','lon']
             df = pd.DataFrame(rows)
@@ -1865,6 +1879,19 @@ git push
 
         with tab6:
             n_borr = sum(1 for r in rows if pp.is_borreguil_decision(r.get('decision', '')))
+
+            # Clasificación jerárquica del tipo de borreguil
+            hier_chart, n_hier = pp.chart_hierarchy(rows)
+            if hier_chart is not None:
+                st.markdown(f'**🌿 Tipos de borreguil** (clasificación jerárquica de los '
+                            f'{n_hier} detectados): **ambiente** → **humedad** → **pureza**.')
+                st.altair_chart(hier_chart, use_container_width=True)
+                st.caption('Reglas sobre las variables ya calculadas (NDWI, TWI, NDMI, '
+                           'roca/agua alrededor…). Los umbrales se pueden afinar en '
+                           '`borreguil_pipeline.py` (HIER_THRESH). Un nivel sale como «—» '
+                           'si faltan sus variables (p. ej. distancia al agua necesita OSM).')
+                st.divider()
+
             st.markdown(
                 f'Distribución de las variables comparando los **{n_borr} puntos '
                 f'clasificados como borreguil** (verde) frente al **resto** '

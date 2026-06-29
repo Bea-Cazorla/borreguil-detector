@@ -366,3 +366,31 @@ def chart_decision_counts(rows):
         color=alt.Color('decision:N', legend=None),
         tooltip=['decision:N', 'n:Q'],
     ).properties(height=max(120, 30 * len(df)))
+
+
+def chart_hierarchy(rows):
+    """Recuento de tipos de borreguil por nivel jerárquico (ambiente / humedad /
+    pureza) sobre los puntos detectados como borreguil. Devuelve (chart|None, n)."""
+    sub = [r for r in rows if is_borreguil_decision(r.get('decision', ''))]
+    if not sub:
+        return None, 0
+
+    def _count_chart(key, title):
+        recs = [{'cat': r.get(key)} for r in sub
+                if (r.get(key) or '') not in ('', '—', None)]
+        if not recs:
+            return None
+        df = pd.DataFrame(recs)
+        return alt.Chart(df).mark_bar().encode(
+            x=alt.X('count():Q', title='nº'),
+            y=alt.Y('cat:N', sort='-x', title=None),
+            color=alt.Color('cat:N', legend=None),
+            tooltip=['cat:N', alt.Tooltip('count():Q', title='nº')],
+        ).properties(title=title, width=200, height=140)
+
+    charts = [c for c in (_count_chart('ambiente', 'Ambiente'),
+                          _count_chart('humedad', 'Humedad'),
+                          _count_chart('pureza', 'Pureza')) if c is not None]
+    if not charts:
+        return None, len(sub)
+    return alt.hconcat(*charts).resolve_scale(color='independent'), len(sub)

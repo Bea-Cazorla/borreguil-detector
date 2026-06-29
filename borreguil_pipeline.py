@@ -1842,6 +1842,98 @@ def decision_color(dec):
     return '#999999'
 
 
+# ============================================================
+# Clasificación jerárquica del TIPO de borreguil (reglas sobre las features ya
+# calculadas; no necesita puntos etiquetados por subtipo). Tres niveles:
+#   1) AMBIENTE : arroyo | laguna | ladera
+#   2) HUMEDAD  : húmedo | seco
+#   3) PUREZA   : puro | mixto-agua | mixto-roca | mixto-otros
+# Los umbrales son AJUSTABLES aquí. Cada nivel vale '—' si faltan las variables
+# necesarias (p. ej. dist_water_m solo existe con OSM activado; surr_* solo si no
+# se saltan las imágenes; cir_/ps_vegfrac solo con esas fuentes).
+# ============================================================
+HIER_THRESH = {
+    'ndwi_laguna':        0.05,   # NDWI medio alto → lámina de agua estancada cerca
+    'surr_water_laguna':  0.15,   # fracción de agua alrededor (imagen) alta
+    'dist_arroyo_m':      30.0,   # a < 30 m de un cauce OSM → arroyo
+    'twi_arroyo':         8.0,    # acumulación de flujo alta → fondo de vaguada/arroyo
+    'ndmi_humedo':        0.10,   # NDMI (humedad) medio por encima → húmedo
+    'twi_humedo':         7.0,    # respaldo de humedad si no hay NDMI
+    'ndwi_pixel_agua':    0.0,    # NDWI del píxel positivo → mezcla con agua
+    'surr_rock_mixto':    0.20,   # roca alrededor alta → mezcla con roca
+    'albedo_roca':        0.22,   # albedo alto + NDVI bajo → roca/suelo desnudo
+    'ndvi_puro':          0.45,   # NDVI fin de verano alto → vegetación dominante
+    'vegfrac_puro':       0.75,   # fracción vegetal (CIR/Planet) alta → píxel puro
+}
+
+
+def _hier_num(r, *keys):
+    """Primer valor numérico válido entre varias claves alternativas (o None)."""
+    for k in keys:
+        try:
+            x = float(r.get(k))
+            if x == x:
+                return x
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def classify_hierarchy(r, th=None):
+    """Clasificación jerárquica de un punto borreguil por reglas sobre sus features.
+    Devuelve dict {'ambiente','humedad','pureza','tipo'}; cada nivel es '—' si no
+    hay datos suficientes y 'tipo' es la combinación legible de los tres."""
+    th = th or HIER_THRESH
+    ndwi       = _hier_num(r, 'ndwi_mean', 'ndwi_late')
+    surr_water = _hier_num(r, 'surr_water')
+    twi        = _hier_num(r, 'twi')
+    slope      = _hier_num(r, 'slope_deg')
+    dist_w     = _hier_num(r, 'dist_water_m')
+    ndmi       = _hier_num(r, 'ndmi_mean', 'ndmi_late')
+    ndvi       = _hier_num(r, 'ndvi_late')
+    albedo     = _hier_num(r, 'albedo_mean')
+    surr_rock  = _hier_num(r, 'surr_rock')
+    vegfrac    = _hier_num(r, 'cir_vegfrac', 'ps_vegfrac')
+
+    # ---- Nivel 1: AMBIENTE ----
+    if (surr_water is not None and surr_water > th['surr_water_laguna']) or \
+       (ndwi is not None and ndwi > th['ndwi_laguna']):
+        amb = 'laguna'
+    elif (dist_w is not None and dist_w < th['dist_arroyo_m']) or \
+         (twi is not None and twi > th['twi_arroyo']):
+        amb = 'arroyo'
+    elif slope is not None or twi is not None:
+        amb = 'ladera'
+    else:
+        amb = '—'
+
+    # ---- Nivel 2: HUMEDAD (NDMI directo; respaldo TWI) ----
+    if ndmi is not None:
+        hum = 'húmedo' if ndmi > th['ndmi_humedo'] else 'seco'
+    elif twi is not None:
+        hum = 'húmedo' if twi > th['twi_humedo'] else 'seco'
+    else:
+        hum = '—'
+
+    # ---- Nivel 3: PUREZA (agua > roca > puro > otros) ----
+    if ndwi is not None and ndwi > th['ndwi_pixel_agua']:
+        pur = 'mixto-agua'
+    elif (surr_rock is not None and surr_rock > th['surr_rock_mixto']) or \
+         (albedo is not None and ndvi is not None and
+          albedo > th['albedo_roca'] and ndvi < th['ndvi_puro']):
+        pur = 'mixto-roca'
+    elif (vegfrac is not None and vegfrac >= th['vegfrac_puro']) or \
+         (ndvi is not None and ndvi >= th['ndvi_puro']):
+        pur = 'puro'
+    elif ndvi is not None or albedo is not None or ndwi is not None:
+        pur = 'mixto-otros'
+    else:
+        pur = '—'
+
+    tipo = f'{amb} · {hum} · {pur}'
+    return {'ambiente': amb, 'humedad': hum, 'pureza': pur, 'tipo': tipo}
+
+
 def run_rf_and_decide(rows, threshold=0.5, default_model_path=None, neg_buffer_m=250):
     """Entrena/predice el RF y asigna la decisión a cada punto.
 
