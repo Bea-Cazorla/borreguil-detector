@@ -1853,6 +1853,7 @@ def decision_color(dec):
 # se saltan las imágenes; cir_/ps_vegfrac solo con esas fuentes).
 # ============================================================
 HIER_THRESH = {
+    'dist_laguna_m':      120.0,  # a < 120 m de una laguna conocida (capa) → laguna
     'ndwi_laguna':        0.05,   # NDWI medio alto → lámina de agua estancada cerca
     'surr_water_laguna':  0.15,   # fracción de agua alrededor (imagen) alta
     'dist_arroyo_m':      30.0,   # a < 30 m de un cauce OSM → arroyo
@@ -1865,6 +1866,28 @@ HIER_THRESH = {
     'ndvi_puro':          0.45,   # NDVI fin de verano alto → vegetación dominante
     'vegfrac_puro':       0.75,   # fracción vegetal (CIR/Planet) alta → píxel puro
 }
+
+
+def attach_laguna_distance(rows, laguna_pts):
+    """Calcula r['dist_laguna_m'] = distancia (m) a la laguna más cercana de una capa
+    de referencia. `laguna_pts` es una lista de dicts con 'lat'/'lon' (p. ej. de
+    read_points). Devuelve el nº de lagunas usadas (0 si no hay)."""
+    laguna_pts = [p for p in (laguna_pts or [])
+                  if p.get('lat') is not None and p.get('lon') is not None]
+    if not rows or not laguna_pts:
+        return 0
+    epsg = _utm_epsg_for(rows + laguna_pts)
+    rxy = np.array(_xy(rows, epsg))
+    lxy = np.array(_xy(laguna_pts, epsg))
+    try:
+        from scipy.spatial import cKDTree
+        d, _ = cKDTree(lxy).query(rxy)
+    except Exception:
+        d = np.array([float(np.min(np.hypot(x - lxy[:, 0], y - lxy[:, 1])))
+                      for x, y in rxy])
+    for r, dist in zip(rows, d):
+        r['dist_laguna_m'] = float(dist)
+    return len(laguna_pts)
 
 
 def _hier_num(r, *keys):
@@ -1894,10 +1917,15 @@ def classify_hierarchy(r, th=None):
     albedo     = _hier_num(r, 'albedo_mean')
     surr_rock  = _hier_num(r, 'surr_rock')
     vegfrac    = _hier_num(r, 'cir_vegfrac', 'ps_vegfrac')
+    dist_lag   = _hier_num(r, 'dist_laguna_m')
 
     # ---- Nivel 1: AMBIENTE ----
-    if (surr_water is not None and surr_water > th['surr_water_laguna']) or \
-       (ndwi is not None and ndwi > th['ndwi_laguna']):
+    # Prioridad: cercanía a una laguna conocida (capa de referencia, lo más fiable);
+    # luego firma espectral de agua (NDWI/agua alrededor); luego cauce/vaguada.
+    if dist_lag is not None and dist_lag < th['dist_laguna_m']:
+        amb = 'laguna'
+    elif (surr_water is not None and surr_water > th['surr_water_laguna']) or \
+         (ndwi is not None and ndwi > th['ndwi_laguna']):
         amb = 'laguna'
     elif (dist_w is not None and dist_w < th['dist_arroyo_m']) or \
          (twi is not None and twi > th['twi_arroyo']):

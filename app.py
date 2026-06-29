@@ -572,6 +572,12 @@ with st.sidebar:
              'Útil cuando subes muchos borreguiles verificados y no quieres que '
              'saturen el resultado. Los candidatos que coincidan (<20 m) con un punto '
              'de campo sí se marcan como verificados y se muestran.')
+    f_lagunas = st.file_uploader(
+        '🌊 Capa de lagunas (opcional, mejora el ambiente «laguna»)',
+        type=['kml', 'geojson', 'shp', 'json'], key='lagunas_layer')
+    st.caption('Puntos de lagunas conocidas para la clasificación jerárquica. Si no '
+               'subes ninguna, se usa la capa incluida de Sierra Nevada. Un borreguil '
+               'a < 120 m de una laguna se clasifica como ambiente «laguna».')
     with st.expander('ℹ ¿Cómo estructurar la verdad-terreno?'):
         st.markdown(
             '**Solo presencias** (lo más simple): un KML/GeoJSON/Shapefile con puntos '
@@ -1177,6 +1183,23 @@ with tab_analisis:
         # Decision
         for r in rows:
             r['decision'] = bp.decide(r, threshold=threshold)
+
+        # Distancia a lagunas conocidas (capa subida, o la incluida de Sierra Nevada).
+        # Mejora la detección del ambiente «laguna» en la clasificación jerárquica.
+        try:
+            _lag_path = None
+            if f_lagunas is not None:
+                _lag_path = save_uploaded(
+                    f_lagunas, '.kml' if f_lagunas.name.lower().endswith('.kml') else '.json')
+            else:
+                _bundled = APP_DIR / 'lagunas_sierra_nevada.kml'
+                _lag_path = str(_bundled) if _bundled.exists() else None
+            if _lag_path:
+                _n_lag = bp.attach_laguna_distance(rows, bp.read_points(_lag_path))
+                if _n_lag:
+                    st.caption(f'🌊 {_n_lag} lagunas de referencia usadas para el ambiente.')
+        except Exception as _e:
+            st.caption(f'(no se pudo usar la capa de lagunas: {_e})')
 
         # Clasificación jerárquica del tipo (ambiente/humedad/pureza), solo para los
         # puntos detectados como borreguil; el resto deja las columnas vacías.

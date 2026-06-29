@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830" id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
+	<SimpleField name="id" type="string"></SimpleField>
+	<SimpleField name="timestamp" type="string"></SimpleField>
+	<SimpleField name="begin" type="string"></SimpleField>
+	<SimpleField name="end" type="string"></SimpleField>
+	<SimpleField name="altitudeMode" type="string"></SimpleField>
+	<SimpleField name="tessellate" type="int"></SimpleField>
+	<SimpleField name="extrude" type="int"></SimpleField>
+	<SimpleField name="visibility" type="int"></SimpleField>
+	<SimpleField name="drawOrder" type="int"></SimpleField>
+	<SimpleField name="icon" type="string"></SimpleField>
+</Schema>
+<Folder><name>lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830</name>
+  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.1">
+	<name>Laguna de Aguas Verdes</name>
+	<description>Poqueira</description>
+	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
+		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.15</SimpleData>
+		<SimpleData name="altitudeMode">absolute</SimpleData>
+		<SimpleData name="tessellate">-1</SimpleData>
+		<SimpleData name="extrude">0</SimpleData>
+		<SimpleData name="visibility">-1</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3683744,37.0485133,3106</coordinates></Point>
+  </Placemark>
+  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.2">
+	<name>Laguna de Río Seco</name>
+	<description>Poqueira</description>
+	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
+		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.21</SimpleData>
+		<SimpleData name="altitudeMode">absolute</SimpleData>
+		<SimpleData name="tessellate">-1</SimpleData>
+		<SimpleData name="extrude">0</SimpleData>
+		<SimpleData name="visibility">-1</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3456963,37.0521161,3030</coordinates></Point>
+  </Placemark>
+  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.3">
+	<name>Laguna de la Caldera</name>
+	<description>Poqueira</description>
+	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
+		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.27</SimpleData>
+		<SimpleData name="altitudeMode">absolute</SimpleData>
+		<SimpleData name="tessellate">-1</SimpleData>
+		<SimpleData name="extrude">0</SimpleData>
+		<SimpleData name="visibility">-1</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3292678,37.0548089,3024</coordinates></Point>
+  </Placemark>
+  <Placemark id="lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830.4">
+	<name>Laguna Larga</name>
+	<description>Genil</description>
+	<ExtendedData><SchemaData schemaUrl="#lagunas_de_sierra_nevada__waypoints__lagunas_de_sierra_nevada_epsg25830">
+		<SimpleData name="id">lagunas_de_sierra_nevada_EPSG25830.37</SimpleData>
+		<SimpleData name="altitudeMode">absolute</SimpleData>
+		<SimpleData name="tessellate">-1</SimpleData>
+		<SimpleData name="extrude">0</SimpleData>
+		<SimpleData name="visibility">-1</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>-3.3342782,37.0596422,2783</coordinates></Point>
+  </Placemark>
+</Folder>
+</Document></kml>
