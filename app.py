@@ -721,8 +721,20 @@ with st.sidebar:
           'Aragón 2024, Cataluña vigente, Cantabria 2023, CyL 2020, Canarias) y cae '
           'en el PNOA-MA nacional para el resto de España. Fuera de España usa ESRI.'))
     img_src = 'pnoa' if 'PNOA' in img_src_label else 'esri'
-    skip_imgs = st.checkbox('Saltar imágenes (más rápido, sin texturas)', value=False)
+    fast_mode = st.checkbox(
+        '⚡ Modo rápido (vista previa)', value=False,
+        help='Salta las descargas lentas que se hacen punto a punto en tu PC: '
+             'imágenes ESRI/PNOA, Sentinel-1 (SAR) y CIR/Planet. Con backend GEE, '
+             'el resto (topografía y Sentinel-2) se calcula en la nube en segundos. '
+             'Da resultados APROXIMADOS (sin texturas ni SAR): ideal para iterar '
+             'rápido y luego afinar desmarcando esta casilla.')
+    if fast_mode:
+        st.caption('⚡ Vista previa: sin imágenes, sin Sentinel-1 ni CIR/Planet. '
+                   'Resultados aproximados.')
+    skip_imgs = st.checkbox('Saltar imágenes (más rápido, sin texturas)',
+                            value=False, disabled=fast_mode) or fast_mode
     skip_s2   = st.checkbox('Saltar Sentinel-2 (más rápido, sin NDVI)', value=False)
+    skip_s1   = fast_mode  # Sentinel-1 se baja de MPC punto a punto (lento aunque uses GEE)
     use_osm   = st.checkbox('Usar OSM (hidrografía/infraestructuras) — Overpass puede fallar',
                              value=False)
     no_osm = not use_osm
@@ -1070,7 +1082,8 @@ with tab_analisis:
 
         # Sentinel-1 RTC (siempre vía MPC, independiente del backend S2: el modelo se
         # entrenó con esta fuente terrain-flattened). Falla con elegancia → features NaN.
-        if not skip_s2:
+        # En modo rápido se salta: es una de las descargas punto-a-punto más lentas.
+        if not skip_s2 and not skip_s1:
             set_prog(0.70, 'Sentinel-1 RTC (SAR)…')
             with st.status('Sentinel-1 RTC (humedad SAR, MPC)…', expanded=False) as status:
                 try:
@@ -1087,7 +1100,7 @@ with tab_analisis:
         model_needs_ps  = any(f.startswith('ps_')  for f in _sel_feats)
 
         # PNOA Falso Color IR 0,25 m (CIR): gratis. Se extrae si el modelo lo usa.
-        if model_needs_cir:
+        if model_needs_cir and not fast_mode:
             set_prog(0.84, 'PNOA Falso Color IR 0,25 m (CIR)…')
             with st.status('PNOA Falso Color IR 0,25 m (CIR, gratis)…', expanded=False) as status:
                 try:
@@ -1105,7 +1118,7 @@ with tab_analisis:
                                   state='error')
 
         # PlanetScope 3 m: si el usuario lo pidió (checkbox) o el modelo lo requiere.
-        if (use_planet or model_needs_ps) and _pl_key:
+        if (use_planet or model_needs_ps) and _pl_key and not fast_mode:
             with st.status('PlanetScope 8b SR (Orders API, 10-30 min)…', expanded=True) as status:
                 try:
                     with live_logs(status):
