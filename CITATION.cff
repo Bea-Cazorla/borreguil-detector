@@ -1,8 +1,8 @@
 # Fichero de cita (Citation File Format). GitHub lo lee y muestra un botón
 # «Cite this repository»; Zenodo lo usa como metadatos al asignar el DOI.
 #
-# ⚠️ REVISAR ANTES DE PUBLICAR — quedan por completar los campos marcados con
-#    «REVISAR»: ORCID de cada autor, URL del repositorio, versión, fecha y DOI.
+# Tras el primer release, añadir el DOI que asigne Zenodo y actualizar `version`
+# y `date-released` en cada versión nueva.
 cff-version: 1.2.0
 title: "Detector de borreguiles — identificación automática de prados húmedos de alta montaña"
 message: "Si utilizas este software en un trabajo científico, cítalo con el DOI de la versión empleada."
@@ -23,11 +23,11 @@ authors:
     affiliation: "University of Granada"
     orcid: "https://orcid.org/0000-0002-0825-7252"
 
-repository-code: "https://github.com/USUARIO/REPOSITORIO"   # REVISAR
-url: "https://github.com/USUARIO/REPOSITORIO"               # REVISAR
+repository-code: "https://github.com/Bea-Cazorla/borreguil-detector"
+url: "https://github.com/Bea-Cazorla/borreguil-detector"
 license: GPL-3.0-or-later                                   # ver el fichero LICENSE
-version: "1.0.0"                                            # REVISAR en cada release
-date-released: "2026-07-29"                                 # REVISAR en cada release
+version: "1.0.0"                                            # actualizar en cada release
+date-released: "2026-07-29"                                 # actualizar en cada release
 # doi: "10.5281/zenodo.XXXXXXX"    # Zenodo lo asigna automáticamente; añádelo tras el primer release.
 
 keywords:
