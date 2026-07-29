@@ -11,30 +11,59 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      plataforma:
+        description: 'Qué sistema compilar (para probar sin esperar a los cuatro)'
+        type: choice
+        default: todas
+        options:
+          - todas
+          - windows
+          - macos-arm
+          - macos-intel
+          - linux
 
 permissions:
   contents: write        # necesario para adjuntar los binarios a la Release
 
 jobs:
+  # Decide qué sistemas se compilan. Al publicar una etiqueta se compilan siempre
+  # los cuatro; al lanzarlo a mano se puede elegir uno solo para probar más rápido.
+  preparar:
+    runs-on: ubuntu-latest
+    outputs:
+      matriz: ${{ steps.elegir.outputs.matriz }}
+    steps:
+      - id: elegir
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          sistemas = {
+            'windows':     {'os': 'windows-latest', 'nombre': 'Windows x64',
+                            'artefacto': 'Borreguil-windows'},
+            'macos-arm':   {'os': 'macos-latest',   'nombre': 'macOS Apple Silicon',
+                            'artefacto': 'Borreguil-macos-arm64'},
+            'macos-intel': {'os': 'macos-13',       'nombre': 'macOS Intel',
+                            'artefacto': 'Borreguil-macos-intel'},
+            # glibc antigua = compatible con más distribuciones
+            'linux':       {'os': 'ubuntu-22.04',   'nombre': 'Linux x64',
+                            'artefacto': 'Borreguil-linux'},
+          }
+          elegida = os.environ.get('ELEGIDA') or 'todas'
+          incluir = list(sistemas.values()) if elegida == 'todas' else [sistemas[elegida]]
+          print('matriz=' + json.dumps({'include': incluir}))
+          PY
+        env:
+          ELEGIDA: ${{ github.event_name == 'workflow_dispatch' && inputs.plataforma || 'todas' }}
+
   build:
+    needs: preparar
     name: ${{ matrix.nombre }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false   # que un sistema falle no debe cancelar los demás
-      matrix:
-        include:
-          - os: windows-latest
-            nombre: Windows x64
-            artefacto: Borreguil-windows
-          - os: macos-latest
-            nombre: macOS Apple Silicon
-            artefacto: Borreguil-macos-arm64
-          - os: macos-13
-            nombre: macOS Intel
-            artefacto: Borreguil-macos-intel
-          - os: ubuntu-22.04          # glibc antigua = compatible con más distros
-            nombre: Linux x64
-            artefacto: Borreguil-linux
+      matrix: ${{ fromJSON(needs.preparar.outputs.matriz) }}
 
     steps:
       - name: Descargar el código
