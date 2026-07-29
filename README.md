@@ -11,14 +11,36 @@ backends posibles:
 - **Google Earth Engine (GEE)** — si tienes cuenta, el cómputo se hace en la
   nube de Google (rápido, sin descargas).
 
-Un **Random Forest preentrenado en Sierra Nevada** (AUC GroupKFold = 0,86)
-sirve como modelo por defecto, y puede **reentrenarse con tus propios puntos
-de campo** (modo *presence-only*: solo necesitas las coordenadas de
-borreguiles confirmados).
+Un **Random Forest preentrenado en Sierra Nevada** (796 puntos verificados en
+campo; AUC con validación espacial por cuencas = **0,83** el modelo universal y
+**0,93** la variante con ortofoto infrarroja) sirve como modelo por defecto, y
+puede **reentrenarse con tus propios puntos de campo** (modo *presence-only*:
+solo necesitas las coordenadas de borreguiles confirmados).
 
 ---
 
-## Ejecutar en local
+## ⬇️ Descargar el programa (recomendado)
+
+**No necesitas instalar Python ni ninguna librería.** Descarga el ejecutable de tu
+sistema desde la página de [**Releases**](../../releases), descomprime y ejecuta:
+
+| Sistema | Archivo |
+|---|---|
+| Windows 10/11 | `Borreguil-windows.zip` |
+| macOS Apple Silicon (M1-M4) | `Borreguil-macos-arm64.zip` |
+| macOS Intel | `Borreguil-macos-intel.zip` |
+| Linux x86-64 | `Borreguil-linux.tar.gz` |
+
+📖 **[TUTORIAL.md](TUTORIAL.md)** — primeros pasos, incluido el alta en Google Earth Engine
+📘 **[MANUAL.md](MANUAL.md)** — referencia completa de todas las opciones
+🏷️ **[PUBLICAR.md](PUBLICAR.md)** — cómo publicar una versión y obtener su DOI
+
+> La primera vez, Windows y macOS avisan de que el programa no está firmado (es
+> habitual en software científico). El tutorial explica cómo continuar.
+
+---
+
+## Ejecutar desde el código fuente (desarrollo)
 
 ```bash
 pip install -r requirements.txt
@@ -171,3 +193,27 @@ y la configuración de Earth Engine con service account.
   nubes y variabilidad interanual).
 - OSM (hidrografía/infraestructuras) está **desactivado por defecto** porque
   el servicio Overpass es inestable; actívalo con la casilla si lo necesitas.
+
+## Cómo citar
+
+Si usas este programa en un trabajo científico, cítalo con el DOI de la versión
+empleada (ver [`CITATION.cff`](CITATION.cff) y [`PUBLICAR.md`](PUBLICAR.md)).
+
+## Licencia
+
+Copyright (C) 2026 los autores de este programa.
+
+Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo los
+términos de la **Licencia Pública General GNU** publicada por la Free Software
+Foundation, en su **versión 3** o (a tu elección) cualquier versión posterior.
+
+Se distribuye con la esperanza de que sea útil, pero **SIN NINGUNA GARANTÍA**; ni
+siquiera la garantía implícita de COMERCIABILIDAD o IDONEIDAD PARA UN PROPÓSITO
+PARTICULAR. Consulta la Licencia Pública General GNU para más detalles.
+
+Deberías haber recibido una copia de la Licencia junto con este programa (fichero
+[`LICENSE`](LICENSE)); si no, visita <https://www.gnu.org/licenses/>.
+
+> En la práctica: puedes usarlo, estudiarlo y modificarlo libremente; si
+> distribuyes una versión modificada, debes publicarla también bajo GPL-3.0 y
+> facilitar su código fuente.

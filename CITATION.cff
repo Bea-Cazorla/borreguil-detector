@@ -1,0 +1,61 @@
+# Fichero de cita (Citation File Format). GitHub lo lee y muestra un botón
+# «Cite this repository»; Zenodo lo usa como metadatos al asignar el DOI.
+#
+# ⚠️ REVISAR ANTES DE PUBLICAR — quedan por completar los campos marcados con
+#    «REVISAR»: ORCID de cada autor, URL del repositorio, versión, fecha y DOI.
+cff-version: 1.2.0
+title: "Detector de borreguiles — identificación automática de prados húmedos de alta montaña"
+message: "Si utilizas este software en un trabajo científico, cítalo con el DOI de la versión empleada."
+type: software
+
+authors:
+  - given-names: "Beatriz P."
+    family-names: "Cazorla"
+    email: "b.cazorla@go.ugr.es"
+    affiliation: "University of Granada"
+    orcid: "https://orcid.org/0000-0003-3583-8391"
+  - given-names: "Domingo"
+    family-names: "Alcaraz-Segura"
+    affiliation: "University of Granada"
+    orcid: "https://orcid.org/0000-0001-8988-4540"
+  - given-names: "Javier"
+    family-names: "Martínez-López"
+    affiliation: "University of Granada"
+    orcid: "https://orcid.org/0000-0002-0825-7252"
+
+repository-code: "https://github.com/USUARIO/REPOSITORIO"   # REVISAR
+url: "https://github.com/USUARIO/REPOSITORIO"               # REVISAR
+license: GPL-3.0-or-later                                   # ver el fichero LICENSE
+version: "1.0.0"                                            # REVISAR en cada release
+date-released: "2026-07-29"                                 # REVISAR en cada release
+# doi: "10.5281/zenodo.XXXXXXX"    # Zenodo lo asigna automáticamente; añádelo tras el primer release.
+
+keywords:
+  - borreguil
+  - cervunal
+  - wet meadow
+  - high-mountain wetland
+  - remote sensing
+  - random forest
+  - Sentinel-2
+  - Sentinel-1
+  - Google Earth Engine
+  - Sierra Nevada
+  - habitat mapping
+
+abstract: >-
+  Aplicación de escritorio para la identificación automática de borreguiles
+  (cervunales higroturbosos o prados húmedos de alta montaña) mediante
+  teledetección multi-fuente y aprendizaje automático. Combina series temporales
+  de Sentinel-2 (índices de vegetación, humedad y agua), radar Sentinel-1,
+  variables topográficas derivadas del modelo digital de elevaciones Copernicus
+  (altitud, pendiente, curvatura e índice topográfico de humedad) y descriptores
+  de textura obtenidos de ortofotografía de alta resolución. Un clasificador
+  Random Forest, entrenado con 796 puntos verificados en campo en Sierra Nevada
+  (España) y validado mediante validación cruzada espacial por cuencas
+  hidrográficas, estima la probabilidad de presencia de borreguil en cada punto.
+  El programa incorpora además una clasificación jerárquica del tipo de borreguil
+  (ambiente, humedad y pureza del píxel), selección automática del umbral de
+  decisión y la posibilidad de reentrenar el modelo con datos de campo locales.
+  Se distribuye como ejecutable autocontenido para Windows, macOS y Linux, sin
+  necesidad de instalar Python ni dependencias.

@@ -1,0 +1,157 @@
+name: Compilar ejecutables standalone
+
+# Genera los ejecutables para Windows, macOS (Intel y Apple Silicon) y Linux.
+#
+#   · Al publicar una etiqueta v* (p. ej. v1.0.0) los adjunta a la Release, que es
+#     lo que Zenodo archiva para asignar el DOI.
+#   · También se puede lanzar a mano desde la pestaña «Actions» (workflow_dispatch)
+#     para probar sin publicar nada.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write        # necesario para adjuntar los binarios a la Release
+
+jobs:
+  build:
+    name: ${{ matrix.nombre }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false   # que un sistema falle no debe cancelar los demás
+      matrix:
+        include:
+          - os: windows-latest
+            nombre: Windows x64
+            artefacto: Borreguil-windows
+          - os: macos-latest
+            nombre: macOS Apple Silicon
+            artefacto: Borreguil-macos-arm64
+          - os: macos-13
+            nombre: macOS Intel
+            artefacto: Borreguil-macos-intel
+          - os: ubuntu-22.04          # glibc antigua = compatible con más distros
+            nombre: Linux x64
+            artefacto: Borreguil-linux
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'      # mejor disponibilidad de wheels geoespaciales
+          cache: pip
+
+      - name: Instalar dependencias
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip wheel
+          # scikit-learn se FIJA a la misma versión con la que se guardaron los
+          # modelos .joblib: si no coincide, al cargarlos las predicciones pueden
+          # ser inválidas (aviso InconsistentVersionWarning).
+          python -m pip install -r requirements.txt "scikit-learn==1.9.*"
+          python -m pip install pyinstaller==6.21.0
+
+      - name: Comprobar que los modelos cargan sin aviso de versión
+        shell: bash
+        run: |
+          python - <<'PY'
+          import warnings, sys, glob
+          from sklearn.exceptions import InconsistentVersionWarning
+          fallos = []
+          for f in sorted(glob.glob('*.joblib')):
+              with warnings.catch_warnings(record=True) as w:
+                  warnings.simplefilter('always')
+                  import joblib; joblib.load(f)
+                  if [x for x in w if issubclass(x.category, InconsistentVersionWarning)]:
+                      fallos.append(f)
+              print(('AVISO DE VERSION  ' if f in fallos else 'ok                ') + f)
+          if fallos:
+              sys.exit('ERROR: modelos incompatibles con esta scikit-learn: ' + ', '.join(fallos))
+          PY
+
+      - name: Compilar con PyInstaller
+        shell: bash
+        run: pyinstaller borreguil.spec --noconfirm --distpath dist --workpath build
+
+      # Comprueba DENTRO del ejecutable que no falta ninguna dependencia ni recurso.
+      # Imprescindible: el servidor web devuelve 200 aunque el script de la app
+      # falle, así que una simple comprobación HTTP daría por bueno un binario roto.
+      - name: Autodiagnóstico del ejecutable
+        shell: bash
+        run: |
+          cd dist/Borreguil
+          if [ "${{ runner.os }}" = "Windows" ]; then EXE=./Borreguil.exe; else EXE=./Borreguil; fi
+          "$EXE" --selftest
+
+      - name: Comprobar que arranca y sirve la interfaz
+        shell: bash
+        env:
+          BORREGUIL_NO_BROWSER: '1'
+        run: |
+          cd dist/Borreguil
+          if [ "${{ runner.os }}" = "Windows" ]; then EXE=./Borreguil.exe; else EXE=./Borreguil; fi
+          "$EXE" > salida.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 40); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:8501/_stcore/health || true)
+            [ "$CODE" = "200" ] && break
+            sleep 3
+          done
+          echo "----- salida del programa -----"; cat salida.log || true
+          kill $PID 2>/dev/null || true
+          if [ "$CODE" != "200" ]; then echo "ERROR: el servidor no respondió (HTTP $CODE)"; exit 1; fi
+          if grep -qiE "traceback|ModuleNotFoundError|ImportError" salida.log; then
+            echo "ERROR: se detectaron errores en el arranque (ver salida arriba)"; exit 1
+          fi
+          echo "OK: el servidor respondió y no hubo errores"
+
+      - name: Empaquetar (zip / tar.gz)
+        shell: bash
+        run: |
+          cd dist
+          rm -f Borreguil/salida.log
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            tar -czf "../${{ matrix.artefacto }}.tar.gz" Borreguil
+          else
+            7z a -tzip "../${{ matrix.artefacto }}.zip" Borreguil >/dev/null || \
+              (command -v zip >/dev/null && zip -qr "../${{ matrix.artefacto }}.zip" Borreguil)
+          fi
+
+      - name: Guardar como artefacto de la ejecución
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artefacto }}
+          path: |
+            ${{ matrix.artefacto }}.zip
+            ${{ matrix.artefacto }}.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Adjuntar a la Release (solo en etiquetas v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artefacto }}.zip
+            ${{ matrix.artefacto }}.tar.gz
+          fail_on_unmatched_files: false
+          body: |
+            ## Descargas
+
+            | Sistema | Archivo |
+            |---|---|
+            | Windows 10/11 | `Borreguil-windows.zip` |
+            | macOS Apple Silicon (M1-M4) | `Borreguil-macos-arm64.zip` |
+            | macOS Intel | `Borreguil-macos-intel.zip` |
+            | Linux x86-64 | `Borreguil-linux.tar.gz` |
+
+            No requieren instalar Python ni ninguna librería: se descomprimen y se ejecutan.
+            Consulta el **TUTORIAL.md** para los primeros pasos y el **MANUAL.md** como referencia.
+
+            > La primera vez, Windows y macOS avisan de que el programa no está firmado
+            > (es normal en software científico): ver la sección de instalación del tutorial.

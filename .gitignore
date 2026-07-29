@@ -13,3 +13,13 @@ venv/
 # para que estén disponibles en el deploy online para todos los usuarios.
 # NO añadir *.joblib aquí.
 planet_data/
+
+# Resultado de compilar el ejecutable standalone (cientos de MB). Los binarios se
+# distribuyen como adjuntos de las Releases, NUNCA dentro del repositorio.
+build/
+dist/
+*.zip
+*.tar.gz
+
+# Carpeta de datos del usuario si alguien ejecuta desde el propio directorio
+Borreguil/

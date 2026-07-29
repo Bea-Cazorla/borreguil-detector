@@ -1,6 +1,11 @@
 """
 app.py — Interfaz web Streamlit para el pipeline de identificación de borreguiles.
 
+Copyright (C) 2026 los autores de este programa.
+Este programa es software libre bajo la Licencia Pública General GNU, versión 3
+o posterior. Se distribuye SIN NINGUNA GARANTÍA. Ver el fichero LICENSE o
+<https://www.gnu.org/licenses/>.
+
 USO:
     pip install streamlit folium streamlit-folium openpyxl rasterio scikit-learn \
                 scikit-image scipy pyproj shapely planetary-computer pystac-client \
@@ -37,13 +42,32 @@ bp._imports()  # eager-import everything (Streamlit shows spinners during this)
 import folium
 from streamlit_folium import st_folium
 import point_profile as pp
+import i18n
+
+# Carpeta ESCRIBIBLE del usuario. En la versión standalone (ejecutable) APP_DIR es
+# una carpeta temporal de solo lectura que se borra al salir, así que lo que el
+# usuario guarda (modelos entrenados) debe ir aquí. Sin la variable de entorno
+# —modo desarrollo— coincide con APP_DIR y todo sigue igual que antes.
+DATA_DIR = Path(os.environ.get('BORREGUIL_DATA_DIR') or APP_DIR)
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    DATA_DIR = APP_DIR
+
+
+def model_path(name):
+    """Ruta de un modelo por nombre: primero la carpeta del usuario, luego la de la app."""
+    p = DATA_DIR / name
+    return p if p.exists() else APP_DIR / name
 
 
 def list_models():
-    """Modelos .joblib disponibles en la carpeta de la app (Sierra Nevada primero)."""
-    files = sorted(APP_DIR.glob('*.joblib'),
-                   key=lambda p: (p.name != 'rf_sierra_nevada.joblib', p.name))
-    return [p.name for p in files]
+    """Modelos .joblib disponibles (los del usuario + los incluidos; SN primero)."""
+    found = {}
+    for d in (APP_DIR, DATA_DIR):
+        for p in d.glob('*.joblib'):
+            found.setdefault(p.name, p)   # el de DATA_DIR no pisa al de APP_DIR
+    return sorted(found, key=lambda n: (n != 'rf_sierra_nevada.joblib', n))
 
 
 def area_to_filename(area_name: str) -> str:
@@ -209,7 +233,7 @@ def render_docs():
         'arriba del todo: **léelo de arriba abajo** e interpreta primero las variables con más '
         'peso. A la derecha de cada barra está el **rango típico de los borreguiles** (p25–p75): '
         'si el valor del punto cae dentro de ese rango, se parece a un borreguil en esa variable.')
-    _mp = st.session_state.get('start_model_path') or str(APP_DIR / 'rf_sierra_nevada_cir.joblib')
+    _mp = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada_cir.joblib'))
     _rs = load_ref_stats(_mp)
     _ic, _ = pp.chart_importance(_rs, topn=15) if _rs else (None, [])
     if _ic is not None:
@@ -512,6 +536,15 @@ st.set_page_config(page_title='Borreguil Pipeline',
                     layout='wide',
                     initial_sidebar_state='expanded')
 
+# --- Idioma / Language ---------------------------------------------------
+# Selector bilingüe (se dibuja ANTES de instalar la traducción, así su propia
+# etiqueta no depende del idioma). Fija el idioma de todo el resto de la app.
+_lang_choice = st.sidebar.selectbox(
+    'Idioma / Language', ['Español', 'English'],
+    index=0, key='ui_lang')
+i18n.set_lang('en' if _lang_choice == 'English' else 'es')
+i18n.install(st)   # traduce todos los st.* a partir de aquí (fallback a ES)
+
 st.title('🌿 Borreguil / Wet Meadow Pipeline')
 st.markdown('Identificación automática de borreguiles en zonas de montaña — '
             'ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. '
@@ -686,7 +719,7 @@ with st.sidebar:
             help='Modelos .joblib de la carpeta de la app. Se usa para predecir '
                  'cuando no hay suficiente verdad-terreno local. Tras entrenar en '
                  'tu zona puedes guardarlo aquí (panel de resultados) para reutilizarlo.')
-        start_model_path = str(APP_DIR / sel_model_name)
+        start_model_path = str(model_path(sel_model_name))
         _sel_feats = []
         try:
             _mb = bp.load_model_bundle(start_model_path)
@@ -728,11 +761,15 @@ with st.sidebar:
                                 value='2017-2025')
     thr_mode = st.radio(
         'Umbral RF para BORREGUIL', [
-            'Manual (deslizador)',
             'Automático · Otsu',
+            'Manual (deslizador)',
             'Automático · verdad-terreno',
         ], index=0,
-        help=('**Manual**: eliges el valor con el deslizador.\n\n'
+        help=('**Otsu (recomendado, por defecto)**: se adapta a cada ejecución. '
+              'Al aplicar el modelo a una zona nueva las probabilidades se '
+              'recalibran, así que un umbral manual fijo puede dejar casi todo '
+              'fuera; Otsu evita ese problema.\n\n'
+              '**Manual**: eliges el valor con el deslizador.\n\n'
               '**Otsu**: calcula el corte automáticamente a partir de la *forma* '
               'de la distribución de probabilidades RF (método de Otsu, el clásico '
               'para binarizar imágenes). Encuentra el valor que mejor separa los '
@@ -1170,7 +1207,7 @@ with tab_analisis:
 
         # RF
         with st.status('Random Forest…', expanded=True) as status:
-            _smp = st.session_state.get('start_model_path') or str(APP_DIR / 'rf_sierra_nevada.joblib')
+            _smp = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib'))
             proba, info = bp.train_rf(rows, default_model_path=_smp)
             if proba is not None:
                 for i, r in enumerate(rows):
@@ -1311,7 +1348,7 @@ with tab_analisis:
         sg = st.session_state.get('study_geom')
         # Umbral efectivo (el automático calculado en la ejecución manda sobre el slider)
         threshold = st.session_state.get('eff_threshold', threshold)
-        MODEL_PATH = st.session_state.get('start_model_path') or str(APP_DIR / 'rf_sierra_nevada.joblib')
+        MODEL_PATH = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib'))
 
         st.divider()
         st.header('Resultados')
@@ -1456,7 +1493,7 @@ with tab_analisis:
                          'Se guarda como rf_<nombre>.joblib en la carpeta de la app.')
 
                 fname = area_to_filename(area_name)
-                out_path = APP_DIR / f'{fname}.joblib'
+                out_path = DATA_DIR / f'{fname}.joblib'
                 already_exists = out_path.exists()
 
                 st.caption(f'Se guardará como: **{fname}.joblib**'
@@ -1483,7 +1520,7 @@ with tab_analisis:
                             if out_path.exists() and out_path.stat().st_size > 0:
                                 st.session_state['_model_saved_msg'] = (
                                     f'✓ Modelo guardado: **{out_path.name}** '
-                                    f'({out_path.stat().st_size//1024} KB) en `{APP_DIR}`. '
+                                    f'({out_path.stat().st_size//1024} KB) en `{DATA_DIR}`. '
                                     'Ya aparece en el desplegable «Modelo de partida».')
                                 st.rerun()
                             else:
@@ -1868,7 +1905,7 @@ git push
                     gmaps = f"https://www.google.com/maps/search/?api=1&query={sel.get('lat')},{sel.get('lon')}"
                     st.markdown(f'[Abrir en Google Maps]({gmaps})')
                 rs = load_ref_stats(st.session_state.get('start_model_path')
-                                    or str(APP_DIR / 'rf_sierra_nevada.joblib'))
+                                    or str(model_path('rf_sierra_nevada.joblib')))
                 with st.expander('📈 Perfil espectral del punto vs. borreguiles de referencia',
                                  expanded=True):
                     render_point_profile(sel, rs)

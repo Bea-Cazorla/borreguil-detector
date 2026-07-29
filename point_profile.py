@@ -390,10 +390,10 @@ def chart_hierarchy(rows):
     df = pd.DataFrame(recs)
     chart = alt.Chart(df).mark_bar().encode(
         y=alt.Y('ambiente:N', sort=_AMB_ORDER, title=None),
-        x=alt.X('count():Q', title='nº de borreguiles'),
+        x=alt.X('count():Q', title='nº puntos de borreguil'),
         color=alt.Color('pureza:N', scale=_PUR_SCALE, sort=_PUR_ORDER,
                         legend=alt.Legend(orient='bottom', title='Pureza')),
-        column=alt.Column('humedad:N', sort=_HUM_ORDER, title='Humedad'),
+        column=alt.Column('humedad:N', sort=_HUM_ORDER, title=None),
         tooltip=['ambiente:N', 'humedad:N', 'pureza:N',
                  alt.Tooltip('count():Q', title='nº')],
     ).properties(width=240, height=180)
