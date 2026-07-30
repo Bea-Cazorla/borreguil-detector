@@ -44,14 +44,21 @@ jobs:
                             'artefacto': 'Borreguil-windows'},
             'macos-arm':   {'os': 'macos-latest',   'nombre': 'macOS Apple Silicon',
                             'artefacto': 'Borreguil-macos-arm64'},
-            'macos-intel': {'os': 'macos-13',       'nombre': 'macOS Intel',
+            # OJO: los runners Intel de macOS son escasos y las imágenes antiguas
+            # (macos-13) están retiradas: un trabajo encolado ahí espera horas y
+            # acaba caducando. Por eso Intel NO entra en 'todas': se compila solo
+            # si se pide expresamente.
+            'macos-intel': {'os': 'macos-15-intel', 'nombre': 'macOS Intel',
                             'artefacto': 'Borreguil-macos-intel'},
             # glibc antigua = compatible con más distribuciones
             'linux':       {'os': 'ubuntu-22.04',   'nombre': 'Linux x64',
                             'artefacto': 'Borreguil-linux'},
           }
           elegida = os.environ.get('ELEGIDA') or 'todas'
-          incluir = list(sistemas.values()) if elegida == 'todas' else [sistemas[elegida]]
+          if elegida == 'todas':
+              incluir = [v for k, v in sistemas.items() if k != 'macos-intel']
+          else:
+              incluir = [sistemas[elegida]]
           print('matriz=' + json.dumps({'include': incluir}))
           PY
         env:
@@ -61,6 +68,9 @@ jobs:
     needs: preparar
     name: ${{ matrix.nombre }}
     runs-on: ${{ matrix.os }}
+    # Sin este límite, un paso colgado consume el máximo de 6 h de GitHub antes de
+    # darse por vencido. Con 75 min, si algo se atasca falla pronto y se ve el log.
+    timeout-minutes: 75
     strategy:
       fail-fast: false   # que un sistema falle no debe cancelar los demás
       matrix: ${{ fromJSON(needs.preparar.outputs.matriz) }}
@@ -77,6 +87,7 @@ jobs:
 
       - name: Instalar dependencias
         shell: bash
+        timeout-minutes: 30      # si un paquete se compila desde el código, no eternizarlo
         run: |
           python -m pip install --upgrade pip wheel
           # scikit-learn se FIJA a la misma versión con la que se guardaron los
@@ -105,6 +116,7 @@ jobs:
 
       - name: Compilar con PyInstaller
         shell: bash
+        timeout-minutes: 30
         run: pyinstaller borreguil.spec --noconfirm --distpath dist --workpath build
 
       # Comprueba DENTRO del ejecutable que no falta ninguna dependencia ni recurso.
@@ -112,6 +124,7 @@ jobs:
       # falle, así que una simple comprobación HTTP daría por bueno un binario roto.
       - name: Autodiagnóstico del ejecutable
         shell: bash
+        timeout-minutes: 10
         run: |
           cd dist/Borreguil
           if [ "${{ runner.os }}" = "Windows" ]; then EXE=./Borreguil.exe; else EXE=./Borreguil; fi
@@ -119,20 +132,29 @@ jobs:
 
       - name: Comprobar que arranca y sirve la interfaz
         shell: bash
+        timeout-minutes: 10
         env:
           BORREGUIL_NO_BROWSER: '1'
         run: |
           cd dist/Borreguil
           if [ "${{ runner.os }}" = "Windows" ]; then EXE=./Borreguil.exe; else EXE=./Borreguil; fi
-          "$EXE" > salida.log 2>&1 &
+          # La salida va a un fichero y la entrada se cierra: si el proceso en
+          # segundo plano conservara la tubería del runner, el paso no terminaría
+          # nunca y agotaría el tiempo máximo del trabajo.
+          "$EXE" < /dev/null > salida.log 2>&1 &
           PID=$!
+          CODE=""
           for i in $(seq 1 40); do
             CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:8501/_stcore/health || true)
             [ "$CODE" = "200" ] && break
+            kill -0 $PID 2>/dev/null || { echo "El programa terminó antes de tiempo"; break; }
             sleep 3
           done
           echo "----- salida del programa -----"; cat salida.log || true
-          kill $PID 2>/dev/null || true
+          # Matar el proceso y cualquier hijo que haya podido dejar vivo.
+          kill -9 $PID 2>/dev/null || true
+          pkill -9 -f Borreguil 2>/dev/null || true
+          taskkill //F //IM Borreguil.exe 2>/dev/null || true
           if [ "$CODE" != "200" ]; then echo "ERROR: el servidor no respondió (HTTP $CODE)"; exit 1; fi
           if grep -qiE "traceback|ModuleNotFoundError|ImportError" salida.log; then
             echo "ERROR: se detectaron errores en el arranque (ver salida arriba)"; exit 1
