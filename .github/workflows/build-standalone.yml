@@ -9,7 +9,10 @@ name: Compilar ejecutables standalone
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'         # versión real: compila y publica la Release (Zenodo -> DOI)
+      - 'prueba-*'   # ensayo: compila pero NO crea Release. El sufijo elige el
+                     # sistema, p. ej. 'prueba-macos-arm' compila solo ese.
   workflow_dispatch:
     inputs:
       plataforma:
@@ -38,7 +41,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, os
+          import json, os, sys
           sistemas = {
             'windows':     {'os': 'windows-latest', 'nombre': 'Windows x64',
                             'artefacto': 'Borreguil-windows'},
@@ -54,15 +57,26 @@ jobs:
             'linux':       {'os': 'ubuntu-22.04',   'nombre': 'Linux x64',
                             'artefacto': 'Borreguil-linux'},
           }
-          elegida = os.environ.get('ELEGIDA') or 'todas'
+          elegida = (os.environ.get('ELEGIDA') or '').strip()
+          # Etiqueta de ensayo 'prueba-<sistema>': el sufijo indica qué compilar.
+          ref = os.environ.get('REF', '')
+          marca = 'refs/tags/prueba-'
+          if not elegida and ref.startswith(marca):
+              elegida = ref[len(marca):]
+          if elegida not in sistemas:
+              elegida = 'todas'
           if elegida == 'todas':
               incluir = [v for k, v in sistemas.items() if k != 'macos-intel']
           else:
               incluir = [sistemas[elegida]]
+          # Solo la línea 'matriz=' puede ir a GITHUB_OUTPUT; el resto, al log.
+          print(f'Seleccion: {elegida} -> ' + ', '.join(i['nombre'] for i in incluir),
+                file=sys.stderr)
           print('matriz=' + json.dumps({'include': incluir}))
           PY
         env:
-          ELEGIDA: ${{ github.event_name == 'workflow_dispatch' && inputs.plataforma || 'todas' }}
+          ELEGIDA: ${{ github.event_name == 'workflow_dispatch' && inputs.plataforma || '' }}
+          REF: ${{ github.ref }}
 
   build:
     needs: preparar
