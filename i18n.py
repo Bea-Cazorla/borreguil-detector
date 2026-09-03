@@ -80,6 +80,82 @@ def install(st):
 
 
 # ============================================================
+# Traducción de los RESULTADOS (no de la interfaz).
+# El pipeline genera sus valores en español ('POSIBLE BORREGUIL', 'ladera',
+# 'húmedo'…) y la lógica de la app los compara tal cual, así que NO se cambian
+# internamente: se traducen solo al mostrarlos, igual que las opciones de los
+# desplegables.
+# ============================================================
+VALORES = {
+    # decisiones
+    'BORREGUIL VERIFICADO': 'VERIFIED BORREGUIL',
+    'NO BORREGUIL VERIFICADO': 'VERIFIED NON-BORREGUIL',
+    'BORREGUIL PROBABLE': 'LIKELY BORREGUIL',
+    'POSIBLE BORREGUIL': 'POSSIBLE BORREGUIL',
+    'BORREGUIL (auto)': 'BORREGUIL (auto)',
+    'NO BORREGUIL': 'NOT A BORREGUIL',
+    'INCIERTO': 'UNCERTAIN',
+    'DUDOSO (campo)': 'DOUBTFUL (field)',
+    'SIN PREDICCIÓN': 'NO PREDICTION',
+    # ambiente · humedad · pureza
+    'arroyo': 'stream',
+    'laguna': 'lake',
+    'ladera': 'slope',
+    'húmedo': 'wet',
+    'seco': 'dry',
+    'puro': 'pure',
+    'mixto-agua': 'mixed-water',
+    'mixto-roca': 'mixed-rock',
+    # etiquetas de la leyenda del mapa
+    'Verificado (campo)': 'Verified (field)',
+    'Probable': 'Likely',
+    'Posible': 'Possible',
+    'Auto (iteración)': 'Auto (iteration)',
+    'Dudoso': 'Doubtful',
+    'Incierto': 'Uncertain',
+    'No borreguil': 'Not a borreguil',
+}
+
+COLUMNAS = {
+    'cuenca_id': 'basin_id',
+    'source': 'source',
+    'origin': 'origin',
+    'decision': 'decision',
+    'rf_proba': 'RF probability',
+    'ambiente': 'environment',
+    'humedad': 'moisture',
+    'pureza': 'purity',
+    'tipo_borreguil': 'type',
+    'mat_signature': 'pattern',
+    'elev_dem_m': 'elevation_m',
+    'slope_deg': 'slope_deg',
+    'dist_water_m': 'dist_water_m',
+}
+
+
+def tv(valor):
+    """Traduce un VALOR de resultado (decisión, ambiente, humedad, pureza).
+
+    Deja intacto lo que no conozca, y respeta los compuestos separados por ' · '
+    (p. ej. 'ladera · seco · puro') traduciendo cada parte.
+    """
+    if _LANG != 'en' or not isinstance(valor, str) or not valor.strip():
+        return valor
+    if valor in VALORES:
+        return VALORES[valor]
+    if ' · ' in valor:
+        return ' · '.join(VALORES.get(p.strip(), p.strip()) for p in valor.split(' · '))
+    return valor
+
+
+def tcol(nombre):
+    """Traduce el nombre de una columna de la tabla de resultados."""
+    if _LANG != 'en' or not isinstance(nombre, str):
+        return nombre
+    return COLUMNAS.get(nombre, nombre)
+
+
+# ============================================================
 # Diccionario español → inglés de la interfaz (cadenas estáticas).
 # Los mensajes con valores dinámicos (f-strings) se traducen aparte, en app.py.
 # ============================================================

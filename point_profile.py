@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import altair as alt
 
+import i18n
+
 # Conjunto curado de features (deben existir en el punto y en ref_stats).
 CHART_FEATS = [
     'ndvi_early', 'ndvi_late', 'clre_early', 'clre_late', 'ndmi_early', 'ndmi_late',
@@ -359,9 +361,10 @@ def chart_decision_counts(rows):
     c = Counter(r.get('decision', '—') or '—' for r in rows)
     if not c:
         return None
-    df = pd.DataFrame([{'decision': k, 'n': v} for k, v in c.items()])
+    df = pd.DataFrame([{'decision': i18n.tv(k), 'n': v} for k, v in c.items()])
     return alt.Chart(df).mark_bar().encode(
-        x=alt.X('n:Q', title='Nº de puntos'),
+        x=alt.X('n:Q', title='Nº of points' if i18n.get_lang() == 'en'
+                        else 'Nº de puntos'),
         y=alt.Y('decision:N', sort='-x', title=None),
         color=alt.Color('decision:N', legend=None),
         tooltip=['decision:N', 'n:Q'],
@@ -388,12 +391,23 @@ def chart_hierarchy(rows):
     if not recs:
         return None, len(sub)
     df = pd.DataFrame(recs)
+    # Los valores llegan en español; se traducen solo para dibujar, junto con el
+    # orden de las categorías y la escala de color (que van por valor).
+    for col in ('ambiente', 'humedad', 'pureza'):
+        df[col] = df[col].map(i18n.tv)
+    amb = [i18n.tv(v) for v in _AMB_ORDER]
+    hum = [i18n.tv(v) for v in _HUM_ORDER]
+    pur = [i18n.tv(v) for v in _PUR_ORDER]
+    escala = alt.Scale(domain=pur, range=['#1565c0', '#8d6e63', '#2e7d32'])
+    en = i18n.get_lang() == 'en'
     chart = alt.Chart(df).mark_bar().encode(
-        y=alt.Y('ambiente:N', sort=_AMB_ORDER, title=None),
-        x=alt.X('count():Q', title='nº puntos de borreguil'),
-        color=alt.Color('pureza:N', scale=_PUR_SCALE, sort=_PUR_ORDER,
-                        legend=alt.Legend(orient='bottom', title='Pureza')),
-        column=alt.Column('humedad:N', sort=_HUM_ORDER, title=None),
+        y=alt.Y('ambiente:N', sort=amb, title=None),
+        x=alt.X('count():Q',
+                title='nº of borreguil points' if en else 'nº puntos de borreguil'),
+        color=alt.Color('pureza:N', scale=escala, sort=pur,
+                        legend=alt.Legend(orient='bottom',
+                                          title='Purity' if en else 'Pureza')),
+        column=alt.Column('humedad:N', sort=hum, title=None),
         tooltip=['ambiente:N', 'humedad:N', 'pureza:N',
                  alt.Tooltip('count():Q', title='nº')],
     ).properties(width=240, height=180)
@@ -409,6 +423,8 @@ def hierarchy_table(rows):
                 if r.get('tipo_borreguil') and '—' not in r.get('tipo_borreguil'))
     if not c:
         return None
-    df = pd.DataFrame([{'Tipo de borreguil': k, 'Nº puntos': v}
+    en = i18n.get_lang() == 'en'
+    df = pd.DataFrame([{('Borreguil type' if en else 'Tipo de borreguil'): i18n.tv(k),
+                        ('Nº points' if en else 'Nº puntos'): v}
                        for k, v in c.most_common()])
     return df

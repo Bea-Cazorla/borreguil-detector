@@ -51,6 +51,23 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import Counter
 
+# rasterio SOLO hace falta para leer rásters en local (backend MPC, Sentinel-1 y
+# PlanetScope). Con el backend GEE el cómputo es en la nube y no se usa. Como sus
+# librerías nativas pueden faltar o estar bloqueadas por el sistema (p. ej. el
+# Control de aplicaciones de Windows), su ausencia no debe impedir arrancar: se
+# sustituye por este testigo, que explica el problema solo si se llega a usar.
+class _RasterioNoDisponible:
+    def __init__(self, error):
+        self._error = error
+
+    def __getattr__(self, nombre):
+        raise ImportError(
+            'No se pudo cargar «rasterio», necesario para el backend Microsoft '
+            'Planetary Computer (MPC), Sentinel-1 y PlanetScope. Usa el backend '
+            'Google Earth Engine, que no lo necesita. '
+            f'Causa original: {self._error}')
+
+
 # ===== Lazy imports (so --help works without all deps) =====
 def _imports():
     global np, gpd, requests, Image, ImageDraw, rasterio
@@ -62,7 +79,12 @@ def _imports():
     import geopandas as gpd
     import requests
     from PIL import Image, ImageDraw
-    import rasterio
+    try:
+        import rasterio
+    except Exception as exc:            # ImportError, DLL bloqueada, GDAL ausente…
+        rasterio = _RasterioNoDisponible(exc)
+        print(f'  AVISO: rasterio no disponible ({exc}). El backend MPC quedará '
+              'inhabilitado; usa Google Earth Engine.')
     from pystac_client import Client
     import planetary_computer
     import pyproj
@@ -1672,14 +1694,44 @@ def save_model_bundle(bundle, path):
     joblib.dump(bundle, path)
     return path
 
-def load_model_bundle(path):
-    """Carga y valida un bundle de modelo. Devuelve dict o lanza excepción."""
+def load_model_bundle(path, intentos=3):
+    """Carga y valida un bundle de modelo. Devuelve dict o lanza excepción.
+
+    Lee el fichero completo a memoria de una sola vez y luego lo deserializa. Es
+    más robusto que pasarle la ruta a joblib: en Windows, el antivirus o el
+    Control de aplicaciones pueden interferir en una lectura y devolver datos
+    incompletos, y entonces el pickle aborta con un error críptico
+    (`KeyError: 0`) que no dice ni qué fichero era. Se reintenta un par de veces
+    y, si aun así falla, el mensaje identifica el fichero y su tamaño.
+    """
+    import io
+    import time
     import joblib
-    bundle = joblib.load(path)
-    if not isinstance(bundle, dict) or 'model' not in bundle or 'features' not in bundle:
-        raise ValueError('El archivo no es un modelo válido de borreguil '
-                         "(faltan claves 'model'/'features').")
-    return bundle
+    ruta = Path(path)
+    ultimo = None
+    for intento in range(intentos):
+        try:
+            datos = ruta.read_bytes()
+            if len(datos) < 1024:
+                raise ValueError(f'el fichero solo tiene {len(datos)} bytes; '
+                                 'está vacío o incompleto')
+            bundle = joblib.load(io.BytesIO(datos))
+            if (not isinstance(bundle, dict) or 'model' not in bundle
+                    or 'features' not in bundle):
+                raise ValueError('El archivo no es un modelo válido de borreguil '
+                                 "(faltan claves 'model'/'features').")
+            return bundle
+        except Exception as exc:                       # noqa: BLE001
+            ultimo = exc
+            if intento < intentos - 1:
+                time.sleep(0.8)
+    tam = ruta.stat().st_size if ruta.exists() else 0
+    raise RuntimeError(
+        f'No se pudo leer el modelo «{ruta.name}» ({tam:,} bytes) tras '
+        f'{intentos} intentos: {type(ultimo).__name__}: {ultimo}. '
+        'Si el fichero es correcto, suele deberse a que el antivirus o el '
+        'Control de aplicaciones de Windows bloquearon la lectura: reintenta '
+        'la ejecución en unos segundos.') from ultimo
 
 def _spatial_groups(rows, idxs, cell_deg=0.05):
     """Grupos para GroupKFold: usa cuenca_id si existe, si no una rejilla espacial."""
@@ -1714,8 +1766,7 @@ def train_rf(rows, default_model_path=None, neg_buffer_m=250):
         if default_model_path is None:
             default_model_path = Path(__file__).parent / 'rf_sierra_nevada.joblib'
         if Path(default_model_path).exists():
-            import joblib
-            bundle = joblib.load(default_model_path)
+            bundle = load_model_bundle(default_model_path)
             _zone = bundle.get('training_zone', '?')
             print(f'  → Sin verdad-terreno: usando modelo preentrenado ({_zone})')
             clf = bundle['model']

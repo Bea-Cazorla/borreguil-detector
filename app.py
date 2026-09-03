@@ -61,12 +61,30 @@ def model_path(name):
     return p if p.exists() else APP_DIR / name
 
 
+def _es_modelo_real(p):
+    """Descarta ficheros que parecen modelos pero no lo son.
+
+    Al copiar el proyecto desde macOS aparecen ficheros «AppleDouble» con el
+    prefijo `._` (p. ej. `._rf_sierra_nevada.joblib`, de 4 KB). Coinciden con
+    `*.joblib` y llegaban al desplegable, de modo que elegir uno abortaba la
+    ejecución al intentar cargarlo. También se ignoran otros ocultos y los
+    ficheros demasiado pequeños para ser un Random Forest.
+    """
+    if p.name.startswith('.'):
+        return False
+    try:
+        return p.stat().st_size > 100_000
+    except OSError:
+        return False
+
+
 def list_models():
     """Modelos .joblib disponibles (los del usuario + los incluidos; SN primero)."""
     found = {}
     for d in (APP_DIR, DATA_DIR):
         for p in d.glob('*.joblib'):
-            found.setdefault(p.name, p)   # el de DATA_DIR no pisa al de APP_DIR
+            if _es_modelo_real(p):
+                found.setdefault(p.name, p)   # el de DATA_DIR no pisa al de APP_DIR
     return sorted(found, key=lambda n: (n != 'rf_sierra_nevada.joblib', n))
 
 
@@ -605,12 +623,6 @@ with st.sidebar:
              'Útil cuando subes muchos borreguiles verificados y no quieres que '
              'saturen el resultado. Los candidatos que coincidan (<20 m) con un punto '
              'de campo sí se marcan como verificados y se muestran.')
-    f_lagunas = st.file_uploader(
-        '🌊 Capa de lagunas (opcional, mejora el ambiente «laguna»)',
-        type=['kml', 'geojson', 'shp', 'json'], key='lagunas_layer')
-    st.caption('Puntos de lagunas conocidas para la clasificación jerárquica. Si no '
-               'subes ninguna, se usa la capa incluida de Sierra Nevada. Un borreguil '
-               'a < 120 m de una laguna se clasifica como ambiente «laguna».')
     with st.expander('ℹ ¿Cómo estructurar la verdad-terreno?'):
         st.markdown(
             '**Solo presencias** (lo más simple): un KML/GeoJSON/Shapefile con puntos '
@@ -1257,16 +1269,11 @@ with tab_analisis:
         for r in rows:
             r['decision'] = bp.decide(r, threshold=threshold)
 
-        # Distancia a lagunas conocidas (capa subida, o la incluida de Sierra Nevada).
+        # Distancia a las lagunas conocidas (capa incluida de Sierra Nevada).
         # Mejora la detección del ambiente «laguna» en la clasificación jerárquica.
         try:
-            _lag_path = None
-            if f_lagunas is not None:
-                _lag_path = save_uploaded(
-                    f_lagunas, '.kml' if f_lagunas.name.lower().endswith('.kml') else '.json')
-            else:
-                _bundled = APP_DIR / 'lagunas_sierra_nevada.kml'
-                _lag_path = str(_bundled) if _bundled.exists() else None
+            _bundled = APP_DIR / 'lagunas_sierra_nevada.kml'
+            _lag_path = str(_bundled) if _bundled.exists() else None
             if _lag_path:
                 _n_lag = bp.attach_laguna_distance(rows, bp.read_points(_lag_path))
                 if _n_lag:
@@ -1583,11 +1590,16 @@ git push
                 color = bp.decision_color(dec)
                 rf = r.get('rf_proba', float('nan'))
                 rf_txt = f'{rf*100:.0f}%' if isinstance(rf, (int, float)) and not _m.isnan(rf) else '—'
-                _tipo = r.get('tipo_borreguil') or ''
-                _tipo_html = f"<br>🌿 Tipo: <b>{_tipo}</b>" if _tipo else ''
-                popup = (f"<b>{r.get('ID','?')}</b><br><b>{dec}</b><br>RF: {rf_txt}{_tipo_html}<br>"
-                         f"Patrón: {r.get('mat_signature','—')}<br>"
-                         f"Altitud: {r.get('elev_dem_m','—')} m · Slope: {r.get('slope_deg','—')}°<br>"
+                _tipo = i18n.tv(r.get('tipo_borreguil') or '')
+                _et = 'Type' if i18n.get_lang() == 'en' else 'Tipo'
+                _tipo_html = f"<br>🌿 {_et}: <b>{_tipo}</b>" if _tipo else ''
+                _en = i18n.get_lang() == 'en'
+                _l_pat = 'Pattern' if _en else 'Patrón'
+                _l_alt = 'Elevation' if _en else 'Altitud'
+                popup = (f"<b>{r.get('ID','?')}</b><br><b>{i18n.tv(dec)}</b><br>"
+                         f"RF: {rf_txt}{_tipo_html}<br>"
+                         f"{_l_pat}: {r.get('mat_signature','—')}<br>"
+                         f"{_l_alt}: {r.get('elev_dem_m','—')} m · Slope: {r.get('slope_deg','—')}°<br>"
                          f"NDVI: {r.get('ndvi_late','—')} · Clre: {r.get('clre_late','—')}")
                 is_sel = (highlight_id is not None and r.get('ID') == highlight_id)
                 if is_sel:
@@ -1615,7 +1627,8 @@ git push
             if rows is not None:
                 present = {bp.decision_color(r.get('decision', '')) for r in rows}
             filas = ''
-            for dec, lab in _LEGEND_ITEMS:
+            for dec, _lab in _LEGEND_ITEMS:
+                lab = i18n.tv(_lab)
                 col = bp.decision_color(dec)
                 if present is not None and col not in present:
                     continue
@@ -1800,7 +1813,14 @@ git push
                           'ndvi_late','clre_late','ndmi_late','evi_late','lat','lon']
             df = pd.DataFrame(rows)
             cols_show = [c for c in cols_show if c in df.columns]
-            event = st.dataframe(df[cols_show], hide_index=True, use_container_width=True,
+            # Los valores del pipeline son españoles; se traducen SOLO para
+            # mostrarlos (df_show), sin tocar `rows`, del que depende la lógica.
+            df_show = df[cols_show].copy()
+            for _c in ('decision', 'ambiente', 'humedad', 'pureza', 'tipo_borreguil'):
+                if _c in df_show.columns:
+                    df_show[_c] = df_show[_c].map(i18n.tv)
+            df_show = df_show.rename(columns={c: i18n.tcol(c) for c in df_show.columns})
+            event = st.dataframe(df_show, hide_index=True, use_container_width=True,
                                  on_select='rerun', selection_mode='multi-row',
                                  key='results_table')
             sel_rows = []

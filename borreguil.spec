@@ -110,6 +110,10 @@ for name in ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
 # Modelos entrenados y capas auxiliares que la app espera encontrar a su lado.
 for pattern in ('*.joblib', 'lagunas_sierra_nevada.kml'):
     for p in APP_DIR.glob(pattern):
+        # Los ficheros «._algo» son restos de macOS (AppleDouble), no modelos:
+        # empaquetarlos los haria aparecer en el desplegable del ejecutable.
+        if p.name.startswith('.'):
+            continue
         datas.append((str(p), '.'))
 
 # Datos de referencia para las gráficas comparativas (opcional pero recomendable).
