@@ -255,7 +255,7 @@ def render_docs():
     _rs = load_ref_stats(_mp)
     _ic, _ = pp.chart_importance(_rs, topn=15) if _rs else (None, [])
     if _ic is not None:
-        st.altair_chart(_ic, use_container_width=True)
+        st.altair_chart(_ic, width='stretch')
         st.caption(f'Ranking del modelo seleccionado (`{Path(_mp).name}`). Cambia según el modelo: '
                    'en los `_cir` mandan la **textura/contraste del NDVI a 0,25 m** y la **altitud**; '
                    'en el modelo base (50), la **altitud**, la **caída estacional de NDVI** y el '
@@ -449,7 +449,7 @@ def render_point_profile(sel, ref_stats):
                 'Se muestran solo los valores del punto.')
         vals = {lab: sel.get(f) for f, lab in pp.KEY if pp.fnum(sel.get(f)) is not None}
         if vals:
-            st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame([vals]), width='stretch', hide_index=True)
         return
     feats = ref_stats['features']
     nsi, nno = ref_stats.get('n_si', '?'), ref_stats.get('n_no', '?')
@@ -461,7 +461,7 @@ def render_point_profile(sel, ref_stats):
     if imp_chart is not None:
         st.markdown('**🔑 Variables más decisivas del modelo** (guía jerárquica) — de arriba '
                     '(más peso) a abajo; a la derecha, el **rango típico de borreguil** (p25–p75).')
-        st.altair_chart(imp_chart, use_container_width=True)
+        st.altair_chart(imp_chart, width='stretch')
         st.caption('Lee los gráficos de abajo en este orden de importancia. Altitud, pendiente, '
                    'SAR y textura de imagen pesan en el modelo pero no son índices espectrales, '
                    'por eso no aparecen en los perfiles estacionales.')
@@ -476,7 +476,7 @@ def render_point_profile(sel, ref_stats):
     st.markdown('**2 · Posición vs. distribución de borreguiles** — percentil de cada índice (fin de verano)')
     c2, _ = pp.chart_percentile(sel, feats)
     if c2 is not None:
-        st.altair_chart(c2, use_container_width=True)
+        st.altair_chart(c2, width='stretch')
     else:
         st.caption('Sin índices clave disponibles para este punto.')
 
@@ -1400,7 +1400,7 @@ with tab_analisis:
                         'AUC (CV)': auc_txt,
                         'Σ Borreguil (mapa)': n_borr,
                     })
-                st.dataframe(pd.DataFrame(hrows), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame(hrows), hide_index=True, width='stretch')
 
                 last = hist[-1]
                 if last.get('n_new') == 0:
@@ -1820,7 +1820,7 @@ git push
                 if _c in df_show.columns:
                     df_show[_c] = df_show[_c].map(i18n.tv)
             df_show = df_show.rename(columns={c: i18n.tcol(c) for c in df_show.columns})
-            event = st.dataframe(df_show, hide_index=True, use_container_width=True,
+            event = st.dataframe(df_show, hide_index=True, width='stretch',
                                  on_select='rerun', selection_mode='multi-row',
                                  key='results_table')
             sel_rows = []
@@ -1914,7 +1914,7 @@ git push
                     img_p = work / 'imgs' / f'pt_{idx:04d}.jpg'
                     if img_p.exists():
                         st.image(str(img_p), caption='ESRI World Imagery (~550 m)',
-                                 use_container_width=True)
+                                 width='stretch')
                     st.markdown(
                         f"Altitud: **{sel.get('elev_dem_m','—')} m** · Slope: "
                         f"**{sel.get('slope_deg','—')}°** · TWI: **{sel.get('twi','—')}**\n\n"
@@ -1956,7 +1956,7 @@ git push
                     x='umbral:Q',
                     tooltip=[alt.Tooltip('etiqueta:N', title='línea')])
                 st.altair_chart((hist + rules).properties(height=320),
-                                use_container_width=True)
+                                width='stretch')
                 _med = sorted(rf_vals)[len(rf_vals)//2]
                 st.markdown(f'**Mediana**: {_med:.3f}  ·  '
                              f'**N** ≥ 0.5: {sum(1 for v in rf_vals if v>=0.5)}  ·  '
@@ -1993,7 +1993,7 @@ git push
                 rs_imp = load_ref_stats(MODEL_PATH)
             imp_chart, _ = pp.chart_importance(rs_imp, topn=20) if rs_imp else (None, [])
             if imp_chart is not None:
-                st.altair_chart(imp_chart, use_container_width=True)
+                st.altair_chart(imp_chart, width='stretch')
             else:
                 st.info('El modelo actual no expone importancias de variables '
                         '(reentrena o usa un modelo guardado con `train_v5.py`).')
@@ -2012,7 +2012,7 @@ git push
                 hier_df = pp.hierarchy_table(rows)
                 if hier_df is not None:
                     st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')
-                    st.dataframe(hier_df, hide_index=True, use_container_width=True)
+                    st.dataframe(hier_df, hide_index=True, width='stretch')
                 st.caption('Reglas sobre las variables ya calculadas (cercanía a lagunas, '
                            'TWI, pendiente, NDMI, NDWI, roca/agua…). Arroyo se detecta por '
                            'topografía (TWI alto o pendiente baja) cuando no hay capa OSM. '
@@ -2030,7 +2030,7 @@ git push
                 f'(p25–p75) y bigotes; los puntos sueltos son valores atípicos.')
             box_chart, _ = pp.chart_boxplots(rows)
             if box_chart is not None:
-                st.altair_chart(box_chart, use_container_width=True)
+                st.altair_chart(box_chart, width='stretch')
             else:
                 st.info('No hay variables numéricas suficientes para los boxplots.')
 
@@ -2039,10 +2039,10 @@ git push
                         'Pasa el ratón por un punto para ver su ID y probabilidad RF.')
             sc = pp.chart_scatter(rows)
             if sc is not None:
-                st.altair_chart(sc, use_container_width=True)
+                st.altair_chart(sc, width='stretch')
 
             st.divider()
             st.markdown('**Recuento de puntos por categoría de decisión.**')
             dc = pp.chart_decision_counts(rows)
             if dc is not None:
-                st.altair_chart(dc, use_container_width=True)
+                st.altair_chart(dc, width='stretch')

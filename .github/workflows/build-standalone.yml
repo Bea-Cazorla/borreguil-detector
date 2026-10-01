@@ -104,10 +104,10 @@ jobs:
         timeout-minutes: 30      # si un paquete se compila desde el código, no eternizarlo
         run: |
           python -m pip install --upgrade pip wheel
-          # scikit-learn se FIJA a la misma versión con la que se guardaron los
-          # modelos .joblib: si no coincide, al cargarlos las predicciones pueden
-          # ser inválidas (aviso InconsistentVersionWarning).
-          python -m pip install -r requirements.txt "scikit-learn==1.9.*"
+          # requirements.txt fija la versión EXACTA de scikit-learn con la que se
+          # guardaron los modelos .joblib: si no coincide, al cargarlos las
+          # predicciones pueden ser inválidas (aviso InconsistentVersionWarning).
+          python -m pip install -r requirements.txt
           python -m pip install pyinstaller==6.21.0
 
       - name: Comprobar que los modelos cargan sin aviso de versión
