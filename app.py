@@ -288,47 +288,27 @@ def run_self_training_iteration(base_rows, promote_cutoff, mode, base_truth_ids,
       del modelo actual (no acumula pseudo-positivos antiguos).
     Reentrena el RF (las features ya están), repredice y devuelve (rows2, info, stats).
     """
-    import math as _m
     rows2 = [dict(r) for r in base_rows]
-    prev_pos = {r.get('ID') for r in rows2 if str(r.get('Borreguil','')).lower() == 'si'}
-    promoted = set()
-    for r in rows2:
-        p = r.get('rf_proba')
-        if isinstance(p, (int, float)) and not _m.isnan(p) and p >= promote_cutoff:
-            promoted.add(r.get('ID'))
-    base = set(base_truth_ids or set())
-    if mode == 'add':
-        new_pos = prev_pos | promoted
-    else:  # replace
-        new_pos = base | promoted
 
-    # Aplicar etiquetas para el reentrenamiento
-    for r in rows2:
-        r['Borreguil'] = 'si' if r.get('ID') in new_pos else ''
-        r['Duda'] = ''
+    # Etiquetas para el reentrenamiento. Las que puso una persona (ausencias de
+    # campo, puntos dudosos) se respetan y no se promueven.
+    sets = bp.self_training_labels(rows2, promote_cutoff, mode, base_truth_ids)
 
     info = bp.run_rf_and_decide(rows2, threshold=threshold, default_model_path=model_path)
 
     # Distinguir en la decisión: verificado de campo vs pseudo-positivo automático
-    pseudo_ids = new_pos - base
-    for r in rows2:
-        rid = r.get('ID')
-        if rid in base:
-            r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
-        elif rid in pseudo_ids:
-            r['decision'] = 'BORREGUIL (auto)'; r['origin'] = 'auto'
-        else:
-            r['origin'] = 'predicho'
+    bp.self_training_decisions(rows2, sets)
 
     # Las decisiones han cambiado: se recalcula el tipo (lo revisado se conserva).
     bp.apply_typology(rows2, pp.is_borreguil_decision)
 
     stats = {
-        'n_promoted': len(promoted),
-        'n_prev_pos': len(prev_pos),
-        'n_new': len(promoted - prev_pos),
-        'n_train_pos': len(new_pos),
-        'n_base': len(base),
+        'n_promoted': len(sets['promoted']),
+        'n_prev_pos': len(sets['prev_pos']),
+        'n_new': len(sets['promoted'] - sets['prev_pos']),
+        # los dudosos no entrenan aunque estén etiquetados como borreguil
+        'n_train_pos': len(sets['new_pos'] - sets['dudosos']),
+        'n_base': len(sets['base']),
     }
     return rows2, info, stats
 
@@ -1440,10 +1420,9 @@ with tab_analisis:
 
             # ¿Cuántos se promoverían?
             prev_pos = {r.get('ID') for r in rows if str(r.get('Borreguil','')).lower() == 'si'}
-            promotable = [r for r in rows
-                          if isinstance(r.get('rf_proba'), (int, float))
-                          and not _m.isnan(r.get('rf_proba'))
-                          and r['rf_proba'] >= promote_cutoff]
+            # Mismo criterio que la iteración: no cuentan las ausencias de campo ni
+            # los puntos dudosos, que no se promueven.
+            promotable = [r for r in rows if bp.promovible(r, promote_cutoff)]
             n_new_would = len([r for r in promotable if r.get('ID') not in prev_pos])
             st.caption(f'Con umbral {promote_cutoff:.2f}: {len(promotable)} puntos ≥ umbral '
                        f'({n_new_would} nuevos respecto a los positivos actuales).')
@@ -1902,12 +1881,17 @@ git push
                             for r in rows2:
                                 if r.get('ID') in sset:
                                     r['Borreguil'] = 'si'; r['origin'] = 'verificado'
+                                    # Verificarlo a mano resuelve la duda de campo: si
+                                    # siguiera «dudoso», no entraría en el entrenamiento.
+                                    r['Duda'] = ''
                             new_base = set(base_truth_ids) | sset
                             info2 = bp.run_rf_and_decide(rows2, threshold=threshold,
                                                          default_model_path=MODEL_PATH)
-                            # Los verificados se muestran como tales
+                            # Los verificados se muestran como tales (los que siguen
+                            # dudosos, no: tampoco entrenan).
                             for r in rows2:
-                                if r.get('ID') in new_base:
+                                if (r.get('ID') in new_base
+                                        and bp._txt(r.get('Duda')).lower() != 'si'):
                                     r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
                             bp.apply_typology(rows2, pp.is_borreguil_decision)
                             bp.save_csv(rows2, work / 'classification.csv')
@@ -1918,7 +1902,9 @@ git push
                             st.session_state.base_truth_ids = new_base
                             st.session_state.iter_n = iter_n + 1
                             st.session_state.model_bundle = (info2 or {}).get('model_bundle')
-                            n_train_pos = sum(1 for r in rows2 if str(r.get('Borreguil','')).lower()=='si')
+                            n_train_pos = sum(1 for r in rows2
+                                              if bp._txt(r.get('Borreguil')).lower() == 'si'
+                                              and bp._txt(r.get('Duda')).lower() != 'si')
                             st.session_state.iter_history = hist + [{
                                 'iter': iter_n + 1,
                                 'mode': f'verdad-terreno (+{len(sset - set(base_truth_ids))})',

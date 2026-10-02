@@ -2328,6 +2328,69 @@ def run_rf_and_decide(rows, threshold=0.5, default_model_path=None, neg_buffer_m
     return info
 
 
+# ------------------------------------------------------------
+# Auto-entrenamiento: con qué etiquetas se reentrena en cada iteración
+# ------------------------------------------------------------
+def _etq(r, campo):
+    return _txt(r.get(campo)).lower()
+
+
+def promovible(r, promote_cutoff):
+    """True si el auto-entrenamiento puede promover este punto a positivo: tiene
+    probabilidad suficiente y ninguna persona lo ha marcado como ausencia ni como
+    dudoso."""
+    p = r.get('rf_proba')
+    return (isinstance(p, (int, float)) and p == p and p >= promote_cutoff
+            and _etq(r, 'Borreguil') != 'no' and _etq(r, 'Duda') != 'si')
+
+
+def self_training_labels(rows, promote_cutoff, mode, base_truth_ids):
+    """Fija en `rows` las etiquetas con las que se reentrena en una iteración de
+    auto-entrenamiento y devuelve los conjuntos de ID implicados.
+
+    Promueve a positivo cada punto promovible (rf_proba >= promote_cutoff).
+      mode='add'     → positivos = positivos previos ∪ promovidos
+      mode='replace' → positivos = verdad-terreno verificada ∪ promovidos
+
+    Las etiquetas puestas por una persona no se tocan: una AUSENCIA de campo
+    (Borreguil='no') sigue siendo ausencia y un punto DUDOSO (Duda='si') sigue
+    siéndolo, y ninguno se promueve aunque el modelo le dé probabilidad alta.
+    Antes ambas etiquetas se borraban en la primera iteración: las ausencias
+    dejaban de entrenar como tales, los dudosos pasaban por puntos corrientes y
+    ninguna de las dos cosas llegaba a los ficheros guardados.
+    """
+    neg_campo = {r.get('ID') for r in rows if _etq(r, 'Borreguil') == 'no'}
+    dudosos = {r.get('ID') for r in rows if _etq(r, 'Duda') == 'si'}
+    prev_pos = {r.get('ID') for r in rows if _etq(r, 'Borreguil') == 'si'}
+    promoted = {r.get('ID') for r in rows if promovible(r, promote_cutoff)}
+    base = set(base_truth_ids or ())
+    new_pos = ((prev_pos | promoted) if mode == 'add' else (base | promoted)) - neg_campo
+    for r in rows:
+        rid = r.get('ID')
+        r['Borreguil'] = 'no' if rid in neg_campo else ('si' if rid in new_pos else '')
+    return {'base': base, 'new_pos': new_pos, 'promoted': promoted,
+            'prev_pos': prev_pos, 'neg_campo': neg_campo, 'dudosos': dudosos}
+
+
+def self_training_decisions(rows, sets):
+    """Tras predecir, distingue en la decisión de dónde sale cada positivo:
+    verificado en campo o pseudo-positivo automático. Los dudosos y las ausencias
+    de campo conservan la decisión que les da decide()."""
+    pseudo = sets['new_pos'] - sets['base']
+    for r in rows:
+        rid = r.get('ID')
+        if rid in sets['dudosos']:
+            r['origin'] = 'dudoso'
+        elif rid in sets['neg_campo']:
+            r['origin'] = 'verificado'
+        elif rid in sets['base']:
+            r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
+        elif rid in pseudo:
+            r['decision'] = 'BORREGUIL (auto)'; r['origin'] = 'auto'
+        else:
+            r['origin'] = 'predicho'
+
+
 # ============================================================
 # OUTPUTS
 # ============================================================

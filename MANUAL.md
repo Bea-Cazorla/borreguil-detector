@@ -474,6 +474,17 @@ en verdad-terreno y el modelo se recalibra.
 - *Añadir*: el conjunto de positivos crece acumulativamente.
 - *Reemplazar*: se recalculan desde el último modelo, conservando tus verificados.
 
+**Lo que tú has etiquetado no se toca.** Una ausencia de campo (`Borreguil = no`)
+sigue entrenando como ausencia y un punto dudoso (`Duda = si`) sigue fuera del
+entrenamiento, y ninguno de los dos se promueve aunque el modelo le dé una
+probabilidad alta. Solo se promueven candidatos sin etiqueta de campo. Si marcas a
+mano un punto dudoso como *borreguil verificado*, la duda queda resuelta y el punto
+pasa a entrenar como positivo.
+
+Los puntos promovidos aparecen como `BORREGUIL (auto)`. En `puntos.geojson` **no**
+se guardan como verdad-terreno: al recargar el fichero solo vuelve como tal lo que
+verificó una persona.
+
 > ⚠️ Un umbral de promoción bajo propaga errores. Mantenlo **alto** (≥ 0,8).
 
 ---

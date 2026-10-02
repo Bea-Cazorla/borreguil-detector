@@ -97,6 +97,10 @@ Los nuevos borreguiles descubiertos automáticamente aparecen en el mapa en
 **verde azulado** (categoría `BORREGUIL (auto)`), distinguibles de los
 verificados en campo (verde oscuro).
 
+Las etiquetas de campo no se tocan: una **ausencia** (`Borreguil = no`) o un punto
+**dudoso** (`Duda = si`) no se promueven ni se borran, por alta que sea la
+probabilidad que les dé el modelo.
+
 ## Inspeccionar puntos y aportar verdad-terreno (aprendizaje activo)
 
 En la pestaña **Tabla**, **selecciona una o varias filas** (casillas a la izquierda):
