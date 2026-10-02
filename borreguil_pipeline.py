@@ -306,6 +306,13 @@ def merge_truth_points(rows, truth_rows, match_m=20):
         if nearest_i is not None and d <= match_m:
             rows[nearest_i]['Borreguil'] = lab
             rows[nearest_i]['is_truth'] = 1
+            # Si el punto de campo trae un tipo ya revisado por una persona, se
+            # traslada al candidato con el que coincide (antes solo pasaba la
+            # presencia y lo revisado se perdía).
+            if tipo_revisado(tr):
+                for campo in CAMPOS_REVISION:
+                    if campo in tr and not campo.endswith('_regla'):
+                        rows[nearest_i][campo] = tr[campo]
             n_match += 1
         else:
             new = dict(tr)
@@ -637,6 +644,10 @@ def compute_img_features(rows, img_dir):
     print(f'  → Calculando features de imagen para {len(rows)} puntos…')
     for i, r in enumerate(rows):
         p = Path(img_dir) / f"pt_{i:04d}.jpg"
+        # Las imágenes se nombran por la POSICIÓN del punto al descargarlas. Se anota
+        # en el propio punto cuál es la suya: si luego se quitan puntos de la lista,
+        # las posiciones se corren y por posición se mostraría la de otro punto.
+        r['_img'] = p.name if p.exists() else ''
         if not p.exists():
             for k in ('frac_bgreen','frac_pale','exg_mean','glcm_contrast','glcm_homog',
                       'glcm_energy','edge_density','laplacian_var','vegcontrast',
@@ -1879,8 +1890,10 @@ def train_rf(rows, default_model_path=None, neg_buffer_m=250):
 # DECISIÓN FINAL
 # ============================================================
 def decide(r, threshold=0.5):
-    truth = (r.get('Borreguil') or '').strip().lower()
-    duda  = (r.get('Duda') or '').strip().lower() == 'si'
+    # _txt: al leer un fichero, los puntos sin etiqueta llegan con NaN (no con
+    # cadena vacía) y `.strip()` sobre un NaN detenía toda la ejecución.
+    truth = _txt(r.get('Borreguil')).lower()
+    duda  = _txt(r.get('Duda')).lower() == 'si'
     rf = r.get('rf_proba', float('nan'))
 
     if duda:
@@ -2120,10 +2133,179 @@ def assign_pureza(borr_rows, th=None):
              (alb_cut is not None and al is not None and al >= alb_cut) or \
              (ndvi_cut is not None and nv is not None and nv <= ndvi_cut):
             pur = 'mixto-roca'
+        elif all(v is None for v in (sw, nd, sr, al, nv)):
+            pur = '—'          # sin ningún dato no se puede proponer «puro»
         else:
             pur = 'puro'
         r['pureza'] = pur
         r['tipo_borreguil'] = f"{r.get('ambiente', '—')} · {r.get('humedad', '—')} · {pur}"
+
+
+# ============================================================
+# Tipo de borreguil REVISADO por una persona
+# ------------------------------------------------------------
+# classify_hierarchy/assign_pureza PROPONEN el tipo con reglas sobre las propias
+# variables predictoras (la humedad es un umbral de NDMI, etc.). Esa propuesta no
+# sirve como etiqueta de entrenamiento: un modelo entrenado con ella solo
+# reaprendería la regla. Cuando una persona revisa el punto (ortofoto, campo) y
+# confirma o corrige el tipo, la etiqueta pasa a ser un dato independiente.
+# Por eso se guardan por separado, y nunca se pisa lo revisado:
+#   <nivel>_regla        lo que propone la app (se recalcula en cada ejecución)
+#   <nivel>              el valor vigente: el revisado si lo hay; si no, la propuesta
+#   tipo_revisado        'si' cuando una persona ha revisado los tres niveles
+#   tipo_revisado_fecha  cuándo se revisó
+# ============================================================
+NIVELES_TIPO = {
+    'ambiente': ('arroyo', 'laguna', 'ladera'),
+    'humedad':  ('húmedo', 'seco'),
+    'pureza':   ('puro', 'mixto-agua', 'mixto-roca'),
+}
+CAMPOS_REVISION = (tuple(NIVELES_TIPO) + tuple(n + '_regla' for n in NIVELES_TIPO)
+                   + ('tipo_borreguil', 'tipo_revisado', 'tipo_revisado_fecha'))
+
+
+def _txt(v):
+    """Texto limpio de un atributo ('' para None/NaN: al releer un fichero, los
+    huecos llegan como NaN y no como cadena vacía)."""
+    if v is None or (isinstance(v, float) and v != v):
+        return ''
+    return str(v).strip()
+
+
+def _fecha_txt(v):
+    """Fecha de revisión como texto ISO. Al releer un fichero en el que todos los
+    puntos tienen fecha, la columna llega como fecha (no como texto)."""
+    if v is None or v != v:                       # None, NaN, NaT
+        return ''
+    return v.isoformat() if hasattr(v, 'isoformat') else str(v).strip()
+
+
+def tipo_revisado(r):
+    """True si una persona ha revisado el tipo de este punto."""
+    return _txt(r.get('tipo_revisado')).lower() in ('si', 'sí')
+
+
+def niveles_invalidos(r):
+    """Niveles cuyo valor vigente no es una categoría admitida."""
+    return [n for n, vals in NIVELES_TIPO.items() if _txt(r.get(n)) not in vals]
+
+
+def _tipo_compuesto(r):
+    return ' · '.join(_txt(r.get(n)) or '—' for n in NIVELES_TIPO)
+
+
+def apply_typology(rows, es_borreguil, th=None):
+    """(Re)calcula la tipología de todos los puntos SIN pisar lo revisado.
+
+    Hay que llamarla tras cada cambio de decisiones (ejecución inicial,
+    reentrenamiento, auto-entrenamiento): antes solo se calculaba una vez, y un
+    punto que pasaba a borreguil al reentrenar se quedaba sin tipo.
+
+    es_borreguil(decision) -> bool.  Devuelve los ID de los puntos que venían
+    marcados como revisados pero con alguna categoría no admitida: dejan de contar
+    como revisados y su valor original queda en `tipo_revision_invalida` (no se
+    corrige nada en silencio).
+    """
+    invalidos, poblacion = [], []
+    for r in rows:
+        rev = tipo_revisado(r)
+        if rev:
+            malos = niveles_invalidos(r)
+            if malos:
+                r['tipo_revision_invalida'] = '; '.join(
+                    f'{n}={_txt(r.get(n))!r}' for n in malos)
+                r['tipo_revisado'] = ''
+                r['tipo_revisado_fecha'] = ''
+                invalidos.append(r.get('ID'))
+                rev = False
+        if rev or es_borreguil(r.get('decision', '')):
+            previo = {n: _txt(r.get(n)) for n in NIVELES_TIPO} if rev else None
+            poblacion.append((r, previo))
+        else:
+            for n in NIVELES_TIPO:
+                r[n] = ''
+                r[n + '_regla'] = ''
+            r['tipo_borreguil'] = ''
+            r['tipo_revisado'] = ''
+    # Propuesta de la regla: ambiente y humedad por punto; pureza relativa al conjunto.
+    for r, _previo in poblacion:
+        h = classify_hierarchy(r, th)
+        r['ambiente'], r['humedad'], r['pureza'] = h['ambiente'], h['humedad'], h['pureza']
+    assign_pureza([r for r, _ in poblacion], th)
+    for r, previo in poblacion:
+        for n in NIVELES_TIPO:
+            r[n + '_regla'] = r.get(n, '')
+            if previo is not None:
+                r[n] = previo[n]                  # lo revisado manda
+        r['tipo_revisado'] = 'si' if previo is not None else ''
+        if previo is None:
+            r['tipo_revisado_fecha'] = ''
+        else:
+            r['tipo_revisado_fecha'] = _fecha_txt(r.get('tipo_revisado_fecha'))
+        r['tipo_borreguil'] = _tipo_compuesto(r)
+    return invalidos
+
+
+def set_tipo_revisado(r, ambiente=None, humedad=None, pureza=None, cuando=None):
+    """Registra la revisión humana del tipo de un punto.
+
+    Los niveles que no se indican conservan su valor vigente (así se puede
+    confirmar la propuesta sin cambiarla). Lanza ValueError si una categoría no es
+    admitida o si, tras aplicar los cambios, queda algún nivel sin categoría.
+    """
+    nuevos = {'ambiente': ambiente, 'humedad': humedad, 'pureza': pureza}
+    for n, v in nuevos.items():
+        if v is not None and v not in NIVELES_TIPO[n]:
+            raise ValueError(f'{n}: «{v}» no es una categoría admitida '
+                             f'({", ".join(NIVELES_TIPO[n])})')
+    final = {n: (v if v is not None else _txt(r.get(n))) for n, v in nuevos.items()}
+    faltan = [n for n, v in final.items() if v not in NIVELES_TIPO[n]]
+    if faltan:
+        raise ValueError('falta elegir ' + ', '.join(faltan))
+    for n in NIVELES_TIPO:
+        if (n + '_regla') not in r:               # sesión anterior a este campo:
+            r[n + '_regla'] = _txt(r.get(n))      # lo vigente era la propuesta
+        r[n] = final[n]
+    r['tipo_revisado'] = 'si'
+    if cuando is None:
+        from datetime import datetime
+        cuando = datetime.now().isoformat(timespec='seconds')
+    r['tipo_revisado_fecha'] = cuando
+    r['tipo_borreguil'] = _tipo_compuesto(r)
+    r.pop('tipo_revision_invalida', None)
+    return r
+
+
+def clear_tipo_revisado(r):
+    """Deshace la revisión: el punto vuelve a la propuesta de la app."""
+    for n in NIVELES_TIPO:
+        if (n + '_regla') in r:
+            r[n] = r[n + '_regla']
+    r['tipo_revisado'] = ''
+    r['tipo_revisado_fecha'] = ''
+    r['tipo_borreguil'] = (_tipo_compuesto(r)
+                           if any(_txt(r.get(n)) for n in NIVELES_TIPO) else '')
+    return r
+
+
+def resumen_revision(rows, es_borreguil):
+    """Cuántos borreguiles tienen el tipo revisado y en cuántos se corrigió la
+    propuesta de la app. Si se revisan muchos y no se corrige casi ninguno, o las
+    reglas aciertan o la revisión no es real: conviene tenerlo a la vista."""
+    borr = [r for r in rows if es_borreguil(r.get('decision', '')) or tipo_revisado(r)]
+    rev = [r for r in borr if tipo_revisado(r)]
+    por_nivel = {n: 0 for n in NIVELES_TIPO}
+    n_corr = 0
+    for r in rev:
+        cambiado = False
+        for n in NIVELES_TIPO:
+            regla = _txt(r.get(n + '_regla'))
+            if regla in NIVELES_TIPO[n] and regla != _txt(r.get(n)):
+                por_nivel[n] += 1
+                cambiado = True
+        n_corr += cambiado
+    return {'n_borreguil': len(borr), 'n_revisados': len(rev),
+            'n_corregidos': n_corr, 'por_nivel': por_nivel}
 
 
 def run_rf_and_decide(rows, threshold=0.5, default_model_path=None, neg_buffer_m=250):
@@ -2163,6 +2345,51 @@ def save_csv(rows, out):
         w.writeheader(); w.writerows(rows)
     print(f'  → CSV: {out}')
 
+def save_points_geojson(rows, out):
+    """Puntos con sus etiquetas en GeoJSON (EPSG:4326), para volver a cargarlos en
+    otra sesión sin perder lo hecho a mano (verdad-terreno y tipo revisado).
+
+    Se guardan los atributos de texto (los del fichero original y las etiquetas),
+    la cuenca y la probabilidad. Las variables predictoras NO, vengan como número
+    o como texto (en un KML todo es texto): al recargar se vuelven a extraer, y un
+    valor antiguo guardado aquí podría quedarse en lugar de uno que falle al
+    descargarse. Para la tabla completa están el CSV y el Excel.
+    """
+    import json
+    etiquetas = ('ID', 'Borreguil', 'Duda', 'decision') + CAMPOS_REVISION
+    variables = set(FEATURES_RF_COMBO)
+    feats = []
+    for r in rows:
+        props = {k: v for k, v in r.items()
+                 if isinstance(v, str) and k not in ('lon', 'lat') and k not in variables
+                 and not k.startswith('_')        # anotaciones internas de la sesión
+                 # 'truth' marca los puntos añadidos desde el fichero de campo en ESTA
+                 # sesión; recargado, los ocultaría la opción «solo para entrenar».
+                 and not (k == 'source' and v == 'truth')}
+        for k in etiquetas:                       # siempre presentes y nunca nulos
+            props[k] = _txt(r.get(k))
+        # Un pseudo-positivo del auto-entrenamiento lleva Borreguil='si' dentro de
+        # la sesión, pero no es verdad-terreno: recargado, pasaría por punto de
+        # campo. Lo que decidió el modelo ya va en `decision` ('BORREGUIL (auto)').
+        if _txt(props.pop('origin', '')).lower() == 'auto':
+            props['Borreguil'] = ''
+        cuenca = r.get('cuenca_id')               # agrupa la validación espacial
+        if isinstance(cuenca, (int, float)) and not isinstance(cuenca, bool) \
+                and cuenca == cuenca:
+            props['cuenca_id'] = int(cuenca) if float(cuenca).is_integer() else float(cuenca)
+        pr = r.get('rf_proba')
+        props['rf_proba'] = (round(float(pr), 4)
+                             if isinstance(pr, (int, float)) and pr == pr else None)
+        feats.append({'type': 'Feature',
+                      'geometry': {'type': 'Point',
+                                   'coordinates': [float(r['lon']), float(r['lat'])]},
+                      'properties': props})
+    with open(out, 'w', encoding='utf-8') as f:
+        json.dump({'type': 'FeatureCollection', 'features': feats}, f,
+                  ensure_ascii=False)
+    print(f'  → GeoJSON de puntos: {out}')
+
+
 def save_xlsx(rows, out, threshold=0.5):
     from openpyxl import Workbook
     from openpyxl.styles import PatternFill, Font, Alignment
@@ -2180,6 +2407,14 @@ def save_xlsx(rows, out, threshold=0.5):
         ('Duda',      lambda r,i: r.get('Duda','')),
         ('DECISIÓN',  lambda r,i: r.get('decision','')),
         ('RF prob.',  lambda r,i: r.get('rf_proba', None)),
+        ('Ambiente',  lambda r,i: r.get('ambiente','')),
+        ('Humedad',   lambda r,i: r.get('humedad','')),
+        ('Pureza',    lambda r,i: r.get('pureza','')),
+        ('Tipo revisado', lambda r,i: r.get('tipo_revisado','')),
+        ('Fecha revisión', lambda r,i: r.get('tipo_revisado_fecha','')),
+        ('Ambiente (propuesta app)', lambda r,i: r.get('ambiente_regla','')),
+        ('Humedad (propuesta app)',  lambda r,i: r.get('humedad_regla','')),
+        ('Pureza (propuesta app)',   lambda r,i: r.get('pureza_regla','')),
         ('Patrón',    lambda r,i: r.get('mat_signature','')),
         ('Altitud (m)', lambda r,i: r.get('elev_dem_m', None)),
         ('Slope (°)',   lambda r,i: r.get('slope_deg', None)),

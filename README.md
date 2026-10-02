@@ -111,6 +111,12 @@ Así puedes hacer **tantas iteraciones como quieras** combinando dos vías:
 auto-promoción (panel recursivo) y confirmación manual de puntos en la tabla.
 Cada confirmación mejora el modelo en tu zona.
 
+Con borreguiles seleccionados aparece además el panel **«🌿 Revisar el tipo de
+borreguil»**: la app propone ambiente, humedad y pureza por reglas, y aquí una
+persona los confirma o corrige mirando la ortofoto. Lo revisado queda marcado, no
+se pisa al reentrenar y se guarda en `puntos.geojson`, que puede volver a cargarse
+en otra sesión. Detalles en el [manual](MANUAL.md#10-clasificación-jerárquica-del-tipo).
+
 ## Guardar y reutilizar modelos
 
 - **Modelo de partida** (sidebar): un desplegable lista todos los modelos `.joblib`

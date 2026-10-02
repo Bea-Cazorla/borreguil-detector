@@ -325,13 +325,30 @@ compara el punto con el rango típico (p25–p75) de los borreguiles de referenc
 Con varias filas seleccionadas puedes **marcarlas como borreguil verificado y
 reentrenar** (aprendizaje activo).
 
+Con las filas de borreguil seleccionadas aparece también el panel **🌿 Revisar el
+tipo de borreguil**, para confirmar o corregir el ambiente, la humedad y la pureza
+de cada punto (ver [sección 10](#10-clasificación-jerárquica-del-tipo)).
+
+Debajo, el mapa del punto seleccionado usa la **ortofoto** de fondo, dibuja el
+punto sin relleno y marca en amarillo su **píxel Sentinel-2 de 10 m**. Con el
+control de capas puedes cambiar a Google Satélite, que admite más zoom.
+
+Al **quitar puntos del análisis** la selección se vacía: así ninguna acción
+posterior recae sobre un punto que no has elegido.
+
 ### 📊 Histograma RF
 Distribución de probabilidades. **Dos grupos separados** = el modelo discrimina
 bien. **Una sola masa central** = no está distinguiendo; revisa el modelo o aporta
 verdad-terreno.
 
 ### 💾 Descargas
-Excel, CSV, GeoJSON, mapa HTML autónomo e informe Word.
+- `classification.csv` y `Clasificacion_puntos.xlsx` — la tabla completa, con
+  todas las variables.
+- `puntos.geojson` — los puntos con sus **etiquetas** (decisión, verdad-terreno,
+  tipo y si está revisado), sin las variables. Es el fichero para **volver a
+  cargar tu trabajo** en otra sesión o abrirlo en QGIS.
+- `mapa.html` — mapa autónomo que se abre en cualquier navegador.
+- `area_estudio.geojson` — el polígono del área, si la definiste.
 
 ### 🔑 Variables
 Ranking de importancia del modelo activo, con el rango típico de borreguil.
@@ -365,6 +382,60 @@ AMBIENTE (dónde está)          HUMEDAD           PUREZA (qué hay en el píxel
 > o CIR (0,25 m). Es una ordenación dentro de tu población, no una medida absoluta.
 
 Umbrales ajustables en `borreguil_pipeline.py` → `HIER_THRESH`.
+
+### Revisar el tipo: de propuesta de la app a dato revisado
+
+El tipo que calcula la app es una **propuesta**: sale de reglas sobre las mismas
+variables que usa el modelo (la humedad, por ejemplo, es un umbral de NDMI). Sirve
+para orientarse, pero **no como etiqueta de entrenamiento**: un modelo entrenado
+con ella solo volvería a aprender la regla. Para que el tipo sea un dato hay que
+revisarlo mirando el terreno.
+
+**Cómo se revisa**
+
+1. Pestaña **📋 Tabla** → selecciona uno o varios borreguiles.
+2. Mira el punto en el mapa de debajo (ortofoto y píxel de 10 m en amarillo) o
+   usa tus datos de campo.
+3. En **🌿 Revisar el tipo de borreguil** elige ambiente, humedad y pureza. Deja
+   **(sin cambio)** en lo que la app ya proponía bien.
+4. **✓ Guardar tipo revisado**. El punto queda marcado como revisado, con su fecha.
+
+**↩ Deshacer revisión** devuelve los puntos seleccionados a la propuesta de la app.
+
+Con **varios puntos** seleccionados solo cambian los niveles que elijas; el resto
+se confirma tal como estaba en cada punto. Es todo o nada: si a alguno le falta un
+nivel (la app no pudo proponerlo por falta de datos) y no lo eliges, no se guarda
+ninguno y se indica cuál es.
+
+**Criterios** — decide siempre con la misma regla para todos los puntos:
+
+| Nivel | Categorías | Cómo decidir |
+|---|---|---|
+| Ambiente | arroyo · laguna · ladera | Dónde está el prado: junto a un cauce, junto a una laguna o en ladera |
+| Humedad | húmedo · seco | Un único criterio para toda la campaña (anótalo) |
+| Pureza | puro · mixto-agua · mixto-roca | Qué hay **dentro del píxel de 10 m**: solo prado, agua, o roca/suelo desnudo |
+
+**Qué se guarda de cada punto**
+
+| Columna | Contenido |
+|---|---|
+| `ambiente`, `humedad`, `pureza` | El valor vigente: el revisado si lo hay; si no, la propuesta |
+| `ambiente_regla`, `humedad_regla`, `pureza_regla` | Lo que propuso la app (se recalcula en cada ejecución) |
+| `tipo_revisado` | `si` cuando una persona ha revisado los tres niveles |
+| `tipo_revisado_fecha` | Cuándo se revisó |
+
+Lo revisado **no se pisa nunca**: ni al reentrenar, ni en las iteraciones de
+auto-entrenamiento, ni aunque el modelo deje de clasificar el punto como borreguil.
+
+Encima de la tabla hay un contador: cuántos borreguiles están revisados y en
+cuántos se **corrigió** la propuesta. Si revisas muchos y no corriges ninguno, la
+app lo avisa: un tipo aceptado sin mirar sigue siendo la regla de la app.
+
+**Conservar la revisión entre sesiones** — descarga `puntos.geojson` y, la próxima
+vez, cárgalo como *puntos candidatos* o como *verdad-terreno*. Los tipos revisados
+vuelven con sus puntos. Si un punto llega marcado como revisado pero con una
+categoría que no existe (por ejemplo, editada a mano), la app lo avisa y no lo
+cuenta como revisado.
 
 ---
 

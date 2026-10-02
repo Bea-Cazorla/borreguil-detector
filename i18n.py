@@ -31,6 +31,15 @@ def tr(s):
     return s
 
 
+def pick(es, en):
+    """Elige entre dos redacciones según el idioma activo.
+
+    Para los mensajes con datos dentro (f-strings), que no caben en el diccionario
+    EN porque su texto cambia en cada ejecución: se escriben en los dos idiomas en
+    el punto donde se usan."""
+    return en if _LANG == 'en' else es
+
+
 def _wrap_text(fn):
     """Envuelve una función de Streamlit que muestra texto (title/header/markdown/
     caption/write/info/warning/error/success/button/expander/metric/widgets…).
@@ -126,6 +135,10 @@ COLUMNAS = {
     'humedad': 'moisture',
     'pureza': 'purity',
     'tipo_borreguil': 'type',
+    'tipo_revisado': 'type reviewed',
+    'ambiente_regla': 'environment (app proposal)',
+    'humedad_regla': 'moisture (app proposal)',
+    'pureza_regla': 'purity (app proposal)',
     'mat_signature': 'pattern',
     'elev_dem_m': 'elevation_m',
     'slope_deg': 'slope_deg',
@@ -160,6 +173,21 @@ def tcol(nombre):
 # Los mensajes con valores dinámicos (f-strings) se traducen aparte, en app.py.
 # ============================================================
 EN = {
+    # --- revisión del tipo de borreguil ---
+    "Ambiente": "Environment",
+    "Humedad": "Moisture",
+    "Pureza": "Purity",
+    "(sin cambio)": "(no change)",
+    "🌿 Revisar el tipo de borreguil de los puntos seleccionados":
+        "🌿 Review the borreguil type of the selected points",
+    "✓ Guardar tipo revisado": "✓ Save reviewed type",
+    "↩ Deshacer revisión": "↩ Undo review",
+    "Devuelve los puntos seleccionados a la propuesta de la app.":
+        "Returns the selected points to the app's proposal.",
+    "Los puntos seleccionados no están clasificados como borreguil, así que no tienen tipo. Si alguno lo es, márcalo primero como borreguil verificado.":
+        "The selected points are not classified as borreguil, so they have no type. If one of them is, mark it as verified borreguil first.",
+    "Decide con la ortofoto o con datos de campo, no por lo que propone la app. **Ambiente**: dónde está el prado (junto a un arroyo, junto a una laguna o en ladera). **Humedad**: aplica siempre el mismo criterio a todos los puntos. **Pureza**: «mixto-agua» si hay agua dentro del píxel de 10 m, «mixto-roca» si hay roca o suelo desnudo, «puro» si todo es prado. Deja «(sin cambio)» para confirmar la propuesta.":
+        "Decide from the orthophoto or from field data, not from what the app proposes. **Environment**: where the meadow sits (by a stream, by a lake, or on a slope). **Moisture**: apply the same criterion to every point. **Purity**: «mixed-water» if there is water inside the 10 m pixel, «mixed-rock» if there is rock or bare soil, «pure» if it is all meadow. Leave «(no change)» to confirm the proposal.",
     "🌿 Borreguil / Wet Meadow Pipeline": "🌿 Borreguil / Wet Meadow Pipeline",
     "Identificación automática de borreguiles en zonas de montaña — ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. [Documentación metodológica](Metodologia_borreguiles.docx)":
         "Automatic detection of borreguiles (high-mountain wet meadows) — ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. [Methodology documentation](Metodologia_borreguiles.docx)",

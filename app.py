@@ -320,6 +320,9 @@ def run_self_training_iteration(base_rows, promote_cutoff, mode, base_truth_ids,
         else:
             r['origin'] = 'predicho'
 
+    # Las decisiones han cambiado: se recalcula el tipo (lo revisado se conserva).
+    bp.apply_typology(rows2, pp.is_borreguil_decision)
+
     stats = {
         'n_promoted': len(promoted),
         'n_prev_pos': len(prev_pos),
@@ -1281,19 +1284,18 @@ with tab_analisis:
         except Exception as _e:
             st.caption(f'(no se pudo usar la capa de lagunas: {_e})')
 
-        # Clasificación jerárquica del tipo (ambiente/humedad/pureza), solo para los
-        # puntos detectados como borreguil; el resto deja las columnas vacías.
-        for r in rows:
-            if pp.is_borreguil_decision(r.get('decision', '')):
-                h = bp.classify_hierarchy(r)
-                r['ambiente'] = h['ambiente']; r['humedad'] = h['humedad']
-                r['pureza'] = h['pureza']; r['tipo_borreguil'] = h['tipo']
-            else:
-                r['ambiente'] = ''; r['humedad'] = ''
-                r['pureza'] = ''; r['tipo_borreguil'] = ''
-        # Pureza relativa a la población de borreguiles (los más agua/roca vs. el resto)
-        bp.assign_pureza([r for r in rows
-                          if pp.is_borreguil_decision(r.get('decision', ''))])
+        # Tipo de borreguil (ambiente/humedad/pureza). La app lo PROPONE por reglas
+        # y respeta lo que una persona haya revisado (p. ej. al volver a cargar unos
+        # puntos ya trabajados en otra sesión).
+        _rev_malos = bp.apply_typology(rows, pp.is_borreguil_decision)
+        if _rev_malos:
+            _lista = ', '.join(str(x) for x in _rev_malos[:8])
+            st.warning(i18n.pick(
+                f'{len(_rev_malos)} punto(s) venían marcados como revisados pero con '
+                f'una categoría no admitida, y no cuentan como revisados: {_lista}.',
+                f'{len(_rev_malos)} point(s) were marked as reviewed but carry a '
+                f'category that is not allowed, so they do not count as reviewed: '
+                f'{_lista}.'))
 
         # Verdad-terreno "solo entrenar": el modelo ya se entrenó con ella arriba;
         # ahora se quitan del conjunto los puntos AÑADIDOS desde el fichero de campo
@@ -1310,6 +1312,7 @@ with tab_analisis:
 
         # Save outputs
         bp.save_csv(rows, work / 'classification.csv')
+        bp.save_points_geojson(rows, work / 'puntos.geojson')
         bp.save_xlsx(rows, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
         bp.save_map(rows, work / 'mapa.html', study_geom=study_geom)
         if study_geom is not None:
@@ -1339,7 +1342,7 @@ with tab_analisis:
         st.session_state.sel_point = None
         st.session_state.sel_idx = None
         st.session_state.prev_sel_set = set()
-        st.session_state.pop('results_table', None)  # limpiar selección de la tabla anterior
+        st.session_state['_vaciar_seleccion'] = True  # la selección era de la tabla anterior
         st.session_state.model_bundle = (info or {}).get('model_bundle')
         st.session_state.rows = rows
         st.session_state.info = info
@@ -1357,6 +1360,14 @@ with tab_analisis:
         threshold = st.session_state.get('eff_threshold', threshold)
         MODEL_PATH = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib'))
 
+        # La selección de la tabla va por POSICIÓN. Cuando cambia la lista de puntos
+        # (ejecución nueva, o se quita alguno) las posiciones se corren y la selección
+        # pasaría a apuntar a puntos que nadie ha elegido: «Quitar» borraría otro y
+        # el tipo revisado se guardaría en otro. Se vacía antes de dibujar la tabla.
+        if st.session_state.pop('_vaciar_seleccion', False):
+            st.session_state['results_table'] = {
+                'selection': {'rows': [], 'columns': [], 'cells': []}}
+
         st.divider()
         st.header('Resultados')
 
@@ -1365,7 +1376,7 @@ with tab_analisis:
         cols = st.columns(min(6, len(counts)+1))
         cols[0].metric('Total', len(rows))
         for i, (k, v) in enumerate(counts.most_common(5)):
-            cols[i+1].metric(k, v)
+            cols[i+1].metric(i18n.tv(k), v)
 
         # ----------------------------------------------------------------
         # EVALUACIÓN RECURSIVA (auto-entrenamiento / self-training)
@@ -1444,6 +1455,7 @@ with tab_analisis:
                         threshold=threshold, model_path=MODEL_PATH)
                     # Re-guardar salidas
                     bp.save_csv(rows2, work / 'classification.csv')
+                    bp.save_points_geojson(rows2, work / 'puntos.geojson')
                     bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
                     bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
                     # Actualizar estado + historial
@@ -1584,7 +1596,9 @@ git push
         # ----------------------------------------------------------------
         # Helpers de mapa
         # ----------------------------------------------------------------
-        def _add_points(fmap, pts, highlight_id=None, radius=6):
+        def _add_points(fmap, pts, highlight_id=None, radius=6, hueco=False):
+            # hueco=True: el punto resaltado se dibuja sin relleno, para que el
+            # marcador no tape justo el terreno que hay que mirar.
             for r in pts:
                 dec = r.get('decision', 'SIN PREDICCIÓN')
                 color = bp.decision_color(dec)
@@ -1592,7 +1606,9 @@ git push
                 rf_txt = f'{rf*100:.0f}%' if isinstance(rf, (int, float)) and not _m.isnan(rf) else '—'
                 _tipo = i18n.tv(r.get('tipo_borreguil') or '')
                 _et = 'Type' if i18n.get_lang() == 'en' else 'Tipo'
-                _tipo_html = f"<br>🌿 {_et}: <b>{_tipo}</b>" if _tipo else ''
+                _revm = ((' ✓ ' + i18n.pick('revisado', 'reviewed'))
+                         if bp.tipo_revisado(r) else '')
+                _tipo_html = f"<br>🌿 {_et}: <b>{_tipo}</b>{_revm}" if _tipo else ''
                 _en = i18n.get_lang() == 'en'
                 _l_pat = 'Pattern' if _en else 'Patrón'
                 _l_alt = 'Elevation' if _en else 'Altitud'
@@ -1605,8 +1621,10 @@ git push
                 if is_sel:
                     folium.CircleMarker([r['lat'], r['lon']], radius=radius+8,
                                         color='#FF1744', weight=4, fill=False).add_to(fmap)
+                _relleno = not (hueco and is_sel)
                 folium.CircleMarker([r['lat'], r['lon']], radius=radius,
-                                    color=color, fill=True, fill_color=color, fill_opacity=0.85,
+                                    color=color, fill=True, fill_color=color,
+                                    fill_opacity=0.85 if _relleno else 0.0,
                                     popup=folium.Popup(popup, max_width=300)).add_to(fmap)
 
         # Leyenda de colores de los puntos (decisión del Random Forest).
@@ -1645,22 +1663,30 @@ git push
                 f'{filas}</div>')
             fmap.get_root().html.add_child(folium.Element(html))
 
-        def _base_map(center, zoom):
+        def _base_map(center, zoom, ortofoto=False):
             # max_zoom alto para acercar bastante a los puntos (over-zoom de las
             # ortofotos); Google Satélite tiene resolución nativa mayor que ESRI.
             fm = folium.Map(location=center, zoom_start=zoom, max_zoom=22,
-                            control_scale=True)
-            folium.TileLayer(
-                'https://services.arcgisonline.com/ArcGIS/rest/services/'
-                'World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attr='Esri', name='ESRI World Imagery', max_zoom=22,
-                max_native_zoom=19).add_to(fm)
-            folium.TileLayer(
-                'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-                attr='Google', name='Google Satélite (más zoom)', max_zoom=22,
-                max_native_zoom=21).add_to(fm)
-            folium.TileLayer('OpenStreetMap', name='OpenStreetMap',
-                             max_zoom=19).add_to(fm)
+                            control_scale=True, **({'tiles': None} if ortofoto else {}))
+            capas = [
+                dict(tiles='https://services.arcgisonline.com/ArcGIS/rest/services/'
+                           'World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                     attr='Esri', name='ESRI World Imagery', max_zoom=22,
+                     max_native_zoom=19),
+                dict(tiles='https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+                     attr='Google', name='Google Satélite (más zoom)', max_zoom=22,
+                     max_native_zoom=21),
+                dict(tiles='OpenStreetMap', name='OpenStreetMap', max_zoom=19),
+            ]
+            if ortofoto:
+                # Para revisar un punto hay que ver el terreno: la ortofoto pasa a ser
+                # la capa visible (la última capa base que se añade) y las otras
+                # quedan disponibles en el control de capas.
+                capas = capas[1:] + capas[:1]
+                for _c in capas[:-1]:
+                    _c['show'] = False
+            for _c in capas:
+                folium.TileLayer(**_c).add_to(fm)
             if sg is not None:
                 from shapely.geometry import mapping
                 folium.GeoJson(mapping(sg), name='Área de estudio',
@@ -1792,6 +1818,7 @@ git push
                                 st.warning('No puedes quitar todos los puntos.')
                             else:
                                 bp.save_csv(keep, work / 'classification.csv')
+                                bp.save_points_geojson(keep, work / 'puntos.geojson')
                                 bp.save_xlsx(keep, work / 'Clasificacion_puntos.xlsx',
                                              threshold=threshold)
                                 bp.save_map(keep, work / 'mapa.html', study_geom=sg)
@@ -1799,6 +1826,7 @@ git push
                                 st.session_state.sel_point = None
                                 st.session_state.sel_idx = None
                                 st.session_state.prev_sel_set = set()
+                                st.session_state['_vaciar_seleccion'] = True
                                 st.success(f"Punto {rr.get('ID','?')} quitado del análisis.")
                                 st.rerun()
 
@@ -1807,8 +1835,31 @@ git push
                        'seleccionado** centra el mapa y muestra su imagen, sin perder los '
                        'anteriores. Con varias seleccionadas puedes **marcarlas como '
                        'borreguil verificado** y reentrenar.')
+            _aviso_rev = st.session_state.pop('_rev_msg', None)
+            if _aviso_rev:
+                st.success(_aviso_rev)
+            _rs = bp.resumen_revision(rows, pp.is_borreguil_decision)
+            if _rs['n_borreguil']:
+                _pn = _rs['por_nivel']
+                st.markdown(i18n.pick(
+                    f"🌿 **Tipo revisado: {_rs['n_revisados']} de {_rs['n_borreguil']}** "
+                    f"borreguiles · corregidos respecto a la propuesta de la app: "
+                    f"**{_rs['n_corregidos']}** (ambiente {_pn['ambiente']} · humedad "
+                    f"{_pn['humedad']} · pureza {_pn['pureza']})",
+                    f"🌿 **Type reviewed: {_rs['n_revisados']} of {_rs['n_borreguil']}** "
+                    f"borreguiles · corrected against the app's proposal: "
+                    f"**{_rs['n_corregidos']}** (environment {_pn['ambiente']} · moisture "
+                    f"{_pn['humedad']} · purity {_pn['pureza']})"))
+                if _rs['n_revisados'] >= 10 and _rs['n_corregidos'] == 0:
+                    st.caption(i18n.pick(
+                        'No se ha corregido ninguno: o la propuesta acierta siempre o se '
+                        'está aceptando sin mirar la ortofoto. Un tipo aceptado sin mirar '
+                        'sigue siendo la regla de la app.',
+                        "None has been corrected: either the proposal is always right or "
+                        "it is being accepted without looking at the orthophoto. A type "
+                        "accepted without looking is still the app's rule."))
             cols_show = ['ID','cuenca_id','source','origin','Borreguil','decision','rf_proba',
-                          'ambiente','humedad','pureza',
+                          'ambiente','humedad','pureza','tipo_revisado',
                           'mat_signature','elev_dem_m','slope_deg','twi','dist_water_m',
                           'ndvi_late','clre_late','ndmi_late','evi_late','lat','lon']
             df = pd.DataFrame(rows)
@@ -1819,6 +1870,10 @@ git push
             for _c in ('decision', 'ambiente', 'humedad', 'pureza', 'tipo_borreguil'):
                 if _c in df_show.columns:
                     df_show[_c] = df_show[_c].map(i18n.tv)
+            if 'tipo_revisado' in df_show.columns:
+                df_show['tipo_revisado'] = df_show['tipo_revisado'].map(
+                    lambda v: i18n.pick('sí', 'yes')
+                    if bp.tipo_revisado({'tipo_revisado': v}) else '')
             df_show = df_show.rename(columns={c: i18n.tcol(c) for c in df_show.columns})
             event = st.dataframe(df_show, hide_index=True, width='stretch',
                                  on_select='rerun', selection_mode='multi-row',
@@ -1854,7 +1909,9 @@ git push
                             for r in rows2:
                                 if r.get('ID') in new_base:
                                     r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
+                            bp.apply_typology(rows2, pp.is_borreguil_decision)
                             bp.save_csv(rows2, work / 'classification.csv')
+                            bp.save_points_geojson(rows2, work / 'puntos.geojson')
                             bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
                             bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
                             st.session_state.rows = rows2
@@ -1885,6 +1942,7 @@ git push
                             st.warning('No puedes quitar todos los puntos.')
                         else:
                             bp.save_csv(keep, work / 'classification.csv')
+                            bp.save_points_geojson(keep, work / 'puntos.geojson')
                             bp.save_xlsx(keep, work / 'Clasificacion_puntos.xlsx',
                                          threshold=threshold)
                             bp.save_map(keep, work / 'mapa.html', study_geom=sg)
@@ -1892,8 +1950,117 @@ git push
                             st.session_state.sel_point = None
                             st.session_state.sel_idx = None
                             st.session_state.prev_sel_set = set()
+                            st.session_state['_vaciar_seleccion'] = True
                             st.success(f'{len(drop)} punto(s) quitado(s) del análisis.')
                             st.rerun()
+
+            # --- Revisión del TIPO de borreguil (ambiente / humedad / pureza) ---
+            # La app propone el tipo por reglas; aquí una persona lo confirma o lo
+            # corrige. Solo los puntos revisados servirán para entrenar el modelo de
+            # tipos: una etiqueta sin revisar es la propia regla.
+            if sel_rows:
+                _sel_ok = [i for i in sel_rows if i < len(rows)]
+                _idx_tipo = [i for i in _sel_ok
+                             if pp.is_borreguil_decision(rows[i].get('decision', ''))
+                             or bp.tipo_revisado(rows[i])]
+                with st.expander('🌿 Revisar el tipo de borreguil de los puntos seleccionados',
+                                 expanded=True):
+                    if not _idx_tipo:
+                        st.info('Los puntos seleccionados no están clasificados como '
+                                'borreguil, así que no tienen tipo. Si alguno lo es, '
+                                'márcalo primero como borreguil verificado.')
+                    else:
+                        st.caption('Decide con la ortofoto o con datos de campo, no por lo '
+                                   'que propone la app. **Ambiente**: dónde está el prado '
+                                   '(junto a un arroyo, junto a una laguna o en ladera). '
+                                   '**Humedad**: aplica siempre el mismo criterio a todos '
+                                   'los puntos. **Pureza**: «mixto-agua» si hay agua dentro '
+                                   'del píxel de 10 m, «mixto-roca» si hay roca o suelo '
+                                   'desnudo, «puro» si todo es prado. Deja «(sin cambio)» '
+                                   'para confirmar la propuesta.')
+                        import hashlib as _hl
+                        # La clave de los desplegables depende de QUÉ puntos hay
+                        # seleccionados (por ID, no por posición: al quitar un punto
+                        # las posiciones se corren) y de cuántas veces se ha guardado
+                        # o deshecho. Así arrancan siempre con el tipo vigente de la
+                        # selección, nunca con lo elegido para otro punto.
+                        _firma = _hl.md5('|'.join(
+                            [str(rows[i].get('ID')) for i in _idx_tipo]
+                            + [str(st.session_state.get('_rev_n', 0))]
+                        ).encode()).hexdigest()[:10]
+                        _SIN = '(sin cambio)'
+                        _uno = rows[_idx_tipo[0]] if len(_idx_tipo) == 1 else None
+                        _eleccion = {}
+                        for _col, (_niv, _etq) in zip(st.columns(3), (
+                                ('ambiente', 'Ambiente'), ('humedad', 'Humedad'),
+                                ('pureza', 'Pureza'))):
+                            _ops = [_SIN] + list(bp.NIVELES_TIPO[_niv])
+                            _act = _uno.get(_niv) if _uno else None
+                            with _col:
+                                _eleccion[_niv] = st.selectbox(
+                                    _etq, _ops,
+                                    index=_ops.index(_act) if _act in _ops else 0,
+                                    key=f'rev_{_niv}_{_firma}',
+                                    format_func=lambda o: (i18n.tr(o) if o == '(sin cambio)'
+                                                           else i18n.tv(o)))
+                        _b1, _b2, _b3 = st.columns([2, 2, 3])
+                        with _b1:
+                            _guardar = st.button('✓ Guardar tipo revisado', type='primary',
+                                                 key='rev_save')
+                        with _b2:
+                            _deshacer = st.button(
+                                '↩ Deshacer revisión', key='rev_undo',
+                                help='Devuelve los puntos seleccionados a la propuesta '
+                                     'de la app.')
+                        with _b3:
+                            _n_fuera = len(_sel_ok) - len(_idx_tipo)
+                            st.caption(i18n.pick(
+                                f'{len(_idx_tipo)} punto(s) a revisar'
+                                + (f' · {_n_fuera} no son borreguil y se ignoran'
+                                   if _n_fuera else ''),
+                                f'{len(_idx_tipo)} point(s) to review'
+                                + (f' · {_n_fuera} are not borreguil and are skipped'
+                                   if _n_fuera else '')))
+                        if _guardar or _deshacer:
+                            rows2 = [dict(r) for r in rows]
+                            _errores = []
+                            for i in _idx_tipo:
+                                try:
+                                    if _guardar:
+                                        bp.set_tipo_revisado(rows2[i], **{
+                                            n: (None if v == _SIN else v)
+                                            for n, v in _eleccion.items()})
+                                    else:
+                                        bp.clear_tipo_revisado(rows2[i])
+                                except ValueError as _e:
+                                    _errores.append(f"{rows2[i].get('ID', '?')}: {_e}")
+                            if _errores:
+                                # Todo o nada: con un solo punto inválido no se guarda
+                                # ninguno, para no dejar la selección a medias.
+                                st.error(i18n.pick('No se ha guardado nada. ',
+                                                   'Nothing was saved. ')
+                                         + ' · '.join(_errores[:5]))
+                            else:
+                                bp.apply_typology(rows2, pp.is_borreguil_decision)
+                                bp.save_csv(rows2, work / 'classification.csv')
+                                bp.save_points_geojson(rows2, work / 'puntos.geojson')
+                                bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx',
+                                             threshold=threshold)
+                                bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
+                                st.session_state.rows = rows2
+                                st.session_state['_rev_n'] = \
+                                    st.session_state.get('_rev_n', 0) + 1
+                                st.session_state['_rev_msg'] = (
+                                    i18n.pick(f'Tipo revisado guardado en {len(_idx_tipo)} '
+                                              'punto(s).',
+                                              f'Reviewed type saved for {len(_idx_tipo)} '
+                                              'point(s).')
+                                    if _guardar else
+                                    i18n.pick(f'Revisión deshecha en {len(_idx_tipo)} '
+                                              'punto(s).',
+                                              f'Review undone for {len(_idx_tipo)} '
+                                              'point(s).'))
+                                st.rerun()
 
             focus_idx = st.session_state.get('sel_idx')
             if focus_idx is not None and focus_idx < len(rows):
@@ -1901,25 +2068,63 @@ git push
                 sel = st.session_state.get('sel_point') or dict(rows[idx])
                 colL, colR = st.columns([3, 2])
                 with colL:
-                    fm = _base_map([sel['lat'], sel['lon']], 16)
-                    _add_points(fm, rows, highlight_id=sel.get('ID'))
+                    # Mapa para MIRAR el punto (y revisar su tipo): ortofoto de fondo,
+                    # el marcador sin relleno y, en amarillo, el píxel Sentinel-2 de
+                    # 10 m al que se refiere la pureza.
+                    fm = _base_map([sel['lat'], sel['lon']], 17, ortofoto=True)
+                    _add_points(fm, rows, highlight_id=sel.get('ID'), hueco=True)
+                    try:
+                        folium.Polygon(bp.pixel_footprints([sel])[0]['pixel10'],
+                                       color='#FFD600', weight=2, fill=False,
+                                       tooltip=i18n.pick('Píxel Sentinel-2 (10 m)',
+                                                         'Sentinel-2 pixel (10 m)')
+                                       ).add_to(fm)
+                    except Exception:
+                        pass                      # sin la huella el mapa sigue sirviendo
+                    folium.LayerControl(collapsed=True).add_to(fm)
                     st_folium(fm, width=None, height=420, returned_objects=[],
-                              center=[sel['lat'], sel['lon']], zoom=16, key='focusmap')
+                              center=[sel['lat'], sel['lon']], zoom=17, key='focusmap')
+                    st.caption(i18n.pick(
+                        'Ortofoto de fondo; el recuadro amarillo es el píxel de 10 m del '
+                        'punto. Con el control de capas (arriba a la derecha) puedes '
+                        'cambiar a Google Satélite, que admite más zoom.',
+                        'Orthophoto background; the yellow square is the 10 m pixel of '
+                        'the point. Use the layer control (top right) to switch to '
+                        'Google Satellite, which allows more zoom.'))
                 with colR:
                     st.markdown(f"### {sel.get('ID','?')}")
-                    st.markdown(f"**{sel.get('decision','—')}**")
+                    st.markdown(f"**{i18n.tv(sel.get('decision','—'))}**")
+                    if sel.get('tipo_borreguil'):
+                        st.markdown(
+                            f"🌿 {i18n.tv(sel['tipo_borreguil'])} — "
+                            + (i18n.pick('**revisado**', '**reviewed**')
+                               if bp.tipo_revisado(sel)
+                               else i18n.pick('propuesta de la app, sin revisar',
+                                              "app's proposal, not reviewed")))
                     rfp = sel.get('rf_proba')
                     if isinstance(rfp, (int, float)) and not _m.isnan(rfp):
                         st.metric('Probabilidad RF', f'{rfp*100:.0f}%')
-                    img_p = work / 'imgs' / f'pt_{idx:04d}.jpg'
-                    if img_p.exists():
+                    # La imagen es la que se anotó en el punto al descargarla; por
+                    # posición solo si el punto no lleva la anotación.
+                    _img = sel.get('_img', f'pt_{idx:04d}.jpg')
+                    img_p = (work / 'imgs' / _img) if _img else None
+                    if img_p is not None and img_p.exists():
                         st.image(str(img_p), caption='ESRI World Imagery (~550 m)',
                                  width='stretch')
+
+                    def _n(v, nd):
+                        try:
+                            x = float(v)
+                            return '—' if x != x else f'{x:.{nd}f}'
+                        except (TypeError, ValueError):
+                            return '—'
                     st.markdown(
-                        f"Altitud: **{sel.get('elev_dem_m','—')} m** · Slope: "
-                        f"**{sel.get('slope_deg','—')}°** · TWI: **{sel.get('twi','—')}**\n\n"
-                        f"NDVI fin: **{sel.get('ndvi_late','—')}** · Clre: "
-                        f"**{sel.get('clre_late','—')}** · EVI: **{sel.get('evi_late','—')}**\n\n"
+                        f"Altitud: **{_n(sel.get('elev_dem_m'), 0)} m** · Slope: "
+                        f"**{_n(sel.get('slope_deg'), 1)}°** · TWI: "
+                        f"**{_n(sel.get('twi'), 1)}**\n\n"
+                        f"NDVI fin: **{_n(sel.get('ndvi_late'), 2)}** · Clre: "
+                        f"**{_n(sel.get('clre_late'), 2)}** · EVI: "
+                        f"**{_n(sel.get('evi_late'), 2)}**\n\n"
                         f"Patrón: **{sel.get('mat_signature','—')}** · "
                         f"Coords: {sel.get('lat'):.5f}, {sel.get('lon'):.5f}")
                     gmaps = f"https://www.google.com/maps/search/?api=1&query={sel.get('lat')},{sel.get('lon')}"
@@ -1968,7 +2173,7 @@ git push
         with tab4:
             st.markdown('Resultados generados (reflejan la última iteración):')
             for name in ('classification.csv','Clasificacion_puntos.xlsx',
-                          'mapa.html','area_estudio.geojson'):
+                          'puntos.geojson','mapa.html','area_estudio.geojson'):
                 p = work / name
                 if p.exists():
                     with open(p, 'rb') as fh:
@@ -2009,6 +2214,12 @@ git push
                             f'Cada columna es una humedad; cada fila, un ambiente; el color '
                             f'reparte la pureza.')
                 st.altair_chart(hier_chart)
+                _rsd = bp.resumen_revision(rows, pp.is_borreguil_decision)
+                st.caption(i18n.pick(
+                    f"{_rsd['n_revisados']} de {_rsd['n_borreguil']} tienen el tipo revisado "
+                    f"por una persona; en el resto se muestra la propuesta de la app.",
+                    f"{_rsd['n_revisados']} of {_rsd['n_borreguil']} have their type "
+                    f"reviewed by a person; the rest show the app's proposal."))
                 hier_df = pp.hierarchy_table(rows)
                 if hier_df is not None:
                     st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')

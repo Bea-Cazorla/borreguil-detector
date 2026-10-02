@@ -245,6 +245,11 @@ Todos los puntos con sus coordenadas, probabilidad y variables. Al seleccionar u
 fila, el mapa se centra en ese punto y se despliega su **📈 perfil espectral**,
 que compara el punto con el rango típico de un borreguil variable a variable.
 
+Si el punto es un borreguil, aparece el panel **🌿 Revisar el tipo de borreguil**:
+la app propone ambiente, humedad y pureza, y tú los confirmas o corriges mirando la
+ortofoto del mapa de debajo (el recuadro amarillo es el píxel de 10 m del punto).
+Pulsa **✓ Guardar tipo revisado** y el punto queda marcado como revisado.
+
 ### 📊 Histograma RF
 
 Reparto de probabilidades. **Lo ideal son dos "montañas"** separadas: una baja
@@ -270,16 +275,20 @@ borreguil**:
 
 ### 💾 Descargas
 
-Excel, CSV, GeoJSON, mapa HTML e informe Word.
+Excel, CSV, GeoJSON de los puntos y mapa HTML.
 
 ---
 
 ## 7. Descargar y guardar el trabajo
 
 1. Ve a la pestaña **Descargas**.
-2. Recomendado: **GeoJSON** (para QGIS/ArcGIS) y **Excel** (para revisar).
+2. Recomendado: **`puntos.geojson`** (para QGIS/ArcGIS) y **Excel** (para revisar).
 3. El **mapa HTML** se abre en cualquier navegador sin el programa: ideal para
    enviarlo a alguien.
+
+> 💡 `puntos.geojson` guarda lo que has hecho a mano: los puntos verificados y los
+> tipos revisados. Para seguir otro día, cárgalo como *puntos candidatos* al
+> empezar y no tendrás que repetirlo.
 
 Tus modelos entrenados y las salidas se guardan en:
 
