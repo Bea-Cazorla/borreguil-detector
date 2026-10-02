@@ -336,6 +336,14 @@ control de capas puedes cambiar a Google Satélite, que admite más zoom.
 Al **quitar puntos del análisis** la selección se vacía: así ninguna acción
 posterior recae sobre un punto que no has elegido.
 
+**Nombres largos y decimales.** Si los nombres de tus puntos son muy largos (por
+ejemplo, heredados del nombre de la capa: `all_borreguil_lagunas500ptos_epsg25830.41`),
+en la tabla se muestran abreviados conservando el final, que es lo que los
+distingue: `…epsg25830.41`. El nombre completo aparece al seleccionar el punto, en
+el mapa y en todas las descargas. Los números se muestran con **4 decimales** en la
+ficha del punto, en los globos del mapa y en el Excel; los ficheros guardan el
+valor completo.
+
 ### 📊 Histograma RF
 Distribución de probabilidades. **Dos grupos separados** = el modelo discrimina
 bien. **Una sola masa central** = no está distinguiendo; revisa el modelo o aporta

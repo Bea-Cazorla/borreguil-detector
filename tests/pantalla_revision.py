@@ -222,6 +222,12 @@ def guion(lang):
     tarjetas = [m.label for m in at.metric]
     comprobar(('LIKELY BORREGUIL' in tarjetas) if en else ('BORREGUIL PROBABLE' in tarjetas),
               'las tarjetas de recuento van en el idioma elegido', str(tarjetas))
+    ids = [r['ID'] for r in base]
+    comprobar(df is not None and list(df['ID']) == bp.abreviar_ids(ids)
+              and max(len(str(x)) for x in df['ID']) <= 24 < max(len(x) for x in ids),
+              'los nombres largos se muestran abreviados en la tabla',
+              str(list(df['ID'])[:3]) if df is not None else 'sin tabla')
+    comprobar(len(set(df['ID'])) == len(set(ids)), 'y siguen distinguiéndose unos de otros')
 
     # --- B · seleccionar un borreguil
     print('  B · seleccionar un borreguil')
@@ -243,6 +249,11 @@ def guion(lang):
     comprobar(hay(at, "app's proposal, not reviewed" if en else
                   'propuesta de la app, sin revisar'),
               'la ficha del punto dice que el tipo está sin revisar')
+    comprobar(hay(at, bp.nombre_html(r1['ID'])),
+              'la ficha muestra el nombre completo, con cortes en los separadores')
+    comprobar(hay(at, f"**{bp.fmt_num(r1.get('elev_dem_m'))} m**")
+              and not hay(at, str(r1.get('elev_dem_m')) + ' m'),
+              'los números de la ficha van con 4 decimales')
     d = desplegable(at, 'ambiente')
     opciones = list(d.options) if d is not None else []
     comprobar(opciones == (['(no change)', 'stream', 'lake', 'slope'] if en else

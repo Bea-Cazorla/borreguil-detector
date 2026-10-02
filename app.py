@@ -273,7 +273,7 @@ def render_docs():
         '3. Pulsa **Ejecutar pipeline**. La app descarga cada fuente, extrae las '
         'variables y predice.\n'
         '4. Revisa el **mapa** y la **tabla** de resultados; ajusta el umbral; descarga '
-        'Excel/CSV/GeoJSON/Word.\n'
+        'Excel/CSV/GeoJSON.\n'
         '5. *(Opcional)* marca borreguiles verificados en campo y **reentrena** en tu '
         'zona (presence-only, mínimo ~30 positivos) para un modelo propio.')
 
@@ -1352,8 +1352,15 @@ with tab_analisis:
         st.header('Resultados')
 
         # Summary
+        # En pantallas estrechas los rótulos de las tarjetas se cortaban con «…»
+        # («POSIBLE BORRE…»): se dejan partir en varias líneas.
+        st.markdown('<style>[data-testid="stMetricLabel"] p{white-space:normal!important;'
+                    'overflow:visible!important;text-overflow:clip!important;'
+                    'overflow-wrap:anywhere;}</style>', unsafe_allow_html=True)
         counts = Counter(r['decision'] for r in rows)
-        cols = st.columns(min(6, len(counts)+1))
+        # Alineadas por abajo: las cifras quedan a la misma altura aunque un rótulo
+        # ocupe dos líneas y el de al lado una.
+        cols = st.columns(min(6, len(counts)+1), vertical_alignment='bottom')
         cols[0].metric('Total', len(rows))
         for i, (k, v) in enumerate(counts.most_common(5)):
             cols[i+1].metric(i18n.tv(k), v)
@@ -1578,24 +1585,15 @@ git push
         def _add_points(fmap, pts, highlight_id=None, radius=6, hueco=False):
             # hueco=True: el punto resaltado se dibuja sin relleno, para que el
             # marcador no tape justo el terreno que hay que mirar.
+            _rotulos = i18n.pick(
+                {'tipo': 'Tipo', 'revisado': 'revisado', 'patron': 'Patrón',
+                 'altitud': 'Altitud'},
+                {'tipo': 'Type', 'revisado': 'reviewed', 'patron': 'Pattern',
+                 'altitud': 'Elevation'})
             for r in pts:
-                dec = r.get('decision', 'SIN PREDICCIÓN')
-                color = bp.decision_color(dec)
-                rf = r.get('rf_proba', float('nan'))
-                rf_txt = f'{rf*100:.0f}%' if isinstance(rf, (int, float)) and not _m.isnan(rf) else '—'
-                _tipo = i18n.tv(r.get('tipo_borreguil') or '')
-                _et = 'Type' if i18n.get_lang() == 'en' else 'Tipo'
-                _revm = ((' ✓ ' + i18n.pick('revisado', 'reviewed'))
-                         if bp.tipo_revisado(r) else '')
-                _tipo_html = f"<br>🌿 {_et}: <b>{_tipo}</b>{_revm}" if _tipo else ''
-                _en = i18n.get_lang() == 'en'
-                _l_pat = 'Pattern' if _en else 'Patrón'
-                _l_alt = 'Elevation' if _en else 'Altitud'
-                popup = (f"<b>{r.get('ID','?')}</b><br><b>{i18n.tv(dec)}</b><br>"
-                         f"RF: {rf_txt}{_tipo_html}<br>"
-                         f"{_l_pat}: {r.get('mat_signature','—')}<br>"
-                         f"{_l_alt}: {r.get('elev_dem_m','—')} m · Slope: {r.get('slope_deg','—')}°<br>"
-                         f"NDVI: {r.get('ndvi_late','—')} · Clre: {r.get('clre_late','—')}")
+                color = bp.decision_color(r.get('decision', 'SIN PREDICCIÓN'))
+                # Números con 4 decimales y nombres largos partidos en líneas.
+                popup = bp.popup_html(r, i18n.tv, _rotulos)
                 is_sel = (highlight_id is not None and r.get('ID') == highlight_id)
                 if is_sel:
                     folium.CircleMarker([r['lat'], r['lon']], radius=radius+8,
@@ -1843,6 +1841,13 @@ git push
                           'ndvi_late','clre_late','ndmi_late','evi_late','lat','lon']
             df = pd.DataFrame(rows)
             cols_show = [c for c in cols_show if c in df.columns]
+            # Las columnas opcionales que están vacías en todos los puntos (p. ej.
+            # la cuenca, si el fichero no la trae) no se muestran: solo ocupaban
+            # ancho y empujaban fuera de la pantalla la decisión y el tipo.
+            _opcionales = ('cuenca_id', 'source', 'origin', 'Borreguil', 'mat_signature',
+                           'dist_water_m')
+            cols_show = [c for c in cols_show if c not in _opcionales
+                         or any(bp._txt(v) != '' for v in df[c])]
             # Los valores del pipeline son españoles; se traducen SOLO para
             # mostrarlos (df_show), sin tocar `rows`, del que depende la lógica.
             df_show = df[cols_show].copy()
@@ -1853,10 +1858,22 @@ git push
                 df_show['tipo_revisado'] = df_show['tipo_revisado'].map(
                     lambda v: i18n.pick('sí', 'yes')
                     if bp.tipo_revisado({'tipo_revisado': v}) else '')
+            # Los ID muy largos se abrevian SOLO en la tabla, conservando el final, que
+            # es lo que los distingue; si no, la columna se come el ancho y hay que
+            # desplazarse para ver la decisión y el tipo. Además queda fija al
+            # desplazar la tabla hacia la derecha.
+            _cfg_tabla = {}
+            if 'ID' in df_show.columns:
+                df_show['ID'] = bp.abreviar_ids(df_show['ID'].tolist())
+                _cfg_tabla['ID'] = st.column_config.Column(pinned=True, help=i18n.pick(
+                    'Los nombres largos se muestran abreviados («…»). El nombre '
+                    'completo aparece al seleccionar el punto y en las descargas.',
+                    'Long names are shown abbreviated ("…"). The full name appears '
+                    'when you select the point and in the downloads.'))
             df_show = df_show.rename(columns={c: i18n.tcol(c) for c in df_show.columns})
             event = st.dataframe(df_show, hide_index=True, width='stretch',
                                  on_select='rerun', selection_mode='multi-row',
-                                 key='results_table')
+                                 column_config=_cfg_tabla, key='results_table')
             sel_rows = []
             if event is not None and getattr(event, 'selection', None):
                 _selo = event.selection
@@ -2078,7 +2095,14 @@ git push
                         'the point. Use the layer control (top right) to switch to '
                         'Google Satellite, which allows more zoom.'))
                 with colR:
-                    st.markdown(f"### {sel.get('ID','?')}")
+                    # El nombre, en un tamaño contenido y partiéndose por los
+                    # separadores: los ID largos quedaban troceados por cualquier
+                    # letra en tres líneas de titular.
+                    st.markdown(
+                        "<h4 style='margin:0 0 .4rem 0;padding:0;font-size:1.15rem;"
+                        "line-height:1.3;overflow-wrap:anywhere;'>"
+                        f"{bp.nombre_html(sel.get('ID', '?'))}</h4>",
+                        unsafe_allow_html=True)
                     st.markdown(f"**{i18n.tv(sel.get('decision','—'))}**")
                     if sel.get('tipo_borreguil'):
                         st.markdown(
@@ -2098,19 +2122,14 @@ git push
                         st.image(str(img_p), caption='ESRI World Imagery (~550 m)',
                                  width='stretch')
 
-                    def _n(v, nd):
-                        try:
-                            x = float(v)
-                            return '—' if x != x else f'{x:.{nd}f}'
-                        except (TypeError, ValueError):
-                            return '—'
+                    _n = bp.fmt_num                 # 4 decimales
                     st.markdown(
-                        f"Altitud: **{_n(sel.get('elev_dem_m'), 0)} m** · Slope: "
-                        f"**{_n(sel.get('slope_deg'), 1)}°** · TWI: "
-                        f"**{_n(sel.get('twi'), 1)}**\n\n"
-                        f"NDVI fin: **{_n(sel.get('ndvi_late'), 2)}** · Clre: "
-                        f"**{_n(sel.get('clre_late'), 2)}** · EVI: "
-                        f"**{_n(sel.get('evi_late'), 2)}**\n\n"
+                        f"Altitud: **{_n(sel.get('elev_dem_m'))} m** · Slope: "
+                        f"**{_n(sel.get('slope_deg'))}°** · TWI: "
+                        f"**{_n(sel.get('twi'))}**\n\n"
+                        f"NDVI fin: **{_n(sel.get('ndvi_late'))}** · Clre: "
+                        f"**{_n(sel.get('clre_late'))}** · EVI: "
+                        f"**{_n(sel.get('evi_late'))}**\n\n"
                         f"Patrón: **{sel.get('mat_signature','—')}** · "
                         f"Coords: {sel.get('lat'):.5f}, {sel.get('lon'):.5f}")
                     gmaps = f"https://www.google.com/maps/search/?api=1&query={sel.get('lat')},{sel.get('lon')}"

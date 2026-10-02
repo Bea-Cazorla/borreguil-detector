@@ -2499,6 +2499,7 @@ def save_xlsx(rows, out, threshold=0.5):
         ws.column_dimensions[get_column_letter(i)].width = 16
     ws.freeze_panes = 'C2'
 
+    anchos = [len(nm) for nm, _ in COLS]
     for ri, r in enumerate(rows, 2):
         for ci, (nm, fn) in enumerate(COLS, 1):
             try:
@@ -2506,7 +2507,20 @@ def save_xlsx(rows, out, threshold=0.5):
             except Exception:
                 v = None
             if isinstance(v, float) and math.isnan(v): v = None
-            ws.cell(row=ri, column=ci, value=v)
+            c = ws.cell(row=ri, column=ci, value=v)
+            if isinstance(v, float):
+                # Solo cambia lo que se VE (4 decimales; 6 en las coordenadas): la
+                # celda conserva el valor completo.
+                nd = 6 if nm in ('lon', 'lat') else 4
+                c.number_format = '0.' + '0' * nd
+                visto = f'{v:.{nd}f}'
+            else:
+                visto = '' if v is None else str(v)
+            anchos[ci-1] = max(anchos[ci-1], len(visto))
+    # Cada columna, tan ancha como su contenido: los nombres largos (p. ej. un ID
+    # heredado del nombre de la capa) no quedan cortados.
+    for ci, ancho in enumerate(anchos, 1):
+        ws.column_dimensions[get_column_letter(ci)].width = min(60, max(8, ancho + 2))
 
     last_row = len(rows)+1
     def col(name):
@@ -2518,6 +2532,104 @@ def save_xlsx(rows, out, threshold=0.5):
     ws.auto_filter.ref = f'A1:{get_column_letter(len(COLS))}{last_row}'
     wb.save(out)
     print(f'  → Excel: {out}')
+
+def fmt_num(v, nd=4):
+    """Número con `nd` decimales para MOSTRARLO ('—' si falta o no es un número).
+    Los valores se guardan con toda su precisión; esto solo cambia lo que se ve."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return '—'
+    return '—' if x != x else f'{x:.{nd}f}'
+
+
+def abreviar_ids(ids, largo=24):
+    """Versión corta de unos ID para MOSTRARLOS en una tabla.
+
+    Los ID heredados del nombre de la capa pueden ser muy largos y casi iguales
+    ('all_borreguil_lagunas500ptos_epsg25830.41'): ocupan media tabla y lo único
+    que los distingue está al final. A los largos se les quita el arranque que
+    comparten, cortando en un separador para dejar algo de contexto:
+    '…epsg25830.41'. Un ID largo suelto se acorta por el medio. Los cortos no se
+    tocan y, si al acortar dos ID distintos quedaran iguales, no se acorta ninguno.
+    El ID de verdad no cambia: sigue completo en el punto, en el mapa y en las
+    descargas.
+    """
+    txt = ['' if x is None else str(x) for x in ids]
+    largos = sorted({t for t in txt if len(t) > largo})
+    if not largos:
+        return txt
+
+    def por_el_medio(t):
+        return t if len(t) <= largo else t[:6] + '…' + t[-(largo - 7):]
+
+    corte = 0
+    if len(largos) >= 2:
+        comun = largos[0]
+        for t in largos[1:]:
+            while not t.startswith(comun):
+                comun = comun[:-1]
+        # Se corta en un separador anterior al final de lo común, para que quede
+        # '…epsg25830.41' y no un escueto '…41'.
+        separadores = [i for i, ch in enumerate(comun[:-1]) if ch in '_-. /']
+        corte = separadores[-1] + 1 if separadores else 0
+
+    def corta(t):
+        if len(t) <= largo:
+            return t
+        return por_el_medio('…' + t[corte:]) if corte >= 8 else por_el_medio(t)
+
+    cortos = [corta(t) for t in txt]
+    return txt if len(set(cortos)) < len(set(txt)) else cortos
+
+
+def nombre_html(nombre):
+    """Un nombre listo para HTML: escapado y con un punto de corte tras cada
+    separador, de modo que uno largo se parta por ahí ('…500ptos_' / 'epsg25830.41')
+    y no por cualquier letra. No añade caracteres al texto: si se copia de la
+    pantalla, sale el nombre exacto."""
+    import html
+    import re
+    return re.sub(r'([_\-./])', r'\1<wbr>', html.escape(str(nombre)))
+
+
+def popup_html(r, traduce=None, textos=None):
+    """Globo de un punto en el mapa (el de la app y el de mapa.html).
+
+    - Los números, con 4 decimales.
+    - Los nombres largos sin espacios (p. ej. un ID heredado del nombre de la capa,
+      'all_borreguil_lagunas500ptos_epsg25830.21') se parten en varias líneas en
+      lugar de salirse del globo.
+    - Los textos que vienen del fichero se escapan: un atributo con «<» no rompe
+      el mapa.
+    `traduce` traduce los valores (decisión, tipo) y `textos` los rótulos.
+    """
+    import html
+    t = {'tipo': 'Tipo', 'revisado': 'revisado', 'patron': 'Patrón', 'altitud': 'Altitud'}
+    t.update(textos or {})
+    tv = traduce or (lambda x: x)
+
+    def esc(x):
+        return html.escape(str(x))
+
+    rf = r.get('rf_proba')
+    rf_txt = f'{rf * 100:.0f}%' if isinstance(rf, (int, float)) and rf == rf else '—'
+    tipo = _txt(r.get('tipo_borreguil'))
+    tipo_html = ''
+    if tipo:
+        marca = f" ✓ {t['revisado']}" if tipo_revisado(r) else ''
+        tipo_html = f"<br>🌿 {t['tipo']}: <b>{esc(tv(tipo))}</b>{marca}"
+    return (
+        '<div style="max-width:280px;overflow-wrap:anywhere;word-break:break-word;">'
+        f"<b>{nombre_html(r.get('ID', '?'))}</b><br>"
+        f"<b>{esc(tv(_txt(r.get('decision')) or 'SIN PREDICCIÓN'))}</b><br>"
+        f"RF: {rf_txt}{tipo_html}<br>"
+        f"{t['patron']}: {esc(_txt(r.get('mat_signature')) or '—')}<br>"
+        f"{t['altitud']}: {fmt_num(r.get('elev_dem_m'))} m · "
+        f"Slope: {fmt_num(r.get('slope_deg'))}°<br>"
+        f"NDVI: {fmt_num(r.get('ndvi_late'))} · Clre: {fmt_num(r.get('clre_late'))}"
+        '</div>')
+
 
 def save_map(rows, out, study_geom=None):
     import folium
@@ -2559,19 +2671,10 @@ def save_map(rows, out, study_geom=None):
                                                   'fillOpacity': 0.08}
                        ).add_to(m)
     for r in rows:
-        dec = r.get('decision','SIN PREDICCIÓN')
-        color = decision_color(dec)
-        rf = r.get('rf_proba', None)
-        rf_txt = f'{rf*100:.0f}%' if isinstance(rf, float) and not math.isnan(rf) else '—'
-        popup = (f"<b>{r.get('ID','?')}</b><br>"
-                 f"<b>{dec}</b><br>"
-                 f"RF: {rf_txt}<br>"
-                 f"Patrón: {r.get('mat_signature','—')}<br>"
-                 f"Altitud: {r.get('elev_dem_m','—')} m · Slope: {r.get('slope_deg','—')}°<br>"
-                 f"NDVI: {r.get('ndvi_late','—')} · Clre: {r.get('clre_late','—')}")
+        color = decision_color(r.get('decision', 'SIN PREDICCIÓN'))
         folium.CircleMarker([r['lat'], r['lon']], radius=5,
                             color=color, fill=True, fill_color=color, fill_opacity=0.8,
-                            popup=folium.Popup(popup, max_width=300)).add_to(m)
+                            popup=folium.Popup(popup_html(r), max_width=300)).add_to(m)
     folium.LayerControl().add_to(m)
     m.save(out)
     print(f'  → Mapa: {out}')
