@@ -55,6 +55,34 @@ except Exception:
     DATA_DIR = APP_DIR
 
 
+# Ajustes que conviene recordar de una sesión a otra (el proyecto de Earth Engine,
+# para no escribirlo cada vez). Solo preferencias: nunca claves ni contraseñas.
+_AJUSTES = DATA_DIR / 'ajustes.json'
+
+
+def leer_ajuste(clave, defecto=''):
+    try:
+        import json
+        return json.loads(_AJUSTES.read_text(encoding='utf-8')).get(clave, defecto)
+    except Exception:
+        return defecto
+
+
+def guardar_ajuste(clave, valor):
+    try:
+        import json
+        try:
+            ajustes = json.loads(_AJUSTES.read_text(encoding='utf-8'))
+        except Exception:
+            ajustes = {}
+        if ajustes.get(clave) != valor:
+            ajustes[clave] = valor
+            _AJUSTES.write_text(json.dumps(ajustes, ensure_ascii=False, indent=1),
+                                encoding='utf-8')
+    except Exception:
+        pass                    # no poder recordar una preferencia no detiene nada
+
+
 def model_path(name):
     """Ruta de un modelo por nombre: primero la carpeta del usuario, luego la de la app."""
     p = DATA_DIR / name
@@ -676,7 +704,9 @@ with st.sidebar:
 
     gee_project = ''
     if backend == 'gee':
+        # Arranca con el último proyecto con el que la conexión funcionó.
         gee_project = st.text_input('Proyecto Google Earth Engine',
+                                      value=leer_ajuste('gee_project', ''),
                                       placeholder='ee-tunombre',
                                       help=('Nombre del proyecto de Google Cloud con la '
                                             'Earth Engine API habilitada.'))
@@ -695,6 +725,8 @@ with st.sidebar:
                     import gee_backend as geb
                     ok, msg = geb.initialize(gee_project.strip() or None)
                     (st.success if ok else st.error)(msg)
+                    if ok and gee_project.strip():
+                        guardar_ajuste('gee_project', gee_project.strip())
                 except Exception as e:
                     st.error(str(e))
         st.caption('El cómputo S2 + topografía se hace en los servidores de Google '
@@ -1054,6 +1086,8 @@ with tab_analisis:
                     proj = gee_project.strip() or get_secret('GEE_PROJECT', None)
                     ok, msg = geb.initialize(proj, service_account_json=sa)
                     if ok:
+                        if gee_project.strip():
+                            guardar_ajuste('gee_project', gee_project.strip())
                         st.write(f'✓ {msg}')
                         status.update(label='✓ GEE inicializado', state='complete')
                     else:
@@ -2442,11 +2476,223 @@ git push
                 for _q, _p, _q_en, _p_en in mr.NO_DISPONIBLES:
                     st.markdown(f'- **{i18n.pick(_q, _q_en)}** — {i18n.pick(_p, _p_en)}.')
 
+            # ------------------------------------------ 2 · Tabla de entrenamiento
+            # El valor de cada variable se lee en el PÍXEL de 10 m de cada muestra, de
+            # la misma pila de Earth Engine que después se clasificará.
+            st.divider()
+            st.markdown(i18n.pick('#### 2 · Tabla de entrenamiento', '#### 2 · Training table'))
+            st.caption(i18n.pick(
+                'Lee en Earth Engine el valor de cada variable en el **píxel de 10 m** de '
+                'cada muestra: el mismo píxel que después se clasificará. Por eso no se '
+                'usan los valores que ya tienen los puntos, que son medias en un radio de '
+                '25 m.',
+                'Reads from Earth Engine the value of each variable at the **10 m pixel** '
+                'of each sample: the same pixel that will later be classified. That is why '
+                'the values the points already have, which are means over a 25 m radius, '
+                'are not used.'))
+            import gee_backend as geb
+            try:
+                _anios = list(bp.parse_years(years_str))
+            except Exception:
+                _anios = []
+            _usadas = [f for f in _res['tabla'] if f['usada']]
+            _epsg = (geb.utm_de([(float(f['lon']), float(f['lat'])) for f in _usadas])
+                     if _usadas else None)
+            # Lo ya leído vale mientras no cambien los años ni la zona UTM de la rejilla.
+            _lect = st.session_state.get('mrf_lectura')
+            if _lect and (_lect.get('anios') != _anios or _lect.get('epsg') != _epsg):
+                _lect = None
+            _leidos = (_lect or {}).get('valores', {})
+            _pend = [f for f in _usadas
+                     if mr.clave_punto(f['lon'], f['lat']) not in _leidos]
+
+            _proy = st.text_input(
+                i18n.pick('Proyecto de Google Earth Engine', 'Google Earth Engine project'),
+                value=(gee_project.strip() or leer_ajuste('gee_project', '')),
+                key='mrf_proyecto', placeholder='ee-tunombre',
+                help=i18n.pick(
+                    'El mismo que usas en el panel lateral. Se recuerda para la próxima vez.',
+                    'The same one you use in the sidebar. It is remembered for next time.'))
+            st.caption(i18n.pick(
+                f'Años de Sentinel-2: **{years_str}** (los del panel lateral).',
+                f'Sentinel-2 years: **{years_str}** (those in the sidebar).'))
+            _rm = st.session_state.pop('_mrf_msg', None)
+            if _rm:
+                (st.success if _rm[0] == 'ok' else st.warning)(_rm[1])
+
+            _puede = bool(_res['listo'] and _predictores and _anios and _proy.strip())
+            if not _res['listo']:
+                st.caption(i18n.pick(
+                    'Antes hay que resolver lo que se indica en «1 · Datos».',
+                    'First resolve what is flagged under "1 · Data".'))
+            elif not _anios:
+                st.error(i18n.pick('No entiendo los años del panel lateral.',
+                                   'The years in the sidebar could not be understood.'))
+            _leer = False
+            if _pend:
+                _leer = st.button(
+                    i18n.pick(f'📥 Leer las variables de {len(_pend)} muestra'
+                              f"{'' if len(_pend) == 1 else 's'} en Earth Engine",
+                              f'📥 Read the variables of {len(_pend)} sample'
+                              f"{'' if len(_pend) == 1 else 's'} from Earth Engine"),
+                    key='mrf_leer', type='primary', disabled=not _puede)
+            elif _usadas and _lect:
+                if st.button(i18n.pick('↻ Volver a leer todas las muestras',
+                                       '↻ Read all the samples again'), key='mrf_releer',
+                             disabled=not _puede,
+                             help=i18n.pick(
+                                 'Solo hace falta si crees que una lectura salió mal: los '
+                                 'valores no cambian mientras no cambien los años.',
+                                 'Only needed if you think a reading went wrong: the '
+                                 'values do not change unless the years do.')):
+                    st.session_state.pop('mrf_lectura', None)
+                    st.rerun()
+            if _leer:
+                with st.status(i18n.pick('Leyendo en Earth Engine…',
+                                         'Reading from Earth Engine…'), expanded=True) as _stt:
+                    _ok, _msg = geb.initialize(
+                        _proy.strip(), service_account_json=get_secret('EE_SERVICE_ACCOUNT_KEY',
+                                                                      None))
+                    if not _ok:
+                        _stt.update(label=i18n.pick('Earth Engine no está disponible',
+                                                    'Earth Engine is not available'),
+                                    state='error')
+                        st.error(_msg)
+                    else:
+                        guardar_ajuste('gee_project', _proy.strip())
+                        _barra = st.progress(0.0)
+                        try:
+                            _vals, _fall, _inf = geb.leer_predictores(
+                                [(float(f['lon']), float(f['lat'])) for f in _pend],
+                                _anios, epsg=_epsg,
+                                progress=lambda fr: _barra.progress(max(0.0, min(1.0, fr))))
+                        except Exception as _e:
+                            _stt.update(label=i18n.pick('La lectura ha fallado',
+                                                        'The reading failed'), state='error')
+                            st.error(i18n.pick(
+                                f'Earth Engine no ha devuelto los datos: {_e}',
+                                f'Earth Engine did not return the data: {_e}'))
+                        else:
+                            from datetime import datetime as _dt
+                            _nuevo = _lect or {'anios': _anios, 'epsg': _epsg, 'valores': {}}
+                            _nuevo['info'] = _inf
+                            _nuevo['cuando'] = _dt.now().isoformat(timespec='seconds')
+                            for _f, _v in zip(_pend, _vals):
+                                if _v is not None:      # los fallidos quedan pendientes
+                                    _nuevo['valores'][mr.clave_punto(_f['lon'], _f['lat'])] = _v
+                            st.session_state['mrf_lectura'] = _nuevo
+                            _n_ok = len(_pend) - _fall
+                            st.session_state['_mrf_msg'] = (
+                                ('ok', i18n.pick(f'{_n_ok} muestras leídas.',
+                                                 f'{_n_ok} samples read.'))
+                                if not _fall else
+                                ('aviso', i18n.pick(
+                                    f'{_n_ok} muestras leídas; {_fall} no se pudieron '
+                                    'consultar. Pulsa de nuevo para reintentarlas.',
+                                    f'{_n_ok} samples read; {_fall} could not be queried. '
+                                    'Press again to retry them.')))
+                            st.rerun()
+
+            # La tabla, con lo que ya está leído
+            if _predictores and any(mr.clave_punto(f['lon'], f['lat']) in _leidos
+                                    for f in _usadas):
+                _tab = mr.construir_tabla(_res, _leidos, _predictores)
+                _nt = len(_tab['filas'])
+                st.markdown(i18n.pick(
+                    f"**{_nt} muestra{'' if _nt == 1 else 's'} con todas sus variables** "
+                    f"({len(_tab['predictores'])} variables).",
+                    f"**{_nt} sample{'' if _nt == 1 else 's'} with all their variables** "
+                    f"({len(_tab['predictores'])} variables)."))
+                st.dataframe(pd.DataFrame([{
+                    i18n.pick('Categoría', 'Category'): i18n.tv(c['categoria']),
+                    i18n.pick('Código', 'Code'): c['codigo'],
+                    i18n.pick('Muestras', 'Samples'): c['n_antes'],
+                    i18n.pick('En la tabla', 'In the table'): c['n']}
+                    for c in _tab['clases']]), hide_index=True, width='stretch')
+                if _tab['apartadas']:
+                    _cuenta = Counter(a['motivo'] for a in _tab['apartadas'])
+                    st.warning(i18n.pick('**Muestras que no entran en la tabla:**',
+                                         '**Samples left out of the table:**')
+                               + ''.join(f'\n- {n} — {mr.motivo_tabla(k, _en)}'
+                                         for k, n in _cuenta.most_common()))
+                    with st.expander(i18n.pick('Ver cuáles son', 'See which ones')):
+                        st.dataframe(pd.DataFrame([{
+                            'ID': a['ID'],
+                            i18n.pick('categoría', 'category'): i18n.tv(a['categoria']),
+                            i18n.pick('motivo', 'reason'): mr.motivo_tabla(a['motivo'], _en),
+                            i18n.pick('variables sin dato', 'variables without data'):
+                                ', '.join(a['faltan'][:6])
+                                + (' …' if len(a['faltan']) > 6 else '')}
+                            for a in _tab['apartadas']]), hide_index=True, width='stretch')
+                if _tab['errores']:
+                    st.error(i18n.pick('**Con esta tabla todavía no se puede entrenar:**',
+                                       '**This table is not enough to train yet:**')
+                             + ''.join('\n- ' + mr.mensaje(e, _en, i18n.tv)
+                                       for e in _tab['errores']))
+
+                # Control de calidad de las variables: avisa, no quita nada
+                _hall = mr.calidad(_tab)
+                if _hall:
+                    _max = 10
+                    st.warning(i18n.pick(
+                        '**Control de calidad de las variables.** No se ha quitado ninguna: '
+                        'si quieres prescindir de alguna, desmárcala arriba.',
+                        '**Quality check of the variables.** None has been removed: if you '
+                        'want to drop one, deselect it above.')
+                        + ''.join('\n- ' + mr.mensaje_calidad(h, _en) for h in _hall[:_max])
+                        + (i18n.pick(f'\n- … y {len(_hall) - _max} más.',
+                                     f'\n- … and {len(_hall) - _max} more.')
+                           if len(_hall) > _max else ''))
+                elif _nt:
+                    st.success(i18n.pick(
+                        'Control de calidad de las variables: sin incidencias.',
+                        'Quality check of the variables: nothing to report.'))
+
+                # Balance entre categorías
+                _des = mr.desequilibrio(_tab['clases'])
+                if _des and _des[0] >= 3:
+                    st.info(i18n.pick(
+                        f"**Categorías desequilibradas:** «{i18n.tv(_des[1]['categoria'])}» "
+                        f"tiene {_des[1]['n']} muestras y «{i18n.tv(_des[2]['categoria'])}», "
+                        f"{_des[2]['n']} ({_des[0]:.1f} veces menos). Al entrenar se "
+                        'compensará dando más peso a las categorías escasas.',
+                        f"**Unbalanced categories:** \"{i18n.tv(_des[1]['categoria'])}\" has "
+                        f"{_des[1]['n']} samples and \"{i18n.tv(_des[2]['categoria'])}\" has "
+                        f"{_des[2]['n']} ({_des[0]:.1f} times fewer). Training will "
+                        'compensate by giving more weight to the scarce categories.'))
+
+                with st.expander(i18n.pick('Ver la tabla de entrenamiento',
+                                           'See the training table')):
+                    _dft = pd.DataFrame(_tab['filas'])
+                    if len(_dft):
+                        _dft = _dft.drop(columns=['indice'])
+                        _dft['ID'] = bp.abreviar_ids(_dft['ID'].tolist())
+                        _dft['categoria'] = _dft['categoria'].map(i18n.tv)
+                        st.dataframe(_dft.rename(columns={
+                            'categoria': i18n.pick('categoría', 'category'),
+                            'codigo': i18n.pick('código', 'code')}),
+                            hide_index=True, width='stretch',
+                            column_config={'ID': st.column_config.Column(pinned=True)})
+                    st.download_button(
+                        label=f'⬇ tabla_entrenamiento_{_nivel}.csv',
+                        data=mr.tabla_entrenamiento_csv(_tab).encode('utf-8-sig'),
+                        file_name=f'tabla_entrenamiento_{_nivel}.csv', mime='text/csv',
+                        key='mrf_dl_tabla')
+                _inf = (_lect or {}).get('info') or {}
+                if _inf:
+                    st.caption(i18n.pick(
+                        f"Leído el {(_lect.get('cuando') or '').replace('T', ' ')} · rejilla "
+                        f"{_inf.get('crs')} de {_inf.get('resolucion_m')} m · años "
+                        f"{bp.abreviar_anios(_inf.get('anios', []))} · topografía de 30 m "
+                        'interpolada (bilineal).',
+                        f"Read on {(_lect.get('cuando') or '').replace('T', ' ')} · "
+                        f"{_inf.get('crs')} grid at {_inf.get('resolucion_m')} m · years "
+                        f"{bp.abreviar_anios(_inf.get('anios', []))} · 30 m topography "
+                        'interpolated (bilinear).'))
+
             st.divider()
             st.info(i18n.pick(
-                '**Siguiente paso (todavía no disponible):** leer en Earth Engine el valor '
-                'de estas variables en el píxel de cada muestra, comprobar la calidad de la '
-                'tabla y entrenar el modelo.',
-                '**Next step (not available yet):** read from Earth Engine the value of '
-                'these variables at the pixel of each sample, check the quality of the '
-                'table and train the model.'))
+                '**Siguiente paso (todavía no disponible):** entrenar el Random Forest con '
+                'esta tabla y validarlo por zonas.',
+                '**Next step (not available yet):** train the Random Forest with this '
+                'table and validate it by zones.'))

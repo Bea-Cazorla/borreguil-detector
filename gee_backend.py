@@ -281,6 +281,21 @@ def _season_composite(region, years, season):
     return col.median()
 
 
+def _s2_stack(region, years):
+    """Las bandas de Sentinel-2 que usa la app: índices de inicio y fin de verano,
+    la caída del NDVI y las estadísticas de jun–sep. Devuelve (pila, estadísticas).
+    Es la ÚNICA definición: la usan el muestreo de los puntos y el mapa."""
+    import ee
+    early = _indices_image(_season_composite(region, years, 'early'))
+    late = _indices_image(_season_composite(region, years, 'late'))
+    early = early.rename([f'{k}_early' for k in INDS])
+    late = late.rename([f'{k}_late' for k in INDS])
+    drop = early.select('ndvi_early').subtract(late.select('ndvi_late')).rename('ndvi_drop')
+    # Índices nuevos (mean/min/max/sd sobre jun–sep)
+    new_stats = _period_new_stats(region, years)
+    return ee.Image.cat([early, late, drop, new_stats]), new_stats
+
+
 def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025),
                  buffer_m=25, chunk=400, progress=None):
     """Rellena en cada row los índices Sentinel-2 (early/late) usando GEE."""
@@ -296,18 +311,11 @@ def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 20
     west, south, east, north = bbox[0], bbox[1], bbox[2], bbox[3]
     region = ee.Geometry.Rectangle([west, south, east, north])
 
-    early = _indices_image(_season_composite(region, years, 'early'))
-    late = _indices_image(_season_composite(region, years, 'late'))
-    early = early.rename([f'{k}_early' for k in INDS])
-    late = late.rename([f'{k}_late' for k in INDS])
-    drop = early.select('ndvi_early').subtract(late.select('ndvi_late')).rename('ndvi_drop')
-    # Índices nuevos (mean/min/max/sd sobre jun–sep)
-    new_stats = _period_new_stats(region, years)
+    stack, new_stats = _s2_stack(region, years)
     try:
         new_keys = list(new_stats.bandNames().getInfo())
     except Exception:
         new_keys = [f'{k}_{s}' for k in NEW_INDS for s in ('mean', 'min', 'max', 'sd')]
-    stack = ee.Image.cat([early, late, drop, new_stats])
 
     # Inicializa NaN
     out_keys = ([f'{k}_early' for k in INDS] + [f'{k}_late' for k in INDS]
@@ -376,6 +384,35 @@ def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 20
 # ============================================================
 # Topografía (server-side)
 # ============================================================
+# Modelo de elevaciones: Copernicus GLO-30, edición 2024_1. Sustituye a
+# COPERNICUS/DEM/GLO30, que Earth Engine marca como obsoleta. Mismas bandas, mismo
+# tipo y misma rejilla; en Sierra Nevada los valores son idénticos (comprobado en
+# 6 puntos: diferencia 0,000 m).
+DEM_ASSET = 'COPERNICUS/DEM/GLO30_2024_1'
+TOPO_KEYS = ('elev_dem_m', 'slope_deg', 'aspect_north', 'aspect_east', 'curvature')
+
+
+def _topo_stack(epsg):
+    """Las 5 bandas de topografía, calculadas en la rejilla UTM de 30 m. Es la ÚNICA
+    definición: la usan el muestreo de los puntos y el mapa."""
+    import ee
+    dem = (ee.ImageCollection(DEM_ASSET).select('DEM')
+           .mosaic().setDefaultProjection('EPSG:4326', None, 30)
+           .reproject(crs=f'EPSG:{epsg}', scale=30))
+    # Pendiente y orientación en grados CON decimales. ee.Terrain.products las
+    # devuelve como enteros (14°, no 14,4°), y así llegaban a los puntos.
+    slope = ee.Terrain.slope(dem).rename('slope_deg')
+    aspect = ee.Terrain.aspect(dem)
+    aspect_rad = aspect.multiply(math.pi / 180.0)
+    aspect_north = aspect_rad.cos().rename('aspect_north')
+    aspect_east = aspect_rad.sin().rename('aspect_east')
+    # Curvatura: laplaciano aproximado por convolución
+    lap_kernel = ee.Kernel.laplacian8(normalize=False)
+    curvature = dem.convolve(lap_kernel).rename('curvature')
+    elev = dem.rename('elev_dem_m')
+    return ee.Image.cat([elev, slope, aspect_north, aspect_east, curvature])
+
+
 def fetch_topo_gee(rows, bbox, buffer_m=15, chunk=400):
     """Rellena elev/slope/aspect/curvature usando Copernicus DEM GLO30 en GEE."""
     import ee
@@ -386,22 +423,8 @@ def fetch_topo_gee(rows, bbox, buffer_m=15, chunk=400):
     lon_med = (west + east) / 2
     epsg = _utm_epsg(lat_med, lon_med)
 
-    dem = (ee.ImageCollection('COPERNICUS/DEM/GLO30').select('DEM')
-           .mosaic().setDefaultProjection('EPSG:4326', None, 30)
-           .reproject(crs=f'EPSG:{epsg}', scale=30))
-    terr = ee.Terrain.products(dem)  # slope, aspect, hillshade
-    slope = terr.select('slope').rename('slope_deg')
-    aspect = terr.select('aspect')
-    aspect_rad = aspect.multiply(math.pi / 180.0)
-    aspect_north = aspect_rad.cos().rename('aspect_north')
-    aspect_east = aspect_rad.sin().rename('aspect_east')
-    # Curvatura: laplaciano aproximado por convolución
-    lap_kernel = ee.Kernel.laplacian8(normalize=False)
-    curvature = dem.convolve(lap_kernel).rename('curvature')
-    elev = dem.rename('elev_dem_m')
-    stack = ee.Image.cat([elev, slope, aspect_north, aspect_east, curvature])
-
-    keys = ['elev_dem_m', 'slope_deg', 'aspect_north', 'aspect_east', 'curvature']
+    stack = _topo_stack(epsg)
+    keys = list(TOPO_KEYS)
     for r in rows:
         for k in keys:
             r.setdefault(k, float('nan'))
@@ -429,6 +452,149 @@ def fetch_topo_gee(rows, bbox, buffer_m=15, chunk=400):
                 if v is not None:
                     rows[idx][k] = float(v)
         print(f'    {min(start+chunk, n)}/{n} puntos muestreados')
+
+
+# ============================================================
+# Pila de predictores para el MAPEO (Random Forest de tipos)
+# ------------------------------------------------------------
+# Todas las variables que existen como mapa continuo, en una sola imagen y sobre una
+# única rejilla de referencia: UTM, 10 m, alineada con la de Sentinel-2. De esa
+# misma imagen salen el valor de cada punto de entrenamiento (muestrear_pila) y,
+# después, los píxeles que se clasifican: así el modelo ve en el mapa exactamente lo
+# mismo que vio al entrenar.
+# ============================================================
+ESCALA_M = 10
+# GNDVI = (NIR − verde)/(NIR + verde) es exactamente −NDWI: la misma variable con el
+# signo cambiado. El detector las tiene las dos (sus modelos se entrenaron así); en
+# el mapeo se deja solo NDWI.
+INDS_MAPEO = tuple(k for k in INDS if k != 'gndvi')
+BANDAS_S2 = tuple([f'{k}_early' for k in INDS_MAPEO] + [f'{k}_late' for k in INDS_MAPEO]
+                  + ['ndvi_drop']
+                  + [f'{k}_{s}' for k in NEW_INDS for s in ('mean', 'min', 'max', 'sd')])
+BANDAS_PILA = BANDAS_S2 + TOPO_KEYS            # 34 bandas, en ORDEN FIJO
+
+
+def utm_de(puntos):
+    """EPSG de la zona UTM del centro de unos puntos [(lon, lat), …]."""
+    lon = sum(p[0] for p in puntos) / len(puntos)
+    lat = sum(p[1] for p in puntos) / len(puntos)
+    return _utm_epsg(lat, lon)
+
+
+def rejilla(epsg):
+    """Rejilla de referencia del mapeo: los bordes de píxel caen en múltiplos de 10 m
+    de las coordenadas UTM, igual que en las teselas de Sentinel-2."""
+    return {'crs': f'EPSG:{epsg}', 'crsTransform': [ESCALA_M, 0, 0, 0, -ESCALA_M, 0]}
+
+
+def pila_predictores(region, years, epsg):
+    """ee.Image con las bandas de BANDAS_PILA.
+
+    Sentinel-2 llega en su rejilla (10 m; las bandas de 20 m repiten valor). La
+    topografía se calcula a 30 m y se lleva a 10 m por interpolación BILINEAL, que es
+    lo indicado para una variable continua (repetir el píxel de 30 m dibujaría
+    escalones)."""
+    import ee
+    s2, _ = _s2_stack(region, years)
+    topo = _topo_stack(epsg).resample('bilinear')
+    return ee.Image.cat([s2, topo]).select(list(BANDAS_PILA))
+
+
+def muestrear_pila(pila, puntos, epsg, bandas=None, chunk=300, progress=None):
+    """Valor de cada banda en el PÍXEL de 10 m que contiene cada punto (no la media de
+    un entorno, como en el detector: aquí tiene que coincidir con lo que luego se
+    clasifica).
+
+    puntos: [(lon, lat), …]. Devuelve (valores, fallidos): `valores` es una lista
+    paralela; cada elemento es un dict {banda: número | None} —None en la banda sin
+    dato en ese píxel— o None si el punto NO SE PUDO CONSULTAR (fallo de Earth
+    Engine: no es lo mismo que no tener dato, y hay que poder reintentarlo).
+    `fallidos` es cuántos puntos quedaron sin consultar. Si no se pudo consultar
+    ninguno, lanza RuntimeError con el motivo.
+    """
+    import ee
+    bandas = list(bandas or BANDAS_PILA)
+    g = rejilla(epsg)
+    img = pila.select(bandas)
+    out = [None] * len(puntos)
+    estado = {'ok': 0, 'fallidos': 0, 'error': None}
+    try:
+        ee.data.setDeadline(300_000)
+    except Exception:
+        pass
+
+    def lote(sub, base):
+        fc = ee.FeatureCollection([
+            ee.Feature(ee.Geometry.Point([lo, la]), {'idx': base + i})
+            for i, (lo, la) in enumerate(sub)])
+        red = img.reduceRegions(collection=fc, reducer=ee.Reducer.first(),
+                                crs=g['crs'], crsTransform=g['crsTransform'],
+                                tileScale=4)
+        try:
+            feats = red.getInfo()['features']
+        except Exception as e:
+            if len(sub) > 20:                   # divide el lote y reintenta
+                mid = len(sub) // 2
+                lote(sub[:mid], base)
+                lote(sub[mid:], base + mid)
+            else:
+                estado['fallidos'] += len(sub)
+                estado['error'] = str(e)
+            return
+        for f in feats:
+            props = f.get('properties', {})
+            i = props.get('idx')
+            if i is None:
+                continue
+            out[i] = {b: (float(props[b]) if props.get(b) is not None else None)
+                      for b in bandas}
+        estado['ok'] += len(sub)
+
+    n = len(puntos)
+    for ini in range(0, n, chunk):
+        lote(puntos[ini:ini + chunk], ini)
+        if progress:
+            try:
+                progress(min(ini + chunk, n) / n)
+            except Exception:
+                pass
+    if n and estado['ok'] == 0:
+        raise RuntimeError('Earth Engine no devolvió datos para ningún punto '
+                           f'(último error: {estado["error"] or "desconocido"}).')
+    return out, estado['fallidos']
+
+
+def leer_predictores(puntos, years, epsg=None, progress=None):
+    """Lee las variables de la pila en el píxel de cada punto [(lon, lat), …].
+
+    Devuelve (valores, fallidos, info): `valores` y `fallidos` como en
+    muestrear_pila; `info` describe de dónde salen los datos (rejilla, años,
+    colecciones), para poder reproducir la lectura. `epsg` fija la zona UTM de la
+    rejilla; si no se da, se toma la del centro de los puntos.
+    """
+    import ee
+    years = tuple(int(y) for y in years)
+    epsg = int(epsg or utm_de(puntos))
+    lons = [p[0] for p in puntos]
+    lats = [p[1] for p in puntos]
+    margen = 0.01                               # ~1 km: solo acota la búsqueda de escenas
+    bbox = (min(lons) - margen, min(lats) - margen, max(lons) + margen, max(lats) + margen)
+    pila = pila_predictores(ee.Geometry.Rectangle(list(bbox)), years, epsg)
+    valores, fallidos = muestrear_pila(pila, puntos, epsg, progress=progress)
+    return valores, fallidos, info_pila(years, epsg)
+
+
+def info_pila(years, epsg):
+    """De dónde salen los valores de la pila: lo necesario para repetir la lectura."""
+    return {
+        'crs': f'EPSG:{int(epsg)}', 'resolucion_m': ESCALA_M,
+        'rejilla': 'UTM, bordes de píxel en múltiplos de 10 m (la de Sentinel-2)',
+        'anios': [int(y) for y in years],
+        'bandas': list(BANDAS_PILA),
+        'sentinel2': 'COPERNICUS/S2_SR_HARMONIZED',
+        'elevaciones': DEM_ASSET,
+        'remuestreo': 'Sentinel-2: vecino más próximo; topografía (30 m): bilineal',
+    }
 
 
 if __name__ == '__main__':

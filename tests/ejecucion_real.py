@@ -1,11 +1,16 @@
 """Ejecución REAL del análisis, de principio a fin, con 8 puntos.
 
 Sube un GeoJSON como haría una persona (con etiquetas de campo, huecos y un tipo ya
-revisado), ejecuta el pipeline con Planetary Computer (sin cuenta) en modo rápido y
-comprueba lo que queda en la sesión y en los ficheros guardados. Es la única prueba
-que pasa por el bloque que descarga, clasifica y guarda.
+revisado), ejecuta el pipeline en modo rápido y comprueba lo que queda en la sesión
+y en los ficheros guardados. Es la única prueba que pasa por el bloque que descarga,
+clasifica y guarda.
 
     python tests/ejecucion_real.py        (unos 3 minutos, NECESITA RED)
+
+Por defecto usa Planetary Computer, que no pide cuenta. Para probar el camino de
+Earth Engine, pon el nombre de tu proyecto en BORREGUIL_GEE_PROJECT:
+
+    BORREGUIL_GEE_PROJECT=mi-proyecto python tests/ejecucion_real.py
 
 Los 8 puntos son una rejilla inventada en la alta montaña de Sierra Nevada: lo que
 se comprueba son las etiquetas y los ficheros, no lo que prediga el modelo.
@@ -22,7 +27,9 @@ from pathlib import Path
 APP = Path(__file__).resolve().parent.parent
 os.chdir(APP)
 sys.path.insert(0, str(APP))
-os.environ['BORREGUIL_DATA_DIR'] = tempfile.mkdtemp(prefix='bt_')
+DATOS = Path(tempfile.mkdtemp(prefix='bt_'))
+os.environ['BORREGUIL_DATA_DIR'] = str(DATOS)
+PROYECTO_GEE = os.environ.get('BORREGUIL_GEE_PROJECT', '').strip()
 warnings.simplefilter('ignore')
 
 import borreguil_pipeline as bp   # noqa: E402
@@ -63,8 +70,14 @@ print(f'fichero de prueba: {len(feats)} puntos '
 at = AppTest.from_file(str(APP / 'app.py'), default_timeout=1500)
 at.run()
 at.file_uploader[0].set_value(('puntos_campo.geojson', contenido, 'application/geo+json'))
-[r for r in at.radio if r.label == 'Backend'][0].set_value(
-    '🛰  Microsoft Planetary Computer (sin cuenta)')
+if PROYECTO_GEE:
+    print('origen de los datos: Google Earth Engine')
+    [t for t in at.text_input if t.label == 'Proyecto Google Earth Engine'][0].set_value(
+        PROYECTO_GEE)
+else:
+    print('origen de los datos: Microsoft Planetary Computer')
+    [r for r in at.radio if r.label == 'Backend'][0].set_value(
+        '🛰  Microsoft Planetary Computer (sin cuenta)')
 [t for t in at.text_input if t.label.startswith('Años Sentinel-2')][0].set_value('2024')
 [c for c in at.checkbox if c.label.startswith('⚡ Modo rápido')][0].set_value(True)
 at.run()
@@ -87,6 +100,14 @@ if 'rows' not in at.session_state:
 
 rows = at.session_state['rows']
 work = at.session_state['work']
+if PROYECTO_GEE:
+    comprobar(at.session_state['active_backend'] == 'gee',
+              'los datos han salido de Earth Engine (no ha recurrido al otro origen)',
+              str(at.session_state['active_backend']))
+    recordado = (json.loads((DATOS / 'ajustes.json').read_text(encoding='utf-8'))
+                 if (DATOS / 'ajustes.json').exists() else {})
+    comprobar(recordado.get('gee_project') == PROYECTO_GEE,
+              'el proyecto de Earth Engine queda recordado para la próxima vez')
 por_id = {r['ID']: r for r in rows}
 comprobar(len(rows) == 8, 'están los 8 puntos', str(len(rows)))
 

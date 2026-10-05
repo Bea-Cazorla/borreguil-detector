@@ -151,6 +151,7 @@ def muestras(rows, nivel, incluir_ausencias=True, es_borreguil=None):
     for i, r in enumerate(rows):
         cat, origen, motivo = _clasifica(r, nivel, incluir_ausencias, es_borreguil)
         tabla.append({
+            'indice': i,                    # posición del punto en la sesión
             'ID': r.get('ID', f'pt_{i}'),
             'lon': r.get('lon'), 'lat': r.get('lat'),
             'categoria': cat or '',
@@ -264,11 +265,231 @@ def tabla_csv(resultado):
     campos = ['ID', 'lon', 'lat', 'categoria', 'codigo', 'origen_etiqueta',
               'fecha_revision', 'propuesta_app', 'fuente', 'usada', 'motivo']
     buf = io.StringIO()
-    w = csv.DictWriter(buf, fieldnames=campos, lineterminator='\n')
+    w = csv.DictWriter(buf, fieldnames=campos, lineterminator='\n',
+                       extrasaction='ignore')
     w.writeheader()
     for f in resultado['tabla']:
         w.writerow({**f, 'usada': 'si' if f['usada'] else 'no'})
     return buf.getvalue()
+
+
+# ============================================================
+# Tabla de entrenamiento X / y
+# ------------------------------------------------------------
+# Una fila por muestra: su categoría y el valor de cada predictor en SU píxel de la
+# pila ráster (gee_backend.muestrear_pila), que es el mismo píxel que después se
+# clasifica. No valen los valores que ya tienen los puntos del detector: son medias
+# en un radio de 25 m e incluyen variables que no existen como mapa.
+# ============================================================
+def clave_punto(lon, lat):
+    """Identifica el punto en la caché de valores leídos (7 decimales ≈ 1 cm)."""
+    return (round(float(lon), 7), round(float(lat), 7))
+
+
+def construir_tabla(res, valores, predictores):
+    """Tabla de entrenamiento de las muestras de `res` (salida de `muestras()`).
+
+    valores: {clave_punto: {banda: número | None}} con lo leído de la pila.
+    predictores: nombres elegidos (se ponen en el orden fijo del catálogo).
+
+    Una muestra entra solo si tiene valor finito en TODOS los predictores elegidos.
+    Las demás se apartan con su motivo, sin rellenar ni inventar nada:
+      'sin_leer'       todavía no se ha leído en la pila;
+      'sin_cobertura'  la pila no tiene dato de ninguna variable en ese píxel
+                       (fuera de las capas);
+      'sin_dato'       le falta alguna variable (se dice cuáles).
+
+    Devuelve un dict: predictores, filas (dicts con ID, indice, categoria, codigo y
+    los predictores), X, y, apartadas, clases, errores, avisos, listo.
+    """
+    orden = ordenar_predictores(predictores)
+    if not orden:
+        raise ValueError('no hay ningún predictor seleccionado')
+    filas, apartadas = [], []
+    for f in res['tabla']:
+        if not f['usada']:
+            continue
+        base = {'ID': f['ID'], 'indice': f['indice'], 'categoria': f['categoria'],
+                'codigo': f['codigo']}
+        v = valores.get(clave_punto(f['lon'], f['lat']))
+        if v is None:
+            apartadas.append({**base, 'motivo': 'sin_leer', 'faltan': []})
+            continue
+        faltan = [p for p in orden if _num(v.get(p)) is None]
+        if faltan:
+            sin_nada = all(_num(x) is None for x in v.values())
+            apartadas.append({**base, 'motivo': 'sin_cobertura' if sin_nada else 'sin_dato',
+                              'faltan': faltan})
+            continue
+        filas.append({**base, **{p: float(v[p]) for p in orden}})
+
+    cod = res['codigos']
+    n_por = {}
+    for f in filas:
+        n_por[f['categoria']] = n_por.get(f['categoria'], 0) + 1
+    clases = [{'categoria': c['categoria'], 'codigo': c['codigo'],
+               'n': n_por.get(c['categoria'], 0), 'n_antes': c['n']}
+              for c in res['clases']]
+    con = [c for c in clases if c['n'] > 0]
+    errores, avisos = [], []
+    if len(con) < 2:
+        errores.append(('pocas_categorias', len(con)))
+    for c in con:
+        if c['n'] < MIN_POR_CLASE:
+            errores.append(('pocas_muestras', c['categoria'], c['n']))
+        elif c['n'] < RECOMENDADO_POR_CLASE:
+            avisos.append(('muestras_justas', c['categoria'], c['n']))
+    return {
+        'nivel': res['nivel'], 'codigos': cod, 'predictores': orden, 'filas': filas,
+        'X': [[f[p] for p in orden] for f in filas],
+        'y': [f['codigo'] for f in filas],
+        'apartadas': apartadas, 'clases': clases,
+        'errores': errores, 'avisos': avisos, 'listo': not errores,
+    }
+
+
+MOTIVOS_TABLA = {
+    'sin_leer': 'todavía no se ha leído en Earth Engine',
+    'sin_cobertura': 'fuera de las capas: ninguna variable tiene dato en ese píxel',
+    'sin_dato': 'le falta el valor de alguna variable',
+}
+MOTIVOS_TABLA_EN = {
+    'sin_leer': 'not read from Earth Engine yet',
+    'sin_cobertura': 'outside the layers: no variable has data at that pixel',
+    'sin_dato': 'the value of some variable is missing',
+}
+
+
+def motivo_tabla(clave, en=False):
+    return (MOTIVOS_TABLA_EN if en else MOTIVOS_TABLA).get(clave, clave)
+
+
+def tabla_entrenamiento_csv(tab):
+    """La tabla X/y como texto CSV: ID, categoría, código y un predictor por
+    columna, en el orden exacto que verá el modelo."""
+    import csv
+    import io
+    campos = ['ID', 'categoria', 'codigo'] + list(tab['predictores'])
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=campos, lineterminator='\n',
+                       extrasaction='ignore')
+    w.writeheader()
+    w.writerows(tab['filas'])
+    return buf.getvalue()
+
+
+# Umbrales del control de calidad de las variables. Solo sirven para AVISAR: no se
+# quita ninguna variable automáticamente; decide quien usa la app.
+CASI_CONSTANTE = 0.95        # una variable en la que el 95 % de las muestras coincide
+CORRELACION_ALTA = 0.95      # |r| de Pearson a partir del cual dos variables se avisan
+MUESTRAS_POR_VARIABLE = 5    # menos de 5 muestras por variable: tabla escasa
+
+
+def calidad(tab):
+    """Revisa las variables de la tabla sin cambiarla. Devuelve una lista de
+    hallazgos, cada uno una tupla (clave, …):
+
+      ('constante', var)                  no varía: no puede ayudar a distinguir nada
+      ('casi_constante', var, fracción)   casi todas las muestras comparten el valor
+      ('duplicadas', var_a, var_b)        dos columnas idénticas
+      ('opuestas', var_a, var_b)          la misma columna con el signo cambiado
+      ('correlacion', var_a, var_b, r)    |r| ≥ CORRELACION_ALTA
+      ('mas_variables_que_muestras', n, p)
+      ('pocas_muestras_por_variable', n, p)
+    """
+    import numpy as np
+    nombres = list(tab['predictores'])
+    X = np.asarray(tab['X'], dtype=float)
+    out = []
+    n = X.shape[0] if X.ndim == 2 else 0
+    p = len(nombres)
+    if n == 0:
+        return out
+    if n < p:
+        out.append(('mas_variables_que_muestras', n, p))
+    elif n < MUESTRAS_POR_VARIABLE * p:
+        out.append(('pocas_muestras_por_variable', n, p))
+
+    constantes = set()
+    for j, nombre in enumerate(nombres):
+        col = np.round(X[:, j], 6)
+        valores_, cuentas = np.unique(col, return_counts=True)
+        if len(valores_) == 1:
+            constantes.add(j)
+            out.append(('constante', nombre))
+        elif n >= 20 and cuentas.max() / n >= CASI_CONSTANTE:
+            out.append(('casi_constante', nombre, float(cuentas.max() / n)))
+
+    duplicadas = set()
+    for a in range(p):
+        for b in range(a + 1, p):
+            if a in constantes or b in constantes:
+                continue
+            if np.array_equal(X[:, a], X[:, b]):
+                duplicadas.add((a, b))
+                out.append(('duplicadas', nombres[a], nombres[b]))
+            elif np.allclose(X[:, a], -X[:, b], rtol=0, atol=1e-9):
+                # la misma variable con el signo cambiado (p. ej. NDWI = −GNDVI)
+                duplicadas.add((a, b))
+                out.append(('opuestas', nombres[a], nombres[b]))
+    if n >= 3:
+        vivos = [j for j in range(p) if j not in constantes]
+        if len(vivos) >= 2:
+            r = np.corrcoef(X[:, vivos], rowvar=False)
+            pares = []
+            for ia in range(len(vivos)):
+                for ib in range(ia + 1, len(vivos)):
+                    a, b = vivos[ia], vivos[ib]
+                    if (a, b) in duplicadas:
+                        continue
+                    val = float(r[ia, ib])
+                    if val == val and abs(val) >= CORRELACION_ALTA:
+                        pares.append((abs(val), nombres[a], nombres[b], val))
+            for _abs, na, nb, val in sorted(pares, reverse=True):
+                out.append(('correlacion', na, nb, val))
+    return out
+
+
+def mensaje_calidad(item, en=False):
+    """Texto de un hallazgo de `calidad()`."""
+    k = item[0]
+    if k == 'constante':
+        return (f'"{item[1]}" has the same value in every sample: it cannot help.' if en else
+                f'«{item[1]}» vale lo mismo en todas las muestras: no puede ayudar.')
+    if k == 'casi_constante':
+        return (f'"{item[1]}" has the same value in {item[2]:.0%} of the samples.' if en else
+                f'«{item[1]}» vale lo mismo en el {item[2]:.0%} de las muestras.')
+    if k == 'duplicadas':
+        return (f'"{item[1]}" and "{item[2]}" are identical.' if en else
+                f'«{item[1]}» y «{item[2]}» son idénticas.')
+    if k == 'opuestas':
+        return (f'"{item[1]}" and "{item[2]}" are the same variable with the sign '
+                'flipped: they carry the same information.' if en else
+                f'«{item[1]}» y «{item[2]}» son la misma variable con el signo cambiado: '
+                'aportan lo mismo.')
+    if k == 'correlacion':
+        return (f'"{item[1]}" and "{item[2]}" move together (r = {item[3]:+.2f}).' if en else
+                f'«{item[1]}» y «{item[2]}» van juntas (r = {item[3]:+.2f}).')
+    if k == 'mas_variables_que_muestras':
+        return (f'There are more variables ({item[2]}) than samples ({item[1]}).' if en else
+                f'Hay más variables ({item[2]}) que muestras ({item[1]}).')
+    if k == 'pocas_muestras_por_variable':
+        return (f'{item[1]} samples for {item[2]} variables: fewer than '
+                f'{MUESTRAS_POR_VARIABLE} per variable.' if en else
+                f'{item[1]} muestras para {item[2]} variables: menos de '
+                f'{MUESTRAS_POR_VARIABLE} por variable.')
+    return str(item)
+
+
+def desequilibrio(clases):
+    """Cuánto pesa la categoría más abundante frente a la más escasa (solo entre las
+    que tienen muestras). Devuelve (razón, mayor, menor) o None si no hay dos."""
+    con = [c for c in clases if c['n'] > 0]
+    if len(con) < 2:
+        return None
+    mayor = max(con, key=lambda c: c['n'])
+    menor = min(con, key=lambda c: c['n'])
+    return mayor['n'] / menor['n'], mayor, menor
 
 
 # ============================================================
@@ -294,10 +515,11 @@ GRUPOS_EN = {
 }
 
 # (clave, descripción en español, descripción en inglés)
+# No está GNDVI: es exactamente −NDWI (las dos se calculan con el verde y el
+# infrarrojo cercano), así que sería la misma variable dos veces.
 _INDICES = (('ndvi', 'NDVI, vigor de la vegetación', 'NDVI, vegetation vigour'),
             ('ndwi', 'NDWI, agua en superficie', 'NDWI, surface water'),
             ('clre', 'clorofila (borde del rojo)', 'chlorophyll (red edge)'),
-            ('gndvi', 'NDVI con la banda verde', 'NDVI with the green band'),
             ('ndmi', 'NDMI, humedad de la vegetación', 'NDMI, vegetation moisture'),
             ('evi', 'EVI, vigor corregido', 'EVI, corrected vigour'),
             ('nbr', 'NBR, infrarrojo de onda corta', 'NBR, short-wave infrared'))
@@ -338,6 +560,10 @@ NO_DISPONIBLES = (
      'Earth Engine no lo calcula; solo existe con el otro origen de datos',
      'TWI, topographic wetness index',
      'Earth Engine does not compute it; it only exists with the other data source'),
+    ('GNDVI (2 variables)',
+     'es el NDWI con el signo cambiado: tenerlas las dos sería repetir la misma variable',
+     'GNDVI (2 variables)',
+     'it is NDWI with the sign flipped: keeping both would repeat the same variable'),
 )
 
 

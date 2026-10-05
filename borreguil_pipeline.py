@@ -345,6 +345,22 @@ def parse_years(spec):
     return tuple(sorted(years))
 
 
+def abreviar_anios(years):
+    """Lo contrario de parse_years, para mostrar: (2017, …, 2025) → '2017-2025';
+    (2017, 2019, 2020) → '2017, 2019-2020'."""
+    ys = sorted({int(y) for y in years})
+    if not ys:
+        return ''
+    tramos, ini, ant = [], ys[0], ys[0]
+    for y in ys[1:]:
+        if y != ant + 1:
+            tramos.append((ini, ant))
+            ini = y
+        ant = y
+    tramos.append((ini, ant))
+    return ', '.join(str(a) if a == b else f'{a}-{b}' for a, b in tramos)
+
+
 # ============================================================
 # 1. ESRI World Imagery
 # ============================================================

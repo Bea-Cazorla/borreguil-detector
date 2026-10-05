@@ -38,6 +38,15 @@ def test_numeros_con_cuatro_decimales():
         assert bp.fmt_num(vacio) == '—'
 
 
+def test_anios_abreviados_son_lo_contrario_de_parse_years():
+    assert bp.abreviar_anios(range(2017, 2026)) == '2017-2025'
+    assert bp.abreviar_anios([2023, 2024]) == '2023-2024'
+    assert bp.abreviar_anios([2020, 2017, 2019, 2024]) == '2017, 2019-2020, 2024'
+    assert bp.abreviar_anios([2024]) == '2024' and bp.abreviar_anios([]) == ''
+    for texto in ('2017-2025', '2017, 2019-2020, 2024', '2024'):
+        assert bp.abreviar_anios(bp.parse_years(texto)) == texto
+
+
 def test_ids_largos_abreviados_conservando_lo_que_los_distingue():
     ids = [f'all_borreguil_lagunas500ptos_epsg25830.{n}' for n in (1, 21, 41, 441)]
     cortos = bp.abreviar_ids(ids)

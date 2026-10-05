@@ -23,3 +23,6 @@ dist/
 
 # Carpeta de datos del usuario si alguien ejecuta desde el propio directorio
 Borreguil/
+
+# Preferencias personales que la app recuerda (p. ej. el proyecto de Earth Engine)
+ajustes.json

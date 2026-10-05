@@ -151,6 +151,8 @@ el ambiente «laguna». Sin ella se usa la capa incluida de Sierra Nevada (65 la
 | 🛰 **Planetary Computer** | No | Lento (descarga a tu PC) | Sin cuenta GEE. |
 
 Alta en GEE: ver [TUTORIAL §3](TUTORIAL.md#3-darte-de-alta-en-google-earth-engine).
+El nombre del proyecto de Earth Engine se recuerda: cuando la conexión funciona
+una vez, la próxima aparece ya escrito.
 
 ### Modelo de partida
 Ver [§6](#6-los-modelos).
@@ -455,8 +457,9 @@ cuenta como revisado.
 ### Mapeo de tipos con Random Forest (en construcción)
 
 La pestaña **🌿 Mapeo RF** llevará de los puntos revisados a un mapa de tipos. Se
-construye por pasos; de momento está el primero, **Datos**, que responde a dos
-preguntas antes de entrenar nada.
+construye por pasos; de momento están los dos primeros: **1 · Datos**, que
+responde a dos preguntas antes de entrenar nada, y **2 · Tabla de entrenamiento**.
+El modelo y el mapa llegarán después.
 
 **¿Qué puntos sirven como muestra?** Se elige el nivel que se quiere cartografiar
 (ambiente, humedad o pureza: un modelo por nivel) y la app cuenta:
@@ -485,10 +488,42 @@ con menos de 30 por categoría la app avisa de que el resultado será poco fiabl
 > sepa que hay borreguil; por sí solo no demuestra presencia frente a ausencia.
 
 **¿Qué variables se pueden usar?** Solo las que existen como **mapa continuo**, que
-son las que luego permiten predecir sobre el territorio: 36, calculadas en Earth
-Engine a partir de Sentinel-2 (31) y del modelo de elevaciones (5). Vienen todas
+son las que luego permiten predecir sobre el territorio: 34, calculadas en Earth
+Engine a partir de Sentinel-2 (29) y del modelo de elevaciones (5). Vienen todas
 marcadas y se pueden quitar. Las texturas de la imagen aérea, el radar Sentinel-1 y
 el TWI, que el detector sí usa, no están porque hoy solo se calculan punto a punto.
+
+**La tabla de entrenamiento.** El botón **📥 Leer las variables… en Earth Engine**
+lee el valor de cada variable en el **píxel de 10 m** de cada muestra. Es el mismo
+píxel que después se clasificará: por eso no se usan los valores que ya tienen los
+puntos, que son medias en un radio de 25 m. Necesita el nombre de tu proyecto de
+Earth Engine (la app lo recuerda de una vez para otra) y usa los años de Sentinel-2
+del panel lateral. Con 21 muestras y los años 2017-2025 tarda alrededor de un minuto.
+
+Lo leído se conserva mientras no cambien los años: añadir muestras solo lee las
+nuevas, y quitar o poner variables no obliga a leer nada. La app enseña:
+
+- **Cuántas muestras entran en la tabla** y cuáles no. Una muestra entra solo si
+  tiene dato en todas las variables elegidas; las demás se apartan diciendo por qué
+  (píxel sin dato de alguna variable, fuera de las capas, o lectura fallida que se
+  puede reintentar). No se rellena ningún hueco.
+- **Control de calidad de las variables**: constantes o casi constantes, repetidas,
+  la misma con el signo cambiado, muy correlacionadas (|r| ≥ 0,95) y pocas muestras
+  para tantas variables. **Solo avisa; no quita ninguna.** Quitar o no es decisión
+  tuya, desmarcándola arriba.
+- **Desequilibrio entre categorías**, cuando la más abundante triplica a la más
+  escasa.
+
+La tabla se descarga como `tabla_entrenamiento_<nivel>.csv`: una fila por muestra y
+una columna por variable, en el orden exacto que verá el modelo.
+
+> 💡 `gndvi` no está entre las variables del mapeo: es `ndwi` con el signo cambiado
+> (las dos se calculan con las mismas dos bandas), así que tenerlas ambas sería
+> repetir la misma variable. Los modelos del detector sí las llevan las dos,
+> porque se entrenaron así; no les perjudica.
+
+La rejilla de todo el mapeo es la de Sentinel-2: UTM, 10 m. La topografía, que
+está a 30 m, se interpola (bilineal) al pasarla a esa rejilla.
 
 ---
 

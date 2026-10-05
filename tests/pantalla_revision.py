@@ -259,8 +259,8 @@ def guion(lang):
                             'Only one category has samples'))
               and hay(at, T('el mínimo es 5', 'the minimum is 5')),
               'mapeo: avisa de que con eso no se puede entrenar')
-    comprobar(hay(at, T('36 de 36 variables seleccionadas', '36 of 36 variables selected')),
-              'mapeo: las 36 variables disponibles vienen seleccionadas')
+    comprobar(hay(at, T('34 de 34 variables seleccionadas', '34 of 34 variables selected')),
+              'mapeo: las 34 variables disponibles vienen seleccionadas')
     tarjetas = [m.label for m in at.metric]
     comprobar(('LIKELY BORREGUIL' in tarjetas) if en else ('BORREGUIL PROBABLE' in tarjetas),
               'las tarjetas de recuento van en el idioma elegido', str(tarjetas))
@@ -444,7 +444,7 @@ def guion(lang):
     control(at, 'checkbox', 'mrf_ausencias').check()
     control(at, 'multiselect', 'mrf_vars_4').set_value(['elev_dem_m', 'slope_deg'])
     at.run()
-    comprobar(hay(at, T('33 de 36 variables seleccionadas', '33 of 36 variables selected')),
+    comprobar(hay(at, T('31 de 34 variables seleccionadas', '31 of 34 variables selected')),
               'se pueden quitar variables')
     for i in range(5):
         control(at, 'multiselect', f'mrf_vars_{i}').set_value([])
@@ -564,8 +564,161 @@ def guion(lang):
         comprobar(not restos, 'sin restos en español en el panel de revisión', str(restos))
 
 
+# ------------------------------------------------- tabla de entrenamiento
+# Con suficientes puntos revisados, leer las variables y montar la tabla X/y.
+# Earth Engine se sustituye por un lector simulado (misma firma que el de verdad):
+# la primera vez deja un punto sin consultar y a otro le falta una variable.
+import zlib                                  # noqa: E402
+
+import gee_backend as geb                    # noqa: E402
+
+LLAMADAS = []
+
+
+def _lector_simulado(puntos, years, epsg=None, progress=None):
+    LLAMADAS.append({'n': len(puntos), 'years': tuple(years), 'epsg': epsg})
+    primera = len(LLAMADAS) == 1
+    valores = []
+    for k, (lon, lat) in enumerate(puntos):
+        if primera and k == 3:               # fallo de Earth Engine: sin consultar
+            valores.append(None)
+            continue
+        v = {b: (zlib.crc32(f'{lon:.5f},{lat:.5f},{j}'.encode()) % 1000) / 1000.0
+             for j, b in enumerate(geb.BANDAS_PILA)}
+        if primera and k == 5:               # píxel sin dato de una variable
+            v['ndmi_mean'] = None
+        valores.append(v)
+    if progress:
+        progress(1.0)
+    return valores, sum(v is None for v in valores), geb.info_pila(years, epsg or 32630)
+
+
+def guion_tabla(lang):
+    en = lang == 'English'
+    T = (lambda es_, en_: en_ if en else es_)
+    print(f'\n================ {lang} · tabla de entrenamiento ================')
+    LLAMADAS.clear()
+    SELECCION['rows'] = []
+    datos = Path(tempfile.mkdtemp(prefix='bt_'))
+    os.environ['BORREGUIL_DATA_DIR'] = str(datos)
+    geb.initialize = lambda project=None, service_account_json=None: (True, 'simulado')
+    geb.leer_predictores = _lector_simulado
+
+    # 14 borreguiles con el tipo revisado (7 húmedos, 7 secos) y 8 ausencias de campo
+    # (7 que se marcan aquí más la que ya traían los datos de prueba): 22 muestras.
+    rows = [dict(r) for r in base if r['ID'] != 'sin_datos']
+    borr = [r for r in rows if pp.is_borreguil_decision(r['decision'])][:14]
+    for k, r in enumerate(borr):
+        bp.set_tipo_revisado(r, humedad=('húmedo' if k % 2 else 'seco'))
+    for r in [r for r in rows if r['decision'] == 'NO BORREGUIL'][:7]:
+        r['Borreguil'] = 'no'
+        r['decision'] = bp.decide(r, 0.5)
+    bp.apply_typology(rows, pp.is_borreguil_decision)
+
+    def nueva():
+        a = AppTest.from_file(str(APP / 'app.py'), default_timeout=600)
+        a.session_state['rows'] = [dict(r) for r in rows]
+        a.session_state['work'] = Path(tempfile.mkdtemp(prefix='bw_'))
+        a.session_state['info'] = {k: v for k, v in (info or {}).items()
+                                   if k != 'model_bundle'}
+        a.session_state['ui_lang'] = lang
+        a.run()
+        return a
+
+    at = nueva()
+    control(at, 'selectbox', 'mrf_nivel').select('humedad')
+    at.run()
+    sin_error(at, 'T1')
+    comprobar(clases_del_mapeo(at) == {T('no borreguil', 'not a borreguil'): 8,
+                                       T('húmedo', 'wet'): 7, T('seco', 'dry'): 7},
+              'hay tres categorías: 8 ausencias, 7 húmedos y 7 secos', str(clases_del_mapeo(at)))
+    b = control(at, 'button', 'mrf_leer')
+    comprobar(b is not None and b.disabled and '22' in b.label,
+              'sin proyecto de Earth Engine, el botón de leer está desactivado',
+              f'{b.label if b else None}')
+
+    print('  T2 · primera lectura (un punto falla, a otro le falta una variable)')
+    control(at, 'text_input', 'mrf_proyecto').set_value('ee-proyecto-de-prueba')
+    at.run()
+    msgs = pulsar(at, control(at, 'button', 'mrf_leer'), 'T2')
+    comprobar(LLAMADAS and LLAMADAS[0]['n'] == 22 and LLAMADAS[0]['years'] == tuple(range(2017, 2026))
+              and LLAMADAS[0]['epsg'] == 32630,
+              'se piden las 22 muestras, con los años del panel lateral y la zona UTM',
+              str(LLAMADAS[:1]))
+    comprobar(any(T('21 muestras leídas; 1 no se pudieron consultar',
+                    '21 samples read; 1 could not be queried') in m for m in msgs),
+              'dice cuántas se han leído y cuántas han fallado')
+    comprobar(hay(at, T('**20 muestras con todas sus variables** (34 variables)',
+                        '**20 samples with all their variables** (34 variables)')),
+              'la tabla tiene 20 muestras: 22 menos la que falló y la que no tiene dato')
+    comprobar(hay(at, mr.motivo_tabla('sin_leer', en))
+              and hay(at, mr.motivo_tabla('sin_dato', en)),
+              'explica por qué faltan esas dos')
+    b = control(at, 'button', 'mrf_leer')
+    comprobar(b is not None and not b.disabled and ' 1 ' in b.label,
+              'el botón ofrece reintentar solo la muestra que falló',
+              f'{b.label if b else None}')
+
+    print('  T3 · reintento')
+    msgs = pulsar(at, control(at, 'button', 'mrf_leer'), 'T3')
+    comprobar(len(LLAMADAS) == 2 and LLAMADAS[1]['n'] == 1, 'solo se vuelve a pedir esa muestra',
+              str(LLAMADAS[1:]))
+    comprobar(hay(at, T('**21 muestras con todas sus variables**',
+                        '**21 samples with all their variables**')),
+              'ahora son 21: sigue fuera la que no tiene dato')
+    comprobar(control(at, 'button', 'mrf_leer') is None
+              and control(at, 'button', 'mrf_releer') is not None,
+              'ya no queda nada por leer')
+    tabla = tabla_con_columna(at, 'En la tabla', 'In the table')
+    comprobar(tabla is not None and sorted(tabla.iloc[:, 3]) == [6, 7, 8]
+              and list(tabla.iloc[:, 2]) == [8, 7, 7],
+              'la tabla de categorías compara las muestras con las que entran',
+              str(tabla.values.tolist()) if tabla is not None else 'no está')
+    comprobar(hay(at, T('Hay más variables (34) que muestras (21)',
+                        'There are more variables (34) than samples (21)')),
+              'el control de calidad avisa de que hay más variables que muestras')
+    xy = tabla_con_columna(at, 'ndvi_early')
+    comprobar(xy is not None and len(xy) == 21
+              and list(xy.columns[3:]) == mr.nombres_predictores(),
+              'la tabla X/y tiene 21 filas y las 34 variables en el orden del catálogo',
+              str(list(xy.columns[:5])) if xy is not None else 'no está')
+
+    print('  T4 · quitar variables no obliga a leer otra vez')
+    control(at, 'multiselect', 'mrf_vars_3').set_value(['wavi_mean', 'albedo_mean'])
+    at.run()
+    sin_error(at, 'T4')
+    comprobar(hay(at, T('**22 muestras con todas sus variables** (20 variables)',
+                        '**22 samples with all their variables** (20 variables)'))
+              and len(LLAMADAS) == 2,
+              'sin «ndmi_mean», la muestra que no la tenía vuelve a entrar; no se relee')
+    comprobar(not hay(at, T('Hay más variables', 'There are more variables')),
+              'y ya no hay más variables que muestras')
+
+    print('  T5 · cambiar los años invalida lo leído')
+    [t for t in at.text_input if t.label.startswith(T('Años Sentinel-2', 'Sentinel-2 years'))
+     ][0].set_value('2024')
+    at.run()
+    sin_error(at, 'T5')
+    b = control(at, 'button', 'mrf_leer')
+    comprobar(b is not None and '22' in b.label
+              and not hay(at, T('con todas sus variables', 'with all their variables')),
+              'con otros años hay que leer de nuevo las 22', f'{b.label if b else None}')
+
+    print('  T6 · el proyecto se recuerda')
+    guardado = json.loads((datos / 'ajustes.json').read_text(encoding='utf-8'))
+    comprobar(guardado == {'gee_project': 'ee-proyecto-de-prueba'},
+              'queda guardado en la carpeta de datos', str(guardado))
+    otra = nueva()
+    comprobar(control(otra, 'text_input', 'mrf_proyecto').value == 'ee-proyecto-de-prueba'
+              and any(t.value == 'ee-proyecto-de-prueba' for t in otra.text_input
+                      if 'Earth Engine' in t.label and t.key != 'mrf_proyecto'),
+              'al abrir de nuevo, aparece ya escrito en la pestaña y en el panel lateral')
+
+
 for idioma in ('Español', 'English'):
     guion(idioma)
+for idioma in ('Español', 'English'):
+    guion_tabla(idioma)
 
 print()
 print('RESULTADO:', 'todo correcto' if not FALLOS else f'{len(FALLOS)} FALLO(S)')
