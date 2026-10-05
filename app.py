@@ -857,9 +857,41 @@ with st.sidebar:
 # HELP / WELCOME
 # ============================================================
 # ============================================================
-# CUERPO PRINCIPAL — pestañas: Análisis  |  Documentación
+# CUERPO PRINCIPAL — pestañas: Verdad terreno  |  Mapa Modelo RF  |  Documentación
+# «Verdad terreno» es la detección y la revisión de los puntos (tab_analisis);
+# «Mapa Modelo RF», el mapa de tipos (tab_tipos).
 # ============================================================
-tab_analisis, tab_docs = st.tabs(['🗺️  Análisis', '📖  Documentación y recomendaciones'])
+# La fila principal tiene que verse más que las pestañas de dentro: letra grande,
+# fondo y todo el ancho. Solo ella (selectores de hijo directo). Si no cabe en una
+# línea pasa a dos, en vez de cortarse; por eso la barra deslizante de Streamlit se
+# cambia por un borde bajo la pestaña activa, que sí funciona con dos líneas.
+st.html('<style>' + '''
+FILA{gap:.5rem;row-gap:.4rem;flex-wrap:wrap}
+FILA>button[role="tab"]{flex:1 1 auto;justify-content:center;height:auto;
+  padding:.7rem 1.1rem;border-radius:.6rem .6rem 0 0;background:rgba(128,128,128,.13)}
+FILA>button[role="tab"] p{font-size:1.2rem;font-weight:600}
+FILA>button[role="tab"][aria-selected="true"]{
+  background:color-mix(in srgb,currentColor 14%,transparent);
+  box-shadow:inset 0 -4px 0 currentColor}
+FILA>[data-baseweb="tab-highlight"]{display:none}
+'''.replace('FILA', '.st-key-pestanas_principales>div>div>[data-baseweb="tab-list"]')
+        + '</style>')
+tab_analisis, tab_tipos, tab_docs = st.tabs(
+    ['📍  Verdad terreno', '🌿  Mapa Modelo RF', '📖  Documentación y recomendaciones'],
+    key='pestanas_principales')
+
+
+def parar_ejecucion():
+    """Detiene esta ejecución (st.stop). La pestaña «Mapa Modelo RF» se dibuja al
+    final del guion: si se para antes, hay que dejarle algo escrito."""
+    with tab_tipos:
+        st.info(i18n.pick(
+            'La última ejecución se ha detenido antes de terminar. Mira el aviso en la '
+            'pestaña **📍 Verdad terreno**.',
+            'The last run stopped before finishing. See the message in the '
+            '**📍 Ground truth** tab.'))
+    st.stop()
+
 
 with tab_docs:
     render_docs()
@@ -995,7 +1027,7 @@ with tab_analisis:
         if input_mode.startswith('🎲'):
             if not study_geom:
                 st.error('Para generar puntos hace falta un área de estudio válida.')
-                st.stop()
+                parar_ejecucion()
             with st.status(f'Generando {gen_n} puntos aleatorios ({gen_mode})…', expanded=True) as status:
                 import random_points
                 rows, gen_stats = random_points.generate(study_geom, gen_n,
@@ -1036,7 +1068,7 @@ with tab_analisis:
                 else:
                     st.warning('⚠ No se generaron puntos. Revisa el área y los filtros de '
                                'altitud.')
-                st.stop()
+                parar_ejecucion()
 
             st.write(f'**{len(rows)} puntos generados**')
             if rows and 'elev_m_initial' in rows[0]:
@@ -1775,9 +1807,9 @@ git push
         sel = st.session_state.get('sel_point')
 
         # Tabs
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
             ['Mapa', 'Tabla', 'Histograma RF', 'Descargas', '🔑 Variables',
-             '📊 Distribuciones', '🌿 Mapeo RF'])
+             '📊 Distribuciones'])
 
         with tab1:
             st.markdown('Mapa interactivo. Haz click en un marcador para ver sus detalles y '
@@ -1861,6 +1893,11 @@ git push
                     f"borreguiles · corrected against the app's proposal: "
                     f"**{_rs['n_corregidos']}** (environment {_pn['ambiente']} · moisture "
                     f"{_pn['humedad']} · purity {_pn['pureza']})"))
+                st.caption(i18n.pick(
+                    'Los tipos revisados son las muestras del mapa de tipos: pestaña '
+                    '**🌿 Mapa Modelo RF**, arriba del todo.',
+                    'The reviewed types are the samples for the type map: **🌿 RF model '
+                    'map** tab, at the very top.'))
                 if _rs['n_revisados'] >= 10 and _rs['n_corregidos'] == 0:
                     st.caption(i18n.pick(
                         'No se ha corregido ninguno: o la propuesta acierta siempre o se '
@@ -2297,47 +2334,93 @@ git push
             if dc is not None:
                 st.altair_chart(dc, width='stretch')
 
-        # ----------------------------------------------------------------
-        # MAPEO DE BORREGUILES — RANDOM FOREST (por pasos: datos, tabla y modelo)
-        # De los puntos con el tipo revisado a un mapa de tipos. La lógica está en
-        # mapeo_rf.py; aquí solo se enseña. No toca los puntos ni el resto de la app.
-        # ----------------------------------------------------------------
-        with tab7:
-            import mapeo_rf as mr
-            _en = i18n.get_lang() == 'en'
-            st.subheader(i18n.pick('Mapeo de borreguiles — Random Forest',
-                                   'Borreguil mapping — Random Forest'))
-            st.markdown(i18n.pick(
-                'Usa los puntos cuyo **tipo has revisado** para entrenar un modelo y obtener '
-                'un **mapa de tipos de borreguil**. Se construye por pasos: ya están '
-                '**Datos**, **Tabla de entrenamiento** y **Modelo**. El mapa llegará en '
-                'el siguiente.',
-                'Uses the points whose **type you have reviewed** to train a model and '
-                'produce a **map of borreguil types**. It is being built step by step: '
-                '**Data**, **Training table** and **Model** are available. The map comes '
-                'next.'))
 
-            st.markdown(i18n.pick('#### 1 · Datos', '#### 1 · Data'))
-            _niv_txt = {
-                'ambiente': i18n.pick('Ambiente (arroyo · laguna · ladera)',
-                                      'Environment (stream · lake · slope)'),
-                'humedad': i18n.pick('Humedad (húmedo · seco)', 'Moisture (wet · dry)'),
-                'pureza': i18n.pick('Pureza (puro · mixto-agua · mixto-roca)',
-                                    'Purity (pure · mixed-water · mixed-rock)'),
-            }
+# ============================================================
+# MAPA MODELO RF — pestaña propia, al mismo nivel que «Verdad terreno»
+# De los puntos con el tipo revisado a un mapa de tipos de borreguil, con Random
+# Forest y por pasos: datos, tabla de entrenamiento y modelo (el mapa, después).
+# La lógica está en mapeo_rf.py; aquí solo se enseña. No toca los puntos ni el
+# resto de la app. Va al final del guion porque usa los puntos tal como los deja
+# la pestaña «Verdad terreno» en esta misma ejecución.
+# ============================================================
+with tab_tipos:
+    import mapeo_rf as mr
+    _en = i18n.get_lang() == 'en'
+    st.subheader(i18n.pick('Mapa de tipos de borreguil — Random Forest',
+                           'Map of borreguil types — Random Forest'))
+    if 'rows' not in st.session_state:
+        st.info(i18n.pick(
+            'Aquí se entrena un modelo con los borreguiles cuyo **tipo has revisado** y '
+            'se obtiene un **mapa de tipos**. Todavía no hay puntos en la sesión:\n\n'
+            '1. Ejecuta el análisis (panel lateral → **▶ Ejecutar pipeline**). El '
+            'resultado sale en la pestaña **📍 Verdad terreno**.\n'
+            '2. En **Resultados → Tabla**, revisa el tipo de los borreguiles: ambiente, '
+            'humedad y pureza.\n'
+            '3. Vuelve a esta pestaña.',
+            'Here a model is trained with the borreguiles whose **type you have '
+            'reviewed** to produce a **type map**. There are no points in the session '
+            'yet:\n\n'
+            '1. Run the analysis (sidebar → **▶ Run pipeline**). The result appears in '
+            'the **📍 Ground truth** tab.\n'
+            '2. Under **Results → Table**, review the type of the borreguiles: '
+            'environment, moisture and purity.\n'
+            '3. Come back to this tab.'))
+    else:
+        rows = st.session_state.rows
+        st.markdown(i18n.pick(
+            'Usa los puntos cuyo **tipo has revisado** (en **📍 Verdad terreno → Tabla**) '
+            'para entrenar un modelo y obtener un **mapa de tipos de borreguil**. Los '
+            'pasos van en orden, cada uno en su pestaña; el del mapa todavía no está '
+            'disponible.',
+            'Uses the points whose **type you have reviewed** (under **📍 Ground truth → '
+            'Table**) to train a model and produce a **map of borreguil types**. The '
+            'steps go in order, each in its own tab; the map step is not available '
+            'yet.'))
+        _niv_txt = {
+            'ambiente': i18n.pick('Ambiente (arroyo · laguna · ladera)',
+                                  'Environment (stream · lake · slope)'),
+            'humedad': i18n.pick('Humedad (húmedo · seco)', 'Moisture (wet · dry)'),
+            'pureza': i18n.pick('Pureza (puro · mixto-agua · mixto-roca)',
+                                'Purity (pure · mixed-water · mixed-rock)'),
+            'humedad_ambiente': i18n.pick(
+                'Humedad y ambiente (húmedo o seco × arroyo · laguna · ladera)',
+                'Moisture and environment (wet or dry × stream · lake · slope)'),
+        }
+        # El nivel va encima de los pasos: lo que se elige aquí vale para los tres.
+        _nivel = st.selectbox(
+            i18n.pick('Qué quieres cartografiar', 'What to map'),
+            list(mr.NIVELES), key='mrf_nivel', format_func=lambda n: _niv_txt[n],
+            help=i18n.pick(
+                'Se entrena un modelo por cada opción.\n\n'
+                '**Humedad y ambiente** distingue, dentro de los borreguiles húmedos y '
+                'de los secos, si son de arroyo, de laguna o de ladera: seis categorías '
+                '(«húmedo · arroyo», «seco · ladera»…). Necesita muestras de cada una.\n\n'
+                'No se ofrece la combinación de los tres niveles (18 categorías): no '
+                'habría puntos para casi ninguna.',
+                'One model is trained for each option.\n\n'
+                '**Moisture and environment** tells, within wet and within dry '
+                'borreguiles, whether they are by a stream, by a lake or on a slope: six '
+                'categories ("wet · stream", "dry · slope"…). It needs samples of each.\n\n'
+                'The combination of the three levels (18 categories) is not offered: '
+                'there would be no points for most of them.'))
+        # Por dónde va el trabajo en el nivel elegido. El hueco se rellena al final,
+        # cuando los tres pasos han hecho sus cuentas, pero queda encima de ellos.
+        _estado = st.container()
+        _t_datos, _t_tabla, _t_modelo = st.tabs([
+            i18n.pick('1 · Datos', '1 · Data'),
+            i18n.pick('2 · Tabla de entrenamiento', '2 · Training table'),
+            i18n.pick('3 · Modelo', '3 · Model')])
+
+        # ------------------------------------------------------------ 1 · Datos
+        with _t_datos:
+            st.caption(i18n.pick(
+                'Qué puntos sirven como muestra en este nivel y qué variables se van a '
+                'usar.',
+                'Which points count as samples at this level and which variables will '
+                'be used.'))
             # Ausencias de campo: lo único que puede formar la clase «no borreguil».
             _n_aus = sum(1 for r in rows if bp._txt(r.get('Borreguil')).lower() == 'no'
                          and bp._txt(r.get('Duda')).lower() != 'si')
-            # Uno debajo del otro: en un panel estrecho, a media anchura el texto
-            # del desplegable no cabía.
-            _nivel = st.selectbox(
-                i18n.pick('Qué quieres cartografiar', 'What to map'),
-                list(mr.NIVELES), key='mrf_nivel', format_func=lambda n: _niv_txt[n],
-                help=i18n.pick(
-                    'Se entrena un modelo por nivel (tres mapas), no uno con las 18 '
-                    'combinaciones: no habría puntos para casi ninguna.',
-                    'One model per level is trained (three maps), not one with the 18 '
-                    'combinations: there would be no points for most of them.'))
             if _n_aus:
                 _incluir = st.checkbox(
                     i18n.pick(
@@ -2397,9 +2480,10 @@ git push
                 if _sin_rev:
                     st.caption(i18n.pick(
                         f'Los {_sin_rev} borreguiles con el tipo sin revisar pasarán a ser '
-                        'muestras en cuanto los revises en la pestaña **Tabla**.',
+                        'muestras en cuanto los revises en **📍 Verdad terreno → Tabla**.',
                         f'The {_sin_rev} borreguiles whose type has not been reviewed will '
-                        'become samples as soon as you review them in the **Table** tab.'))
+                        'become samples as soon as you review them under **📍 Ground truth → '
+                        'Table**.'))
             with st.expander(i18n.pick(
                     'Ver punto por punto (cuáles se usan y por qué no el resto)',
                     'See point by point (which are used and why not the rest)')):
@@ -2477,11 +2561,10 @@ git push
                 for _q, _p, _q_en, _p_en in mr.NO_DISPONIBLES:
                     st.markdown(f'- **{i18n.pick(_q, _q_en)}** — {i18n.pick(_p, _p_en)}.')
 
-            # ------------------------------------------ 2 · Tabla de entrenamiento
-            # El valor de cada variable se lee en el PÍXEL de 10 m de cada muestra, de
-            # la misma pila de Earth Engine que después se clasificará.
-            st.divider()
-            st.markdown(i18n.pick('#### 2 · Tabla de entrenamiento', '#### 2 · Training table'))
+        # ------------------------------------------ 2 · Tabla de entrenamiento
+        # El valor de cada variable se lee en el PÍXEL de 10 m de cada muestra, de
+        # la misma pila de Earth Engine que después se clasificará.
+        with _t_tabla:
             st.caption(i18n.pick(
                 'Lee en Earth Engine el valor de cada variable en el **píxel de 10 m** de '
                 'cada muestra: el mismo píxel que después se clasificará. Por eso no se '
@@ -2638,9 +2721,9 @@ git push
                     _max = 10
                     st.warning(i18n.pick(
                         '**Control de calidad de las variables.** No se ha quitado ninguna: '
-                        'si quieres prescindir de alguna, desmárcala arriba.',
+                        'si quieres prescindir de alguna, desmárcala en «1 · Datos».',
                         '**Quality check of the variables.** None has been removed: if you '
-                        'want to drop one, deselect it above.')
+                        'want to drop one, deselect it under "1 · Data".')
                         + ''.join('\n- ' + mr.mensaje_calidad(h, _en) for h in _hall[:_max])
                         + (i18n.pick(f'\n- … y {len(_hall) - _max} más.',
                                      f'\n- … and {len(_hall) - _max} more.')
@@ -2693,11 +2776,10 @@ git push
                         f"{bp.abreviar_anios(_inf.get('anios', []))} · 30 m topography "
                         'interpolated (bilinear).'))
 
-            # ------------------------------------------------------ 3 · Modelo
-            # Validar (por zonas) y entrenar el modelo final son dos procesos
-            # distintos: las métricas salen del primero; el mapa, del segundo.
-            st.divider()
-            st.markdown(i18n.pick('#### 3 · Modelo', '#### 3 · Model'))
+        # ------------------------------------------------------ 3 · Modelo
+        # Validar (por zonas) y entrenar el modelo final son dos procesos
+        # distintos: las métricas salen del primero; el mapa, del segundo.
+        with _t_modelo:
             st.caption(i18n.pick(
                 'Entrena un Random Forest con la tabla y lo **valida por zonas**: cada '
                 'zona (una cuenca, o una celda de unos 5 km) se predice con un modelo que '
@@ -2726,51 +2808,188 @@ git push
                 'ninguna': i18n.pick('sin compensar el desequilibrio',
                                      'without compensating the imbalance'),
             }
+            # Cortas: van en media anchura y, si no caben, Streamlit las corta con «…».
+            # Que son «del nº de variables» lo dice la ayuda, con la cuenta hecha.
             _mf_txt = {
-                'sqrt': i18n.pick('raíz cuadrada del nº de variables (recomendado)',
-                                  'square root of the nº of variables (recommended)'),
-                'log2': i18n.pick('logaritmo del nº de variables',
-                                  'logarithm of the nº of variables'),
+                'sqrt': i18n.pick('raíz cuadrada (recomendado)', 'square root (recommended)'),
+                'log2': i18n.pick('logaritmo', 'logarithm'),
                 'todas': i18n.pick('todas', 'all'),
             }
+            # Qué es cada parámetro y qué valor conviene: va en la ayuda (?) de cada
+            # uno, para poder decidir sin salir de la app.
+            _nv = len(_predictores)
+            _mf_raiz, _mf_log = max(1, int(_nv ** 0.5)), max(1, _nv.bit_length() - 1)
+            if not _nv:
+                _mf_cuenta = ''
+            elif _mf_raiz == _mf_log:
+                _mf_cuenta = i18n.pick(
+                    f'Con las {_nv} variables elegidas ahora, raíz cuadrada y logaritmo '
+                    f'prueban las dos {_mf_raiz} en cada división; «todas», las {_nv}.',
+                    f'With the {_nv} variables selected now, square root and logarithm '
+                    f'both try {_mf_raiz} at each split; "all" tries the {_nv}.')
+            else:
+                _mf_cuenta = i18n.pick(
+                    f'Con las {_nv} variables elegidas ahora, raíz cuadrada prueba '
+                    f'{_mf_raiz} en cada división; logaritmo, {_mf_log}; «todas», las '
+                    f'{_nv}.',
+                    f'With the {_nv} variables selected now, square root tries '
+                    f'{_mf_raiz} at each split; logarithm, {_mf_log}; "all", the {_nv}.')
             with st.expander(i18n.pick('Parámetros del modelo', 'Model parameters')):
+                st.caption(i18n.pick(
+                    'Para empezar no hace falta tocar nada: los valores que vienen puestos '
+                    'son los recomendados. El **?** de cada parámetro explica qué es y qué '
+                    'valor conviene.',
+                    'There is no need to change anything to get started: the preset '
+                    'values are the recommended ones. The **?** next to each parameter '
+                    'explains what it is and which value to use.'))
                 _pa, _pb = st.columns(2)
                 with _pa:
                     _p_arboles = st.number_input(
                         i18n.pick('Nº de árboles', 'Nº of trees'), 50, 2000,
-                        mr.PARAMS_DEFECTO['n_estimators'], 50, key='mrf_p_arboles')
+                        mr.PARAMS_DEFECTO['n_estimators'], 50, key='mrf_p_arboles',
+                        help=i18n.pick(
+                            'El modelo es un conjunto de árboles de decisión que votan. '
+                            'Con más árboles el resultado es más estable (cambia menos de '
+                            'una ejecución a otra), pero tarda más; a partir de unos '
+                            'cientos apenas mejora.\n\n'
+                            '**Recomendado: 500.** Entre 300 y 1000 va bien. Con menos de '
+                            '100 las cifras bailan.',
+                            'The model is a set of decision trees that vote. More trees '
+                            'give a steadier result (it changes less from one run to the '
+                            'next) but take longer; beyond a few hundred it hardly '
+                            'improves.\n\n'
+                            '**Recommended: 500.** Between 300 and 1000 works well. Below '
+                            '100 the figures wobble.'))
                     _p_prof = st.number_input(
                         i18n.pick('Profundidad máxima (0 = sin límite)',
                                   'Maximum depth (0 = no limit)'), 0, 50, 0, 1,
-                        key='mrf_p_prof')
+                        key='mrf_p_prof',
+                        help=i18n.pick(
+                            'Cuántas preguntas seguidas puede hacer cada árbol antes de '
+                            'decidir. Sin límite, el árbol crece hasta separar del todo las '
+                            'muestras, que es lo habitual en un Random Forest.\n\n'
+                            '**Recomendado: 0 (sin límite).** Ponle un límite, entre 5 y '
+                            '10, solo si tienes muy pocas muestras y la validación sale '
+                            'mal: los árboles más cortos se fijan menos en los casos '
+                            'sueltos.',
+                            'How many questions in a row each tree may ask before '
+                            'deciding. With no limit, the tree grows until it separates '
+                            'the samples completely, which is the usual way in a Random '
+                            'Forest.\n\n'
+                            '**Recommended: 0 (no limit).** Set a limit, between 5 and 10, '
+                            'only if you have very few samples and the validation comes '
+                            'out badly: shorter trees pay less attention to odd cases.'))
                     _p_semilla = st.number_input(
                         i18n.pick('Semilla', 'Seed'), 0, 99999,
                         mr.PARAMS_DEFECTO['random_state'], 1, key='mrf_p_semilla',
                         help=i18n.pick(
-                            'Con la misma semilla y los mismos datos sale el mismo modelo.',
-                            'The same seed and the same data give the same model.'))
+                            'El modelo usa el azar para elegir qué muestras y qué '
+                            'variables ve cada árbol. La semilla fija ese azar: con la '
+                            'misma semilla y los mismos datos sale exactamente el mismo '
+                            'modelo, y otra persona puede repetirlo.\n\n'
+                            '**Recomendado: déjala en 42** y anótala con tus resultados. '
+                            'Ningún número es mejor que otro. Si al cambiarla las cifras '
+                            'cambian mucho, es que hay pocas muestras.',
+                            'The model uses chance to choose which samples and which '
+                            'variables each tree sees. The seed fixes that chance: the '
+                            'same seed and the same data give exactly the same model, and '
+                            'someone else can repeat it.\n\n'
+                            '**Recommended: leave it at 42** and note it down with your '
+                            'results. No number is better than another. If the figures '
+                            'change a lot when you change it, there are too few samples.'))
                 with _pb:
                     _p_hoja = st.number_input(
                         i18n.pick('Muestras mínimas por hoja', 'Minimum samples per leaf'),
-                        1, 20, mr.PARAMS_DEFECTO['min_samples_leaf'], 1, key='mrf_p_hoja')
+                        1, 20, mr.PARAMS_DEFECTO['min_samples_leaf'], 1, key='mrf_p_hoja',
+                        help=i18n.pick(
+                            'Cada árbol va repartiendo las muestras en grupos cada vez más '
+                            'pequeños. Este es el tamaño mínimo del grupo final («hoja»). '
+                            'Con 1, el árbol puede aprenderse de memoria cada muestra, '
+                            'también las raras o mal etiquetadas; al subirlo, generaliza '
+                            'más.\n\n'
+                            '**Recomendado: 2** si tienes decenas de muestras por '
+                            'categoría; **entre 3 y 5** si tienes cientos. Si lo subes '
+                            'mucho, las categorías con pocas muestras dejan de '
+                            'distinguirse.',
+                            'Each tree keeps splitting the samples into smaller and '
+                            'smaller groups. This is the minimum size of the final group '
+                            '("leaf"). With 1, the tree can learn each sample by heart, '
+                            'including odd or mislabelled ones; raising it makes the tree '
+                            'generalise more.\n\n'
+                            '**Recommended: 2** if you have tens of samples per category; '
+                            '**between 3 and 5** if you have hundreds. If you raise it a '
+                            'lot, categories with few samples can no longer be told '
+                            'apart.'))
                     _p_mf = st.selectbox(
                         i18n.pick('Variables probadas en cada división',
                                   'Variables tried at each split'),
-                        list(_mf_txt), key='mrf_p_maxfeat', format_func=lambda o: _mf_txt[o])
+                        list(_mf_txt), key='mrf_p_maxfeat', format_func=lambda o: _mf_txt[o],
+                        help=i18n.pick(
+                            'En cada división, el árbol no mira todas las variables: '
+                            'prueba solo unas cuantas, elegidas al azar, y se queda con la '
+                            'mejor. Así los árboles salen distintos entre sí, que es lo '
+                            'que hace que juntos acierten más.\n\n'
+                            '**Recomendado: raíz cuadrada**, lo habitual para clasificar. ',
+                            'At each split the tree does not look at every variable: it '
+                            'tries only a few, chosen at random, and keeps the best. That '
+                            'makes the trees differ from one another, which is what makes '
+                            'them more accurate together.\n\n'
+                            '**Recommended: square root**, the usual choice for '
+                            'classification. ')
+                        + _mf_cuenta + i18n.pick(
+                            ' Con «todas», los árboles se parecen mucho entre sí y el '
+                            'resultado suele ser peor.',
+                            ' With "all", the trees look very much alike and the result '
+                            'is usually worse.'))
                 _p_bal = st.selectbox(
                     i18n.pick('Si unas categorías tienen muchas más muestras que otras',
                               'If some categories have many more samples than others'),
                     list(mr.ESTRATEGIAS), key='mrf_p_balance',
                     format_func=lambda o: _est_txt[o],
                     help=i18n.pick(
-                        'No se generan muestras artificiales en ningún caso.',
-                        'No artificial samples are generated in any case.'))
+                        'Si una categoría tiene muchas más muestras que las demás, el '
+                        'modelo tiende a elegirla siempre.\n\n'
+                        '- **Dar más peso a las escasas (recomendado):** cada muestra de '
+                        'una categoría escasa cuenta más. No se pierde ninguna.\n'
+                        '- **Usar menos muestras de las abundantes:** se aparta al azar '
+                        'parte de ellas. Útil si una categoría tiene muchísimas más que '
+                        'el resto.\n'
+                        '- **Las dos cosas:** para desequilibrios muy fuertes.\n'
+                        '- **No compensar:** solo si todas tienen un número parecido de '
+                        'muestras.\n\n'
+                        'No se generan muestras artificiales en ningún caso, y se valida '
+                        'siempre con todas.',
+                        'If one category has many more samples than the others, the '
+                        'model tends to choose it every time.\n\n'
+                        '- **Give more weight to the scarce ones (recommended):** each '
+                        'sample of a scarce category counts more. None is lost.\n'
+                        '- **Use fewer samples of the abundant ones:** part of them is '
+                        'set aside at random. Useful if one category has far more than '
+                        'the rest.\n'
+                        '- **Both:** for very strong imbalances.\n'
+                        '- **Do not compensate:** only if all of them have a similar '
+                        'number of samples.\n\n'
+                        'No artificial samples are generated in any case, and validation '
+                        'always uses all of them.'))
                 _p_razon = mr.RAZON_MAXIMA
                 if _p_bal in ('submuestreo', 'ambas'):
                     _p_razon = st.number_input(
                         i18n.pick('Como mucho, cuántas veces la categoría más escasa',
                                   'At most, how many times the scarcest category'),
-                        1.0, 10.0, mr.RAZON_MAXIMA, 0.5, key='mrf_p_razon')
+                        1.0, 10.0, mr.RAZON_MAXIMA, 0.5, key='mrf_p_razon',
+                        help=i18n.pick(
+                            'Tope de muestras de cada categoría abundante, como múltiplo '
+                            'de la más escasa. Con 3 y una categoría escasa de 10 '
+                            'muestras, de las demás se usan como mucho 30, elegidas al '
+                            'azar con la semilla.\n\n'
+                            '**Recomendado: 3.** Con 1 quedan todas iguales, pero se '
+                            'desaprovechan muchas muestras.',
+                            'Cap on the samples of each abundant category, as a multiple '
+                            'of the scarcest one. With 3 and a scarce category of 10 '
+                            'samples, at most 30 of each of the others are used, chosen '
+                            'at random with the seed.\n\n'
+                            '**Recommended: 3.** With 1 they all end up equal, but many '
+                            'samples go unused.'))
             _params = {'n_estimators': int(_p_arboles),
                        'max_features': None if _p_mf == 'todas' else _p_mf,
                        'max_depth': int(_p_prof) or None,
@@ -2933,9 +3152,40 @@ git push
                         i18n.pick('Usadas al entrenar', 'Used to train'): _bal['final'][c]}
                         for c in _bal['original']]), hide_index=True, width='stretch')
 
-            st.divider()
-            st.info(i18n.pick(
-                '**Siguiente paso (todavía no disponible):** aplicar el modelo final a '
-                'todos los píxeles del área de estudio para obtener el mapa.',
-                '**Next step (not available yet):** apply the final model to every pixel '
-                'of the study area to obtain the map.'))
+        # ------------------------------------------------ por dónde va el trabajo
+        # Un rótulo por paso, con icono y texto además del color.
+        _hecho, _ojo, _falta = 'green', 'orange', 'gray'
+        if not _predictores:
+            _e1 = (_ojo, i18n.pick('elige alguna variable', 'choose some variable'))
+        elif not _res['listo']:
+            _e1 = (_ojo, i18n.pick('faltan muestras', 'not enough samples'))
+        else:
+            _e1 = (_hecho, i18n.pick(f'{_nm} muestras', f'{_nm} samples'))
+        if _tab is None:
+            _e2 = (_falta, i18n.pick('sin leer', 'not read yet'))
+        elif _pend:
+            _e2 = (_ojo, i18n.pick(
+                f"falta{'' if len(_pend) == 1 else 'n'} {len(_pend)} "
+                f"muestra{'' if len(_pend) == 1 else 's'} por leer",
+                f"{len(_pend)} sample{'' if len(_pend) == 1 else 's'} still to read"))
+        elif not _tab['listo']:
+            _e2 = (_ojo, i18n.pick('no basta para entrenar', 'not enough to train'))
+        else:
+            _e2 = (_hecho, i18n.pick(
+                f"{len(_tab['filas'])} muestras, {len(_tab['predictores'])} variables",
+                f"{len(_tab['filas'])} samples, {len(_tab['predictores'])} variables"))
+        if not _mod:
+            _e3 = (_falta, i18n.pick('sin entrenar', 'not trained yet'))
+        elif _tab is None or _mod['firma'] != mr.firma_tabla(_tab):
+            _e3 = (_ojo, i18n.pick('es de una tabla anterior', 'from a previous table'))
+        else:
+            _e3 = (_hecho, i18n.pick(f"F1 medio {bp.fmt_num(_mod['macro_f1'])}",
+                                     f"mean F1 {bp.fmt_num(_mod['macro_f1'])}"))
+        _e4 = (_falta, i18n.pick('todavía no disponible', 'not available yet'))
+        _icono = {_hecho: ':material/check_circle:', _ojo: ':material/error:',
+                  _falta: ':material/radio_button_unchecked:'}
+        _pasos = (i18n.pick('1 · Datos', '1 · Data'), i18n.pick('2 · Tabla', '2 · Table'),
+                  i18n.pick('3 · Modelo', '3 · Model'), i18n.pick('4 · Mapa', '4 · Map'))
+        _estado.markdown(' '.join(
+            f':{_c}-badge[{_icono[_c]} {_p} · {_txt}]'
+            for _p, (_c, _txt) in zip(_pasos, (_e1, _e2, _e3, _e4))))

@@ -18,17 +18,29 @@ probarlas solas (tests/test_mapeo_datos.py).
 Decisiones acordadas con la usuaria:
   · Las clases son los tres niveles del tipo (ambiente, humedad, pureza) y se
     entrena UN modelo por nivel, no uno con las 18 combinaciones.
+  · Hay además un nivel combinado, pedido por ella: la humedad con el ambiente
+    dentro (húmedo o seco y, en cada uno, arroyo, laguna o ladera): 6 categorías.
   · Solo cuentan los puntos con el tipo REVISADO por una persona: el tipo que
     propone la app sale de reglas sobre los propios predictores, y entrenar con él
     sería enseñarle al modelo la regla.
   · No se inventan ausencias. La clase «no borreguil» solo existe si hay puntos
     marcados así en campo (Borreguil = no).
 """
+import itertools
 import math
 
 import borreguil_pipeline as bp
 
-NIVELES = bp.NIVELES_TIPO                  # {'ambiente': (...), 'humedad': (...), ...}
+# Lo que se puede cartografiar: los tres niveles del tipo y, además, los niveles
+# COMBINADOS. Un nivel combinado no es un dato nuevo del punto: su categoría se
+# compone con las de los niveles de los que sale («húmedo · ladera»), que son las
+# que revisa la persona. El orden es fijo: de él salen los códigos.
+SEP = ' · '
+COMBINADOS = {'humedad_ambiente': ('humedad', 'ambiente')}
+NIVELES = dict(bp.NIVELES_TIPO)            # {'ambiente': (...), 'humedad': (...), ...}
+for _nivel, _partes in COMBINADOS.items():
+    NIVELES[_nivel] = tuple(SEP.join(c) for c in itertools.product(
+        *(bp.NIVELES_TIPO[p] for p in _partes)))
 AUSENCIA = 'no borreguil'
 
 # Por debajo de MIN_POR_CLASE no se puede entrenar ni validar una categoría (con
@@ -88,6 +100,17 @@ def _num(v):
     return x if math.isfinite(x) else None
 
 
+def categoria(r, nivel, sufijo=''):
+    """Categoría de un punto en un nivel. En un nivel combinado, la de sus partes
+    unida («húmedo · ladera»), o vacía si le falta alguna. Con sufijo='_regla', lo
+    que propuso la app."""
+    partes = COMBINADOS.get(nivel)
+    if not partes:
+        return bp._txt(r.get(nivel + sufijo))
+    valores = [bp._txt(r.get(p + sufijo)) for p in partes]
+    return SEP.join(valores) if all(valores) else ''
+
+
 def _clasifica(r, nivel, incluir_ausencias, es_borreguil):
     """(categoría, origen, motivo): la categoría con la que el punto entraría como
     muestra y de dónde sale, o el motivo por el que no entra."""
@@ -100,7 +123,7 @@ def _clasifica(r, nivel, incluir_ausencias, es_borreguil):
     if bp._txt(r.get('Duda')).lower() == 'si':
         return None, None, 'dudoso'
     if revisado:
-        valor = bp._txt(r.get(nivel))
+        valor = categoria(r, nivel)
         if valor in NIVELES[nivel]:
             return valor, ORIGEN_REVISADO, None
         return None, None, 'categoria_no_valida'
@@ -159,7 +182,7 @@ def muestras(rows, nivel, incluir_ausencias=True, es_borreguil=None):
             'origen_etiqueta': origen or '',
             'fecha_revision': (bp._fecha_txt(r.get('tipo_revisado_fecha'))
                                if origen == ORIGEN_REVISADO else ''),
-            'propuesta_app': bp._txt(r.get(nivel + '_regla')),
+            'propuesta_app': categoria(r, nivel, '_regla'),
             'fuente': bp._txt(r.get('source')),
             'usada': cat is not None,
             'motivo': motivo or '',

@@ -3,7 +3,9 @@
 Abre la app directamente en la pantalla de resultados con 40 puntos reales ya
 clasificados (más uno sin variables) y hace lo que haría una persona: seleccionar
 filas, cambiar el tipo, guardar, deshacer, verificar y reentrenar, lanzar una
-iteración de auto-entrenamiento y quitar puntos. Se repite en español y en inglés.
+iteración de auto-entrenamiento y quitar puntos. Después recorre la pestaña «Mapa
+Modelo RF» (muestras, tabla de entrenamiento y modelo) y, por último, abre la
+app sin puntos. Se repite en español y en inglés.
 
     python tests/pantalla_revision.py        (unos 3 minutos, sin red)
 
@@ -209,7 +211,7 @@ def tabla_con_columna(at, *nombres):
 
 
 def clases_del_mapeo(at):
-    """{categoría: nº de muestras} de la pestaña «Mapeo RF»."""
+    """{categoría: nº de muestras} de la pestaña «Mapa Modelo RF»."""
     df = tabla_con_columna(at, 'Categoría', 'Category')
     if df is None:
         return None
@@ -246,9 +248,33 @@ def guion(lang):
     comprobar(hay(at, f'Type reviewed: 0 of {n_b}' if en else f'Tipo revisado: 0 de {n_b}'),
               f'contador a cero sobre {n_b} borreguiles')
     comprobar(boton(at, 'rev_save') is None, 'sin selección no aparece el panel de revisión')
-    # Pestaña «Mapeo RF»: sin tipos revisados solo cuenta la ausencia de campo, y
-    # con eso no se puede entrenar.
     T = (lambda es_, en_: en_ if en else es_)
+    # «Mapa Modelo RF» está en la fila de arriba, junto a «Verdad terreno», con sus
+    # pasos
+    # en pestañas propias; los resultados se quedan con seis.
+    etiq = [t.label for t in at.tabs]
+    comprobar(T('🌿  Mapa Modelo RF', '🌿  RF model map') in etiq
+              and etiq.index(T('🌿  Mapa Modelo RF', '🌿  RF model map'))
+              < etiq.index(T('📖  Documentación y recomendaciones',
+                             '📖  Documentation & recommendations'))
+              and not any('Mapeo RF' in e or 'RF mapping' in e for e in etiq),
+              '«Mapa Modelo RF» es una pestaña de la fila de arriba', str(etiq))
+    comprobar(all(p in etiq for p in (T('1 · Datos', '1 · Data'),
+                                      T('2 · Tabla de entrenamiento', '2 · Training table'),
+                                      T('3 · Modelo', '3 · Model')))
+              and len(etiq) == 3 + 6 + 3,
+              'sus tres pasos son pestañas, y los resultados tienen seis', str(etiq))
+    comprobar(hay(at, T('**🌿 Mapa Modelo RF**, arriba del todo',
+                        '**🌿 RF model map** tab, at the very top')),
+              'la pestaña «Tabla» dice dónde sigue lo que se revisa')
+    comprobar(all(hay(at, x) for x in (
+        T('1 · Datos · faltan muestras', '1 · Data · not enough samples'),
+        T('2 · Tabla · sin leer', '2 · Table · not read yet'),
+        T('3 · Modelo · sin entrenar', '3 · Model · not trained yet'),
+        T('4 · Mapa · todavía no disponible', '4 · Map · not available yet'))),
+        'la línea de estado dice por dónde va cada paso')
+    # Sin tipos revisados solo cuenta la ausencia de campo, y con eso no se puede
+    # entrenar.
     comprobar(clases_del_mapeo(at) == {T('no borreguil', 'not a borreguil'): 1,
                                        T('arroyo', 'stream'): 0, T('laguna', 'lake'): 0,
                                        T('ladera', 'slope'): 0},
@@ -261,6 +287,19 @@ def guion(lang):
               'mapeo: avisa de que con eso no se puede entrenar')
     comprobar(hay(at, T('34 de 34 variables seleccionadas', '34 of 34 variables selected')),
               'mapeo: las 34 variables disponibles vienen seleccionadas')
+    # Cada parámetro del modelo lleva su ayuda: qué es y qué valor conviene.
+    ayudas = {k: (control(at, tipo, k).help or '') for tipo, k in (
+        ('number_input', 'mrf_p_arboles'), ('number_input', 'mrf_p_prof'),
+        ('number_input', 'mrf_p_semilla'), ('number_input', 'mrf_p_hoja'),
+        ('selectbox', 'mrf_p_maxfeat'), ('selectbox', 'mrf_p_balance'))}
+    comprobar(all(T('ecomendado', 'ecommended') in a and len(a) > 150
+                  for a in ayudas.values()),
+              'cada parámetro del modelo explica qué es y qué valor se recomienda',
+              str({k: a[:30] for k, a in ayudas.items()}))
+    comprobar(T('raíz cuadrada y logaritmo prueban las dos 5',
+                'square root and logarithm both try 5') in ayudas['mrf_p_maxfeat'],
+              'la ayuda de «variables por división» hace la cuenta con las 34 elegidas',
+              ayudas['mrf_p_maxfeat'][-200:])
     tarjetas = [m.label for m in at.metric]
     comprobar(('LIKELY BORREGUIL' in tarjetas) if en else ('BORREGUIL PROBABLE' in tarjetas),
               'las tarjetas de recuento van en el idioma elegido', str(tarjetas))
@@ -413,7 +452,7 @@ def guion(lang):
     comprobar(bp.tipo_revisado(r) and (r['ambiente'], r['humedad'], r['pureza'])
               == ('ladera', 'seco', 'puro'), 'eligiendo los tres niveles sí se guarda')
 
-    # --- G2 · la pestaña «Mapeo RF» cuenta lo revisado
+    # --- G2 · la pestaña «Mapa Modelo RF» cuenta lo revisado
     print('  G2 · mapeo: muestras por categoría')
     control(at, 'selectbox', 'mrf_nivel').select('pureza')
     at.run()
@@ -434,6 +473,27 @@ def guion(lang):
               and mot.get(mr.motivo('tipo_sin_revisar', en)) == len(BORR) - 3,
               'explica por qué no entra el resto (dudosos, tipo sin revisar…)', str(mot))
     comprobar(sum(mot.values()) + 5 == 41, 'muestras y descartes suman todos los puntos')
+    # La humedad con el ambiente dentro: seis categorías, compuestas con lo que se
+    # revisó en la tabla (más la ausencia de campo).
+    control(at, 'selectbox', 'mrf_nivel').select('humedad_ambiente')
+    at.run()
+    sin_error(at, 'G2 (humedad y ambiente)')
+    _en = {'húmedo': 'wet', 'seco': 'dry', 'arroyo': 'stream', 'laguna': 'lake',
+           'ladera': 'slope', 'no borreguil': 'not a borreguil'}
+    comb = (lambda c: ' · '.join(_en.get(p, p) for p in c.split(' · ')) if en else c)
+    esperado = mr.muestras(filas(at), 'humedad_ambiente',
+                           es_borreguil=pp.is_borreguil_decision)
+    vistas = clases_del_mapeo(at)
+    comprobar(vistas == {comb(c['categoria']): c['n'] for c in esperado['clases']}
+              and len(vistas) == 7 and sum(vistas.values()) == 5,
+              'humedad y ambiente: seis categorías combinadas y la ausencia', str(vistas))
+    comprobar(T('húmedo · arroyo', 'wet · stream') in vistas
+              and T('seco · ladera', 'dry · slope') in vistas,
+              'con el nombre compuesto, en el idioma elegido', str(list(vistas)))
+    comprobar(hay(at, T('1 · Datos · faltan muestras', '1 · Data · not enough samples')),
+              'y, con tan pocas, la línea de estado dice que faltan muestras')
+    control(at, 'selectbox', 'mrf_nivel').select('pureza')
+    at.run()
     control(at, 'checkbox', 'mrf_ausencias').uncheck()
     at.run()
     sin_error(at, 'G2 (sin ausencias)')
@@ -636,6 +696,9 @@ def guion_tabla(lang):
     comprobar(b is not None and b.disabled and '22' in b.label,
               'sin proyecto de Earth Engine, el botón de leer está desactivado',
               f'{b.label if b else None}')
+    comprobar(hay(at, T('1 · Datos · 22 muestras', '1 · Data · 22 samples'))
+              and hay(at, T('2 · Tabla · sin leer', '2 · Table · not read yet')),
+              'estado: datos listos, tabla sin leer')
 
     print('  T2 · primera lectura (un punto falla, a otro le falta una variable)')
     control(at, 'text_input', 'mrf_proyecto').set_value('ee-proyecto-de-prueba')
@@ -658,6 +721,9 @@ def guion_tabla(lang):
     comprobar(b is not None and not b.disabled and ' 1 ' in b.label,
               'el botón ofrece reintentar solo la muestra que falló',
               f'{b.label if b else None}')
+    comprobar(hay(at, T('2 · Tabla · falta 1 muestra por leer',
+                        '2 · Table · 1 sample still to read')),
+              'estado: a la tabla le falta una muestra por leer')
 
     print('  T3 · reintento')
     msgs = pulsar(at, control(at, 'button', 'mrf_leer'), 'T3')
@@ -669,6 +735,10 @@ def guion_tabla(lang):
     comprobar(control(at, 'button', 'mrf_leer') is None
               and control(at, 'button', 'mrf_releer') is not None,
               'ya no queda nada por leer')
+    comprobar(hay(at, T('2 · Tabla · 21 muestras, 34 variables',
+                        '2 · Table · 21 samples, 34 variables'))
+              and hay(at, T('3 · Modelo · sin entrenar', '3 · Model · not trained yet')),
+              'estado: tabla completa, modelo sin entrenar')
     tabla = tabla_con_columna(at, 'En la tabla', 'In the table')
     comprobar(tabla is not None and sorted(tabla.iloc[:, 3]) == [6, 7, 8]
               and list(tabla.iloc[:, 2]) == [8, 7, 7],
@@ -717,6 +787,10 @@ def guion_tabla(lang):
     comprobar(hay(at, T('**Modelo final** entrenado con 21 de las 21 muestras y 34 variables',
                         '**Final model** trained with 21 of the 21 samples and 34 variables')),
               'el modelo final se entrena con todas las muestras de la tabla')
+    comprobar(mod is not None
+              and hay(at, T('3 · Modelo · F1 medio ', '3 · Model · mean F1 ')
+                      + bp.fmt_num(mod['macro_f1'])),
+              'estado: modelo entrenado, con su F1 medio')
 
     print('  T4 · quitar variables no obliga a leer otra vez')
     control(at, 'multiselect', 'mrf_vars_3').set_value(['wavi_mean', 'albedo_mean'])
@@ -733,10 +807,16 @@ def guion_tabla(lang):
     aviso_tabla = T('La tabla ha cambiado desde que se entrenó este modelo',
                     'The table has changed since this model was trained')
     comprobar(hay(at, aviso_tabla), 'avisa de que el modelo es de la tabla anterior')
+    comprobar(hay(at, T('3 · Modelo · es de una tabla anterior',
+                        '3 · Model · from a previous table')),
+              'estado: lo dice también la línea de arriba')
     control(at, 'number_input', 'mrf_p_arboles').set_value(100)
     control(at, 'number_input', 'mrf_p_prof').set_value(6)
     control(at, 'selectbox', 'mrf_p_balance').select('submuestreo')
     at.run()
+    comprobar(T('Recomendado: 3', 'Recommended: 3')
+              in (control(at, 'number_input', 'mrf_p_razon').help or ''),
+              'el tope del submuestreo también explica qué es y qué valor conviene')
     control(at, 'button', 'mrf_entrenar').click()
     at.run()
     sin_error(at, 'M2')
@@ -749,7 +829,10 @@ def guion_tabla(lang):
               and len(mod['predictores']) == 20,
               'y la estrategia de balance elegida, con las 22 muestras y 20 variables',
               str(mod['balance']))
-    comprobar(not hay(at, aviso_tabla), 'ya no avisa: el modelo es de la tabla actual')
+    comprobar(not hay(at, aviso_tabla)
+              and hay(at, T('3 · Modelo · F1 medio ', '3 · Model · mean F1 ')
+                      + bp.fmt_num(mod['macro_f1'])),
+              'ya no avisa: el modelo es de la tabla actual')
 
     print('  T5 · cambiar los años invalida lo leído')
     [t for t in at.text_input if t.label.startswith(T('Años Sentinel-2', 'Sentinel-2 years'))
@@ -760,6 +843,10 @@ def guion_tabla(lang):
     comprobar(b is not None and '22' in b.label
               and not hay(at, T('con todas sus variables', 'with all their variables')),
               'con otros años hay que leer de nuevo las 22', f'{b.label if b else None}')
+    comprobar(hay(at, T('2 · Tabla · sin leer', '2 · Table · not read yet'))
+              and hay(at, T('3 · Modelo · es de una tabla anterior',
+                            '3 · Model · from a previous table')),
+              'estado: tabla sin leer y modelo de una tabla anterior')
 
     print('  T6 · el proyecto se recuerda')
     guardado = json.loads((datos / 'ajustes.json').read_text(encoding='utf-8'))
@@ -772,10 +859,66 @@ def guion_tabla(lang):
               'al abrir de nuevo, aparece ya escrito en la pestaña y en el panel lateral')
 
 
+# ------------------------------------------------------------------ sin puntos
+# Antes de ejecutar nada, «Mapa Modelo RF» explica qué hace falta. Y si una
+# ejecución se detiene a medias (aquí, generar puntos en un área que no se
+# encuentra), la pestaña, que se dibuja al final del guion, no queda en blanco.
+def guion_sin_puntos(lang):
+    en = lang == 'English'
+    T = (lambda es_, en_: en_ if en else es_)
+    print(f'\n================ {lang} · sin puntos ================')
+    SELECCION['rows'] = []
+    import study_area as sa
+    at = AppTest.from_file(str(APP / 'app.py'), default_timeout=600)
+    at.session_state['ui_lang'] = lang
+    at.run()
+    sin_error(at, 'Z1')
+    etiq = [t.label for t in at.tabs]
+    comprobar(etiq == [T('📍  Verdad terreno', '📍  Ground truth'),
+                       T('🌿  Mapa Modelo RF', '🌿  RF model map'),
+                       T('📖  Documentación y recomendaciones',
+                         '📖  Documentation & recommendations')],
+              'sin puntos, la fila de arriba ya tiene las tres pestañas', str(etiq))
+    comprobar(any(T('Todavía no hay puntos en la sesión',
+                    'There are no points in the session yet') in str(i.value)
+                  for i in at.info)
+              and control(at, 'selectbox', 'mrf_nivel') is None,
+              '«Mapa Modelo RF» explica qué hace falta, y nada más')
+
+    print('  Z2 · una ejecución que se detiene a medias')
+    resolver = sa.resolve
+    sa.resolve = lambda *a, **k: (None, None)          # el área no se encuentra
+    try:
+        [r for r in at.radio if str(r.value).startswith('📁')][0].set_value(
+            '🎲  Generar aleatoriamente en el área')
+        [r for r in at.radio if str(r.value).startswith('⨯')][0].set_value(
+            '🔤  Nombre del área protegida')
+        at.run()
+        [t for t in at.text_input if t.label == T('Nombre del área', 'Area name')
+         ][0].set_value('un sitio que no existe')
+        at.run()
+        b = [b for b in at.button if b.label == T('▶ Ejecutar pipeline', '▶ Run pipeline')][0]
+        comprobar(not b.disabled, 'con un nombre de área se puede lanzar la generación')
+        b.click()
+        at.run()
+    finally:
+        sa.resolve = resolver
+    sin_error(at, 'Z2')
+    comprobar(len(at.error) >= 1 and 'rows' not in at.session_state,
+              'la ejecución se detiene con su aviso y sin puntos',
+              str([str(e.value)[:60] for e in at.error]))
+    comprobar(any(T('se ha detenido antes de terminar', 'stopped before finishing')
+                  in str(i.value) for i in at.info),
+              '«Mapa Modelo RF» no queda en blanco: remite al aviso',
+              str([str(i.value)[:60] for i in at.info]))
+
+
 for idioma in ('Español', 'English'):
     guion(idioma)
 for idioma in ('Español', 'English'):
     guion_tabla(idioma)
+for idioma in ('Español', 'English'):
+    guion_sin_puntos(idioma)
 
 print()
 print('RESULTADO:', 'todo correcto' if not FALLOS else f'{len(FALLOS)} FALLO(S)')

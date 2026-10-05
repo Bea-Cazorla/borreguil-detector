@@ -222,7 +222,9 @@ Verás el progreso por fases. **Tiempos orientativos** (150 puntos):
 
 ## 6. Interpretar los resultados
 
-Al terminar aparecen siete pestañas.
+Al terminar aparecen seis pestañas, dentro de **📍 Verdad terreno**. (En esa misma
+fila de arriba hay otra pestaña, **🌿 Mapa Modelo RF**: es un trabajo posterior,
+que explica el manual.)
 
 ### 🗺️ Mapa
 

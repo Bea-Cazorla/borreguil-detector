@@ -189,6 +189,59 @@ def test_categoria_sin_muestras_se_avisa():
     assert res['listo'] and ('categoria_sin_muestras', 'laguna') in res['avisos']
 
 
+# ------------------------------- nivel combinado: la humedad con el ambiente dentro
+def test_humedad_con_el_ambiente_dentro_son_seis_categorias_con_codigo_fijo():
+    assert mr.NIVELES['humedad_ambiente'] == (
+        'húmedo · arroyo', 'húmedo · laguna', 'húmedo · ladera',
+        'seco · arroyo', 'seco · laguna', 'seco · ladera')
+    assert mr.codigos('humedad_ambiente') == {
+        'no borreguil': 0, 'húmedo · arroyo': 1, 'húmedo · laguna': 2, 'húmedo · ladera': 3,
+        'seco · arroyo': 4, 'seco · laguna': 5, 'seco · ladera': 6}
+    # Los tres niveles de siempre siguen igual, y el catálogo de la app no se toca.
+    assert {n: mr.NIVELES[n] for n in bp.NIVELES_TIPO} == bp.NIVELES_TIPO
+    assert 'humedad_ambiente' not in bp.NIVELES_TIPO
+
+
+def test_la_categoria_combinada_sale_de_lo_que_reviso_la_persona():
+    rows = [revisado(0, humedad='húmedo', ambiente='laguna'),
+            revisado(1, humedad='seco', ambiente='ladera'),
+            punto(2, 'BORREGUIL PROBABLE'),                  # borreguil sin revisar
+            ausencia(3)]
+    bp.apply_typology(rows, es_borreguil)
+    antes = copy.deepcopy(rows)
+    res = mr.muestras(rows, 'humedad_ambiente', es_borreguil=es_borreguil)
+    t = por_id(res)
+    assert (t['p0']['categoria'], t['p0']['codigo']) == ('húmedo · laguna', 2)
+    assert (t['p1']['categoria'], t['p1']['codigo']) == ('seco · ladera', 6)
+    assert (t['p3']['categoria'], t['p3']['codigo']) == ('no borreguil', 0)
+    # La propuesta de la app no es etiqueta, tampoco aquí; pero se deja constancia.
+    assert t['p2']['motivo'] == 'tipo_sin_revisar' and t['p2']['categoria'] == ''
+    assert t['p2']['propuesta_app'] in mr.NIVELES['humedad_ambiente']
+    assert [c['categoria'] for c in res['clases']] == \
+        ['no borreguil'] + list(mr.NIVELES['humedad_ambiente'])
+    assert rows == antes                                     # no cambia ningún punto
+    # Es exactamente lo que dicen los dos niveles por separado.
+    hum = por_id(mr.muestras(rows, 'humedad', es_borreguil=es_borreguil))
+    amb = por_id(mr.muestras(rows, 'ambiente', es_borreguil=es_borreguil))
+    for i in ('p0', 'p1'):
+        assert t[i]['categoria'] == f"{hum[i]['categoria']} · {amb[i]['categoria']}"
+
+
+def test_combinada_cada_una_de_las_seis_necesita_su_minimo():
+    rows = ([revisado(i, humedad='húmedo', ambiente='ladera') for i in range(6)]
+            + [revisado(10 + i, humedad='seco', ambiente='ladera') for i in range(6)]
+            + [revisado(20 + i, humedad='seco', ambiente='arroyo') for i in range(2)])
+    res = mr.muestras(rows, 'humedad_ambiente', es_borreguil=es_borreguil)
+    assert not res['listo'] and res['errores'] == [('pocas_muestras', 'seco · arroyo', 2)]
+    assert mr.mensaje(res['errores'][0]) == '«seco · arroyo» tiene 2 muestras; el mínimo es 5.'
+    # Las mismas muestras bastan para la humedad sola: 6 húmedos y 8 secos.
+    assert mr.muestras(rows, 'humedad', es_borreguil=es_borreguil)['listo']
+    # Si a un punto revisado le falta una de las dos partes, no es muestra.
+    rows[0]['ambiente'] = ''
+    t = por_id(mr.muestras(rows, 'humedad_ambiente', es_borreguil=es_borreguil))
+    assert t['p0']['motivo'] == 'categoria_no_valida' and not t['p0']['usada']
+
+
 def test_mensajes_en_ingles_con_la_categoria_traducida():
     en = {'húmedo': 'wet', 'laguna': 'lake'}
     tr = lambda v: en.get(v, v)                                           # noqa: E731

@@ -18,7 +18,7 @@ variable y cómo interpretar los resultados.
 6. [Los modelos](#6-los-modelos)
 7. [El umbral de decisión](#7-el-umbral-de-decisión)
 8. [Las variables del modelo](#8-las-variables-del-modelo)
-9. [Resultados: las siete pestañas](#9-resultados-las-siete-pestañas)
+9. [Resultados: las seis pestañas](#9-resultados-las-seis-pestañas)
 10. [Clasificación jerárquica del tipo](#10-clasificación-jerárquica-del-tipo)
 11. [Entrenar un modelo propio](#11-entrenar-un-modelo-propio)
 12. [Rendimiento](#12-rendimiento)
@@ -310,7 +310,12 @@ roca.
 
 ---
 
-## 9. Resultados: las siete pestañas
+## 9. Resultados: las seis pestañas
+
+Arriba del todo, la app tiene tres pestañas grandes: **📍 Verdad terreno**, donde
+se ejecuta la detección y se ven y revisan los puntos; **🌿 Mapa Modelo RF**, para
+el mapa de tipos; y **📖 Documentación y recomendaciones**. Los resultados de una
+ejecución salen en la primera, repartidos en seis pestañas.
 
 ### 🗺️ Mapa
 Puntos coloreados por decisión (leyenda abajo a la izquierda). Clic en un punto →
@@ -329,7 +334,9 @@ reentrenar** (aprendizaje activo).
 
 Con las filas de borreguil seleccionadas aparece también el panel **🌿 Revisar el
 tipo de borreguil**, para confirmar o corregir el ambiente, la humedad y la pureza
-de cada punto (ver [sección 10](#10-clasificación-jerárquica-del-tipo)).
+de cada punto (ver [sección 10](#10-clasificación-jerárquica-del-tipo)). Encima de
+la tabla, un contador dice cuántos tipos llevas revisados: son las muestras del
+mapa de tipos, que se hace en la pestaña **🌿 Mapa Modelo RF**.
 
 Debajo, el mapa del punto seleccionado usa la **ortofoto** de fondo, dibuja el
 punto sin relleno y marca en amarillo su **píxel Sentinel-2 de 10 m**. Con el
@@ -367,12 +374,9 @@ Ranking de importancia del modelo activo, con el rango típico de borreguil.
 Diagramas de caja por variable, dispersión altitud × NDVI, recuento por decisión y
 la **clasificación jerárquica**.
 
----
-
-### 🌿 Mapeo RF
-El camino de los puntos con el tipo revisado a un **mapa de tipos de borreguil**.
-Se está construyendo por pasos; ver
-[Mapeo de tipos con Random Forest](#mapeo-de-tipos-con-random-forest-en-construcción).
+> 🌿 El **mapa de tipos** no es una de estas seis: tiene su propia pestaña,
+> **🌿 Mapa Modelo RF**, arriba del todo, junto a **📍 Verdad terreno**. Ver
+> [Mapa de tipos con Random Forest](#mapa-de-tipos-con-random-forest-en-construcción).
 
 ---
 
@@ -454,15 +458,34 @@ vuelven con sus puntos. Si un punto llega marcado como revisado pero con una
 categoría que no existe (por ejemplo, editada a mano), la app lo avisa y no lo
 cuenta como revisado.
 
-### Mapeo de tipos con Random Forest (en construcción)
+### Mapa de tipos con Random Forest (en construcción)
 
-La pestaña **🌿 Mapeo RF** llevará de los puntos revisados a un mapa de tipos. Se
-construye por pasos; de momento están los tres primeros: **1 · Datos**, que
-responde a dos preguntas antes de entrenar nada, **2 · Tabla de entrenamiento** y
-**3 · Modelo**. El mapa llegará después.
+La pestaña **🌿 Mapa Modelo RF** está arriba del todo, junto a **📍 Verdad
+terreno**, y lleva de los puntos revisados a un mapa de tipos. Antes de ejecutar un análisis
+solo explica qué hace falta. Después enseña, de arriba abajo:
 
-**¿Qué puntos sirven como muestra?** Se elige el nivel que se quiere cartografiar
-(ambiente, humedad o pureza: un modelo por nivel) y la app cuenta:
+- **Qué quieres cartografiar**: ambiente, humedad, pureza, o humedad y ambiente a
+  la vez. Lo que elijas vale para todos los pasos; hay un modelo para cada opción.
+- **Una línea de estado**, con un rótulo por paso: hecho (verde), pendiente (gris)
+  o algo que atender (naranja), siempre con su texto.
+- **Los pasos, cada uno en su pestaña.** De momento están los tres primeros:
+  **1 · Datos**, que responde a dos preguntas antes de entrenar nada,
+  **2 · Tabla de entrenamiento** y **3 · Modelo**. El mapa llegará después.
+
+**¿Qué se puede cartografiar?** Cuatro cosas, cada una con su modelo:
+
+| Opción | Categorías |
+|---|---|
+| Ambiente | arroyo · laguna · ladera |
+| Humedad | húmedo · seco |
+| Pureza | puro · mixto-agua · mixto-roca |
+| Humedad y ambiente | húmedo o seco y, dentro de cada uno, arroyo, laguna o ladera: `húmedo · arroyo`, `húmedo · laguna`, `húmedo · ladera`, `seco · arroyo`, `seco · laguna`, `seco · ladera` |
+
+La última no pide revisar nada más: la categoría de cada punto se compone con la
+humedad y el ambiente que ya se revisaron. A cambio necesita muestras de cada una
+de las seis categorías que quieras ver en el mapa.
+
+**¿Qué puntos sirven como muestra?** Para lo que se haya elegido, la app cuenta:
 
 | Entra como muestra | Con qué categoría |
 |---|---|
@@ -478,10 +501,14 @@ puede descargar (`muestras_<nivel>.csv`).
 
 Cada categoría tiene un **código fijo**, el que llevará el mapa: 0 es siempre
 `no borreguil` y el resto sigue el orden de la app (por ejemplo, en ambiente:
-1 arroyo, 2 laguna, 3 ladera). No depende de qué categorías haya en cada ejecución.
+1 arroyo, 2 laguna, 3 ladera; en humedad y ambiente: 1 a 3 los húmedos de arroyo,
+laguna y ladera, y 4 a 6 los secos en el mismo orden). No depende de qué categorías
+haya en cada ejecución.
 
-Para poder entrenar hacen falta **al menos dos categorías con 5 muestras cada una**;
-con menos de 30 por categoría la app avisa de que el resultado será poco fiable.
+Para poder entrenar hacen falta **al menos dos categorías**, y que cada categoría
+que tenga alguna muestra llegue a **5**; con menos de 30 por categoría la app avisa
+de que el resultado será poco fiable. Con seis categorías es más fácil que alguna
+se quede corta: la app dice cuál y cuántas muestras tiene.
 
 > ⚠️ Sin clase `no borreguil`, el modelo solo distingue tipos: cualquier píxel que
 > se le dé recibirá uno de ellos. El mapa tendrá que limitarse a zonas donde ya se
@@ -510,7 +537,7 @@ nuevas, y quitar o poner variables no obliga a leer nada. La app enseña:
 - **Control de calidad de las variables**: constantes o casi constantes, repetidas,
   la misma con el signo cambiado, muy correlacionadas (|r| ≥ 0,95) y pocas muestras
   para tantas variables. **Solo avisa; no quita ninguna.** Quitar o no es decisión
-  tuya, desmarcándola arriba.
+  tuya, desmarcándola en **1 · Datos**.
 - **Desequilibrio entre categorías**, cuando la más abundante triplica a la más
   escasa.
 
@@ -561,25 +588,27 @@ Avisos que puede dar:
 - **Una categoría está en una sola zona**: al apartar esa zona, el modelo no ha
   visto nunca esa categoría y no puede acertarla.
 
-**Parámetros** (plegados; los valores por defecto son un punto de partida
-razonable, no el resultado de una búsqueda):
+**Parámetros** (plegados). Para empezar no hace falta tocarlos: los valores que
+vienen puestos son los recomendados, un punto de partida razonable y no el
+resultado de una búsqueda. En la app, el **?** que hay junto a cada uno explica qué
+es y qué valor conviene:
 
-| Parámetro | Por defecto |
-|---|---|
-| Nº de árboles | 500 |
-| Variables probadas en cada división | raíz cuadrada del nº de variables |
-| Profundidad máxima | sin límite |
-| Muestras mínimas por hoja | 2 |
-| Semilla | 42 (mismos datos y misma semilla, mismo modelo) |
-| Si las categorías están desequilibradas | dar más peso a las escasas |
+| Parámetro | Qué es | Recomendado |
+|---|---|---|
+| Nº de árboles | El modelo es un conjunto de árboles de decisión que votan. Con más, el resultado es más estable, pero tarda más | **500** (entre 300 y 1000 va bien) |
+| Profundidad máxima | Cuántas preguntas seguidas puede hacer cada árbol antes de decidir | **Sin límite** (0). Un límite de 5 a 10, solo con muy pocas muestras y una validación mala |
+| Muestras mínimas por hoja | El tamaño mínimo del grupo final en que cada árbol reparte las muestras. Con 1 puede aprenderse cada muestra de memoria | **2** con decenas de muestras por categoría; de 3 a 5 con cientos |
+| Variables probadas en cada división | Cada árbol prueba en cada división solo unas cuantas variables elegidas al azar; así salen árboles distintos, que juntos aciertan más | **Raíz cuadrada** del nº de variables (5 con las 34) |
+| Semilla | Fija el azar: mismos datos y misma semilla, mismo modelo | **42**; ningún número es mejor que otro. Anótala con los resultados |
+| Si las categorías están desequilibradas | Cómo evitar que el modelo elija siempre la categoría con más muestras | **Dar más peso a las escasas** |
 
 Para el desequilibrio hay cuatro opciones: dar más peso a las categorías escasas,
 usar menos muestras de las abundantes (como mucho 3 veces la más escasa, elegidas
 con la semilla), las dos cosas, o no compensar. **No se generan muestras
 artificiales.** Con cualquiera de ellas se valida con todas las muestras.
 
-Hay un modelo por nivel: puedes tener entrenados a la vez el de ambiente, el de
-humedad y el de pureza. Si después cambias las muestras o las variables, la app
+Hay un modelo por cada opción: puedes tener entrenados a la vez el de ambiente, el
+de humedad, el de pureza y el de humedad y ambiente. Si después cambias las muestras o las variables, la app
 avisa de que el modelo es de la tabla anterior hasta que vuelvas a entrenar.
 
 ---

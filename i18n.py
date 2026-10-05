@@ -193,7 +193,8 @@ EN = {
     "🌿 Borreguil / Wet Meadow Pipeline": "🌿 Borreguil / Wet Meadow Pipeline",
     "Identificación automática de borreguiles en zonas de montaña — ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. [Documentación metodológica](Metodologia_borreguiles.docx)":
         "Automatic detection of borreguiles (high-mountain wet meadows) — ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. [Methodology documentation](Metodologia_borreguiles.docx)",
-    "🗺️  Análisis": "🗺️  Analysis",
+    "📍  Verdad terreno": "📍  Ground truth",
+    "🌿  Mapa Modelo RF": "🌿  RF model map",
     "📖  Documentación y recomendaciones": "📖  Documentation & recommendations",
     "## 📖 Documentación y recomendaciones": "## 📖 Documentation & recommendations",
     "Esta herramienta identifica **borreguiles** (cervunales higroturbosos / *mountain wet meadows*) combinando teledetección multi-fuente con un clasificador Random Forest, validado de forma **honesta** (GroupKFold por cuenca: entrena en unas cuencas y evalúa en otras nunca vistas).":
@@ -359,7 +360,6 @@ EN = {
     "Descargas": "Downloads",
     "🔑 Variables": "🔑 Variables",
     "📊 Distribuciones": "📊 Distributions",
-    "🌿 Mapeo RF": "🌿 RF mapping",
     "Sugerencia: reintenta (caídas temporales de los servicios), reduce el nº de puntos, o cambia de backend (MPC ↔ GEE) en el panel lateral.":
         "Tip: retry (temporary service outages), reduce the number of points, or switch backend (MPC ↔ GEE) in the sidebar.",
     "Distancia mínima entre puntos (m)": "Minimum distance between points (m)",

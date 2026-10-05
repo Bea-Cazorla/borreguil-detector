@@ -247,6 +247,42 @@ def test_el_modelo_ve_las_variables_en_el_orden_de_la_tabla():
     assert prob.shape == (4, 3) and abs(prob.sum(axis=1) - 1).max() < 1e-9
 
 
+# ---------------------------------- nivel combinado: humedad con el ambiente dentro
+def test_el_nivel_combinado_entrena_con_sus_seis_categorias():
+    cats = list(mr.NIVELES['humedad_ambiente'])
+    rows, valores, k = [], {}, 0
+    for c, cat in enumerate(['no borreguil'] + cats):
+        for j in range(10):
+            z = j % 5
+            lon, lat = -3.40 + z * 0.10, 37.00 + k * 0.0005
+            if cat == 'no borreguil':
+                r = ausencia(k, lon=lon, lat=lat)
+            else:
+                humedad, ambiente = cat.split(' · ')
+                r = revisado(k, humedad=humedad, ambiente=ambiente, lon=lon, lat=lat)
+            r['cuenca_id'] = f'c{z}'
+            rows.append(r)
+            v = {b: ruido(k, b) for b in geb.BANDAS_PILA}
+            v['ndmi_mean'] = 0.10 * c + 0.02 * (ruido(k, 'a') - 0.5)   # las separa una variable
+            valores[mr.clave_punto(lon, lat)] = v
+            k += 1
+    res = mr.muestras(rows, 'humedad_ambiente', es_borreguil=es_borreguil)
+    assert res['listo'] and res['n_usadas'] == 70
+    tab = mr.construir_tabla(res, valores, mr.nombres_predictores())
+    # probando todas las variables en cada división, la que las separa no se pierde
+    # entre las 33 que son ruido
+    r = mr.entrenar_y_validar(tab, mr.grupos_espaciales(tab, rows)[0],
+                              {**RAPIDO, 'max_features': None})
+    assert r['nivel'] == 'humedad_ambiente'
+    assert [c['categoria'] for c in r['categorias']] == ['no borreguil'] + cats
+    assert [c['codigo'] for c in r['categorias']] == list(range(7))
+    assert len(r['matriz']) == 7 and sum(map(sum, r['matriz'])) == 70
+    assert r['validacion']['tipo'] == 'espacial' and r['macro_f1'] > 0.9
+    assert [int(c) for c in r['modelo'].classes_] == list(range(7))
+    # Lo que más se confunde, si algo, se nombra con la categoría entera.
+    assert all(' · ' in a or a == 'no borreguil' for a, _, _ in r['confusiones'])
+
+
 if __name__ == '__main__':
     pruebas = [(n, f) for n, f in sorted(globals().items())
                if n.startswith('test_') and callable(f)]
