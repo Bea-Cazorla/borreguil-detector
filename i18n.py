@@ -123,6 +123,8 @@ VALORES = {
     'Dudoso': 'Doubtful',
     'Incierto': 'Uncertain',
     'No borreguil': 'Not a borreguil',
+    # clase de ausencia en el mapeo por Random Forest
+    'no borreguil': 'not a borreguil',
 }
 
 COLUMNAS = {
@@ -357,6 +359,7 @@ EN = {
     "Descargas": "Downloads",
     "🔑 Variables": "🔑 Variables",
     "📊 Distribuciones": "📊 Distributions",
+    "🌿 Mapeo RF": "🌿 RF mapping",
     "Sugerencia: reintenta (caídas temporales de los servicios), reduce el nº de puntos, o cambia de backend (MPC ↔ GEE) en el panel lateral.":
         "Tip: retry (temporary service outages), reduce the number of points, or switch backend (MPC ↔ GEE) in the sidebar.",
     "Distancia mínima entre puntos (m)": "Minimum distance between points (m)",

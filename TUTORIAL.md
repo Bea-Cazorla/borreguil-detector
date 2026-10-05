@@ -222,7 +222,7 @@ Verás el progreso por fases. **Tiempos orientativos** (150 puntos):
 
 ## 6. Interpretar los resultados
 
-Al terminar aparecen seis pestañas.
+Al terminar aparecen siete pestañas.
 
 ### 🗺️ Mapa
 

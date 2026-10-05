@@ -1741,9 +1741,9 @@ git push
         sel = st.session_state.get('sel_point')
 
         # Tabs
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
             ['Mapa', 'Tabla', 'Histograma RF', 'Descargas', '🔑 Variables',
-             '📊 Distribuciones'])
+             '📊 Distribuciones', '🌿 Mapeo RF'])
 
         with tab1:
             st.markdown('Mapa interactivo. Haz click en un marcador para ver sus detalles y '
@@ -2262,3 +2262,191 @@ git push
             dc = pp.chart_decision_counts(rows)
             if dc is not None:
                 st.altair_chart(dc, width='stretch')
+
+        # ----------------------------------------------------------------
+        # MAPEO DE BORREGUILES — RANDOM FOREST (por pasos; ahora: «Datos»)
+        # De los puntos con el tipo revisado a un mapa de tipos. La lógica está en
+        # mapeo_rf.py; aquí solo se enseña. No toca los puntos ni el resto de la app.
+        # ----------------------------------------------------------------
+        with tab7:
+            import mapeo_rf as mr
+            _en = i18n.get_lang() == 'en'
+            st.subheader(i18n.pick('Mapeo de borreguiles — Random Forest',
+                                   'Borreguil mapping — Random Forest'))
+            st.markdown(i18n.pick(
+                'Usa los puntos cuyo **tipo has revisado** para entrenar un modelo y obtener '
+                'un **mapa de tipos de borreguil**. Se construye por pasos: ahora está '
+                'disponible el primero, **Datos**. El modelo y el mapa llegarán en los '
+                'siguientes.',
+                'Uses the points whose **type you have reviewed** to train a model and '
+                'produce a **map of borreguil types**. It is being built step by step: the '
+                'first one, **Data**, is available now. The model and the map come next.'))
+
+            st.markdown(i18n.pick('#### 1 · Datos', '#### 1 · Data'))
+            _niv_txt = {
+                'ambiente': i18n.pick('Ambiente (arroyo · laguna · ladera)',
+                                      'Environment (stream · lake · slope)'),
+                'humedad': i18n.pick('Humedad (húmedo · seco)', 'Moisture (wet · dry)'),
+                'pureza': i18n.pick('Pureza (puro · mixto-agua · mixto-roca)',
+                                    'Purity (pure · mixed-water · mixed-rock)'),
+            }
+            # Ausencias de campo: lo único que puede formar la clase «no borreguil».
+            _n_aus = sum(1 for r in rows if bp._txt(r.get('Borreguil')).lower() == 'no'
+                         and bp._txt(r.get('Duda')).lower() != 'si')
+            # Uno debajo del otro: en un panel estrecho, a media anchura el texto
+            # del desplegable no cabía.
+            _nivel = st.selectbox(
+                i18n.pick('Qué quieres cartografiar', 'What to map'),
+                list(mr.NIVELES), key='mrf_nivel', format_func=lambda n: _niv_txt[n],
+                help=i18n.pick(
+                    'Se entrena un modelo por nivel (tres mapas), no uno con las 18 '
+                    'combinaciones: no habría puntos para casi ninguna.',
+                    'One model per level is trained (three maps), not one with the 18 '
+                    'combinations: there would be no points for most of them.'))
+            if _n_aus:
+                _incluir = st.checkbox(
+                    i18n.pick(
+                        f'Incluir la clase «no borreguil» ({_n_aus} ausencias de campo)',
+                        f'Include the "not a borreguil" class ({_n_aus} field absences)'),
+                    value=True, key='mrf_ausencias',
+                    help=i18n.pick(
+                        'Son los puntos que alguien marcó en campo como «no es '
+                        'borreguil». No se inventan ausencias: sin esos puntos, la '
+                        'clase no existe.',
+                        'These are the points someone marked in the field as "not a '
+                        'borreguil". Absences are never invented: without those '
+                        'points the class does not exist.'))
+            else:
+                _incluir = False
+                st.caption(i18n.pick(
+                    'No hay ausencias de campo en estos puntos, así que no habrá clase '
+                    '«no borreguil» (no se inventan ausencias).',
+                    'There are no field absences among these points, so there will be '
+                    'no "not a borreguil" class (absences are never invented).'))
+            _res = mr.muestras(rows, _nivel, incluir_ausencias=bool(_incluir and _n_aus),
+                               es_borreguil=pp.is_borreguil_decision)
+
+            # Categoría | Código | Nº de muestras
+            st.dataframe(pd.DataFrame([{
+                i18n.pick('Categoría', 'Category'): i18n.tv(c['categoria']),
+                i18n.pick('Código', 'Code'): c['codigo'],
+                i18n.pick('Nº de muestras', 'Nº of samples'): c['n']}
+                for c in _res['clases']]), hide_index=True, width='stretch')
+            _nm = _res['n_usadas']
+            st.markdown(i18n.pick(
+                f"**{_nm} muestra{'' if _nm == 1 else 's'}** de los {_res['n_inicial']} "
+                f"puntos de la sesión.",
+                f"**{_nm} sample{'' if _nm == 1 else 's'}** out of the "
+                f"{_res['n_inicial']} points in the session."))
+            if _res['errores']:
+                st.error(i18n.pick('**Con estos puntos todavía no se puede entrenar:**',
+                                   '**These points are not enough to train yet:**')
+                         + ''.join('\n- ' + mr.mensaje(e, _en, i18n.tv)
+                                   for e in _res['errores']))
+            _otros = [a for a in _res['avisos'] if a[0] != 'sin_ausencia']
+            if _otros:
+                st.warning(''.join('- ' + mr.mensaje(a, _en, i18n.tv) + '\n' for a in _otros))
+            if ('sin_ausencia',) in _res['avisos']:
+                st.info(mr.mensaje(('sin_ausencia',), _en))
+
+            # Qué puntos no entran, y por qué
+            if _res['excluidos']:
+                st.markdown(i18n.pick('**Puntos que no entran como muestra**',
+                                      '**Points not used as samples**'))
+                st.dataframe(pd.DataFrame([{
+                    i18n.pick('Motivo', 'Reason'): mr.motivo(k, _en),
+                    i18n.pick('Nº de puntos', 'Nº of points'): v}
+                    for k, v in sorted(_res['excluidos'].items(), key=lambda kv: -kv[1])]),
+                    hide_index=True, width='stretch')
+                _sin_rev = _res['excluidos'].get('tipo_sin_revisar', 0)
+                if _sin_rev:
+                    st.caption(i18n.pick(
+                        f'Los {_sin_rev} borreguiles con el tipo sin revisar pasarán a ser '
+                        'muestras en cuanto los revises en la pestaña **Tabla**.',
+                        f'The {_sin_rev} borreguiles whose type has not been reviewed will '
+                        'become samples as soon as you review them in the **Table** tab.'))
+            with st.expander(i18n.pick(
+                    'Ver punto por punto (cuáles se usan y por qué no el resto)',
+                    'See point by point (which are used and why not the rest)')):
+                _dfm = pd.DataFrame(_res['tabla'])
+                _dfm['ID'] = bp.abreviar_ids(_dfm['ID'].tolist())
+                _origen_en = {mr.ORIGEN_REVISADO: 'reviewed type',
+                              mr.ORIGEN_AUSENCIA: 'field absence'}
+                _dfm['categoria'] = _dfm['categoria'].map(i18n.tv)
+                # como texto: la columna mezcla códigos y huecos (puntos sin categoría)
+                _dfm['codigo'] = _dfm['codigo'].map(str)
+                _dfm['propuesta_app'] = _dfm['propuesta_app'].map(i18n.tv)
+                _dfm['origen_etiqueta'] = _dfm['origen_etiqueta'].map(
+                    lambda o: _origen_en.get(o, o) if _en else o)
+                _dfm['usada'] = _dfm['usada'].map(
+                    lambda u: i18n.pick('sí', 'yes') if u else 'no')
+                _dfm['motivo'] = _dfm['motivo'].map(lambda k: mr.motivo(k, _en) if k else '')
+                _cab = {'categoria': i18n.pick('categoría', 'category'),
+                        'codigo': i18n.pick('código', 'code'),
+                        'origen_etiqueta': i18n.pick('origen de la etiqueta', 'label source'),
+                        'fecha_revision': i18n.pick('fecha de revisión', 'review date'),
+                        'propuesta_app': i18n.pick('propuesta de la app', "app's proposal"),
+                        'usada': i18n.pick('se usa', 'used'),
+                        'motivo': i18n.pick('motivo si no se usa', 'reason if not used')}
+                st.dataframe(
+                    _dfm[['ID', 'usada', 'categoria', 'codigo', 'origen_etiqueta',
+                          'propuesta_app', 'fecha_revision', 'motivo']].rename(columns=_cab),
+                    hide_index=True, width='stretch')
+                st.download_button(
+                    label=f'⬇ muestras_{_nivel}.csv',
+                    data=mr.tabla_csv(_res).encode('utf-8-sig'),
+                    file_name=f'muestras_{_nivel}.csv', mime='text/csv',
+                    key='mrf_dl_muestras',
+                    help=i18n.pick(
+                        'Todos los puntos de la sesión, con el nombre completo, la '
+                        'categoría, si se usan y, si no, por qué.',
+                        'Every point in the session, with its full name, category, '
+                        'whether it is used and, if not, why.'))
+
+            # Variables predictoras disponibles como mapa
+            st.markdown(i18n.pick('#### Variables predictoras', '#### Predictor variables'))
+            st.caption(i18n.pick(
+                'Para predecir sobre el territorio solo sirven las variables que existen '
+                f'como **mapa continuo**. Hoy son {len(mr.PREDICTORES)}: las que la app '
+                'calcula en Earth Engine con Sentinel-2 y el modelo de elevaciones. Vienen '
+                'todas marcadas; quita las que no quieras usar.',
+                'Only variables that exist as a **continuous map** can be used to predict '
+                f'over the territory. There are {len(mr.PREDICTORES)} today: those the app '
+                'computes in Earth Engine from Sentinel-2 and the elevation model. They '
+                'are all selected; remove the ones you do not want to use.'))
+            _elegidas = []
+            for _gi, _g in enumerate(mr.GRUPOS):
+                _ops = mr.nombres_predictores([_g])
+                # Solo el nombre: con la descripción al lado las etiquetas se cortaban.
+                # Qué mide cada una está en la tabla de debajo.
+                _elegidas += st.multiselect(
+                    mr.nombre_grupo(_g, _en), _ops, default=_ops, key=f'mrf_vars_{_gi}',
+                    format_func=lambda n: n)
+            _predictores = mr.ordenar_predictores(_elegidas)
+            st.markdown(i18n.pick(
+                f'**{len(_predictores)} de {len(mr.PREDICTORES)} variables seleccionadas.**',
+                f'**{len(_predictores)} of {len(mr.PREDICTORES)} variables selected.**'))
+            if not _predictores:
+                st.error(i18n.pick('Elige al menos una variable.',
+                                   'Choose at least one variable.'))
+            with st.expander(i18n.pick('Qué mide cada variable', 'What each variable measures')):
+                st.dataframe(pd.DataFrame([{
+                    'Variable': n,
+                    i18n.pick('Qué mide', 'What it measures'): (en_ if _en else es_),
+                    i18n.pick('Grupo', 'Group'): mr.nombre_grupo(g, _en),
+                    i18n.pick('Seleccionada', 'Selected'):
+                        i18n.pick('sí', 'yes') if n in _predictores else 'no'}
+                    for n, g, es_, en_ in mr.PREDICTORES]), hide_index=True, width='stretch')
+            with st.expander(i18n.pick('Variables que usa el detector y aquí no están',
+                                       'Variables the detector uses that are missing here')):
+                for _q, _p, _q_en, _p_en in mr.NO_DISPONIBLES:
+                    st.markdown(f'- **{i18n.pick(_q, _q_en)}** — {i18n.pick(_p, _p_en)}.')
+
+            st.divider()
+            st.info(i18n.pick(
+                '**Siguiente paso (todavía no disponible):** leer en Earth Engine el valor '
+                'de estas variables en el píxel de cada muestra, comprobar la calidad de la '
+                'tabla y entrenar el modelo.',
+                '**Next step (not available yet):** read from Earth Engine the value of '
+                'these variables at the pixel of each sample, check the quality of the '
+                'table and train the model.'))

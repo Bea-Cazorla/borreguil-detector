@@ -102,7 +102,7 @@ hiddenimports += [
 # app.py como un script; launcher.py añade esta carpeta a sys.path para que los
 # `import borreguil_pipeline`, `import i18n`, etc. funcionen.
 for name in ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
-             'gee_backend.py', 'random_points.py', 'study_area.py'):
+             'gee_backend.py', 'random_points.py', 'study_area.py', 'mapeo_rf.py'):
     p = APP_DIR / name
     if p.exists():
         datas.append((str(p), '.'))

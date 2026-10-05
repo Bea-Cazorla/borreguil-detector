@@ -33,6 +33,7 @@ os.environ['BORREGUIL_DATA_DIR'] = tempfile.mkdtemp(prefix='bt_')
 warnings.simplefilter('ignore')
 
 import borreguil_pipeline as bp   # noqa: E402
+import mapeo_rf as mr             # noqa: E402
 import point_profile as pp        # noqa: E402
 
 bp._imports()
@@ -194,6 +195,32 @@ def tabla_principal(at):
     return None
 
 
+def tabla_con_columna(at, *nombres):
+    """La primera tabla de la pantalla que tiene una columna con ese nombre (en
+    cualquiera de los dos idiomas)."""
+    for d in at.dataframe:
+        try:
+            df = d.value
+        except Exception:
+            continue
+        if any(n in df.columns for n in nombres):
+            return df
+    return None
+
+
+def clases_del_mapeo(at):
+    """{categoría: nº de muestras} de la pestaña «Mapeo RF»."""
+    df = tabla_con_columna(at, 'Categoría', 'Category')
+    if df is None:
+        return None
+    return dict(zip(df.iloc[:, 0], df.iloc[:, 2]))
+
+
+def control(at, tipo, clave):
+    cs = [w for w in getattr(at, tipo) if w.key == clave]
+    return cs[0] if cs else None
+
+
 # ------------------------------------------------------------------------ guion
 def guion(lang):
     en = lang == 'English'
@@ -219,6 +246,21 @@ def guion(lang):
     comprobar(hay(at, f'Type reviewed: 0 of {n_b}' if en else f'Tipo revisado: 0 de {n_b}'),
               f'contador a cero sobre {n_b} borreguiles')
     comprobar(boton(at, 'rev_save') is None, 'sin selección no aparece el panel de revisión')
+    # Pestaña «Mapeo RF»: sin tipos revisados solo cuenta la ausencia de campo, y
+    # con eso no se puede entrenar.
+    T = (lambda es_, en_: en_ if en else es_)
+    comprobar(clases_del_mapeo(at) == {T('no borreguil', 'not a borreguil'): 1,
+                                       T('arroyo', 'stream'): 0, T('laguna', 'lake'): 0,
+                                       T('ladera', 'slope'): 0},
+              'mapeo: recuento por categoría antes de revisar nada',
+              str(clases_del_mapeo(at)))
+    comprobar(hay(at, T('**1 muestra** de los 41 puntos', '**1 sample** out of the 41 points'))
+              and hay(at, T('Solo hay muestras de una categoría',
+                            'Only one category has samples'))
+              and hay(at, T('el mínimo es 5', 'the minimum is 5')),
+              'mapeo: avisa de que con eso no se puede entrenar')
+    comprobar(hay(at, T('36 de 36 variables seleccionadas', '36 of 36 variables selected')),
+              'mapeo: las 36 variables disponibles vienen seleccionadas')
     tarjetas = [m.label for m in at.metric]
     comprobar(('LIKELY BORREGUIL' in tarjetas) if en else ('BORREGUIL PROBABLE' in tarjetas),
               'las tarjetas de recuento van en el idioma elegido', str(tarjetas))
@@ -370,6 +412,50 @@ def guion(lang):
     r = filas(at)[SIN]
     comprobar(bp.tipo_revisado(r) and (r['ambiente'], r['humedad'], r['pureza'])
               == ('ladera', 'seco', 'puro'), 'eligiendo los tres niveles sí se guarda')
+
+    # --- G2 · la pestaña «Mapeo RF» cuenta lo revisado
+    print('  G2 · mapeo: muestras por categoría')
+    control(at, 'selectbox', 'mrf_nivel').select('pureza')
+    at.run()
+    sin_error(at, 'G2')
+    # Revisados hasta aquí: dos «mixto-roca» (paso E) y dos «puro» (paso G), más la
+    # ausencia de campo. Los dos dudosos no cuentan.
+    comprobar(clases_del_mapeo(at) == {T('no borreguil', 'not a borreguil'): 1,
+                                       T('puro', 'pure'): 2,
+                                       T('mixto-agua', 'mixed-water'): 0,
+                                       T('mixto-roca', 'mixed-rock'): 2},
+              'el recuento sigue a lo que se ha revisado en la tabla',
+              str(clases_del_mapeo(at)))
+    comprobar(hay(at, T('**5 muestras** de los 41 puntos', '**5 samples** out of the 41 points')),
+              'cinco muestras de 41 puntos')
+    motivos = tabla_con_columna(at, 'Motivo', 'Reason')
+    mot = dict(zip(motivos.iloc[:, 0], motivos.iloc[:, 1])) if motivos is not None else {}
+    comprobar(mot.get(mr.motivo('dudoso', en)) == 2
+              and mot.get(mr.motivo('tipo_sin_revisar', en)) == len(BORR) - 3,
+              'explica por qué no entra el resto (dudosos, tipo sin revisar…)', str(mot))
+    comprobar(sum(mot.values()) + 5 == 41, 'muestras y descartes suman todos los puntos')
+    control(at, 'checkbox', 'mrf_ausencias').uncheck()
+    at.run()
+    sin_error(at, 'G2 (sin ausencias)')
+    comprobar(T('no borreguil', 'not a borreguil') not in clases_del_mapeo(at)
+              and hay(at, T('no demuestra presencia frente a ausencia',
+                            'does not show presence versus absence')),
+              'sin la clase de ausencia, avisa de lo que eso implica')
+    control(at, 'checkbox', 'mrf_ausencias').check()
+    control(at, 'multiselect', 'mrf_vars_4').set_value(['elev_dem_m', 'slope_deg'])
+    at.run()
+    comprobar(hay(at, T('33 de 36 variables seleccionadas', '33 of 36 variables selected')),
+              'se pueden quitar variables')
+    for i in range(5):
+        control(at, 'multiselect', f'mrf_vars_{i}').set_value([])
+    at.run()
+    comprobar(hay(at, T('Elige al menos una variable', 'Choose at least one variable')),
+              'sin variables, lo dice')
+    for i, g in enumerate(mr.GRUPOS):
+        control(at, 'multiselect', f'mrf_vars_{i}').set_value(mr.nombres_predictores([g]))
+    control(at, 'selectbox', 'mrf_nivel').select('ambiente')
+    at.run()
+    sin_error(at, 'G2 (restaurar)')
 
     # --- H · verificar y reentrenar conserva lo revisado
     print('  H · marcar como verificado y reentrenar')

@@ -18,7 +18,7 @@ variable y cómo interpretar los resultados.
 6. [Los modelos](#6-los-modelos)
 7. [El umbral de decisión](#7-el-umbral-de-decisión)
 8. [Las variables del modelo](#8-las-variables-del-modelo)
-9. [Resultados: las seis pestañas](#9-resultados-las-seis-pestañas)
+9. [Resultados: las siete pestañas](#9-resultados-las-siete-pestañas)
 10. [Clasificación jerárquica del tipo](#10-clasificación-jerárquica-del-tipo)
 11. [Entrenar un modelo propio](#11-entrenar-un-modelo-propio)
 12. [Rendimiento](#12-rendimiento)
@@ -308,7 +308,7 @@ roca.
 
 ---
 
-## 9. Resultados: las seis pestañas
+## 9. Resultados: las siete pestañas
 
 ### 🗺️ Mapa
 Puntos coloreados por decisión (leyenda abajo a la izquierda). Clic en un punto →
@@ -364,6 +364,13 @@ Ranking de importancia del modelo activo, con el rango típico de borreguil.
 ### 📊 Distribuciones
 Diagramas de caja por variable, dispersión altitud × NDVI, recuento por decisión y
 la **clasificación jerárquica**.
+
+---
+
+### 🌿 Mapeo RF
+El camino de los puntos con el tipo revisado a un **mapa de tipos de borreguil**.
+Se está construyendo por pasos; ver
+[Mapeo de tipos con Random Forest](#mapeo-de-tipos-con-random-forest-en-construcción).
 
 ---
 
@@ -444,6 +451,44 @@ vez, cárgalo como *puntos candidatos* o como *verdad-terreno*. Los tipos revisa
 vuelven con sus puntos. Si un punto llega marcado como revisado pero con una
 categoría que no existe (por ejemplo, editada a mano), la app lo avisa y no lo
 cuenta como revisado.
+
+### Mapeo de tipos con Random Forest (en construcción)
+
+La pestaña **🌿 Mapeo RF** llevará de los puntos revisados a un mapa de tipos. Se
+construye por pasos; de momento está el primero, **Datos**, que responde a dos
+preguntas antes de entrenar nada.
+
+**¿Qué puntos sirven como muestra?** Se elige el nivel que se quiere cartografiar
+(ambiente, humedad o pureza: un modelo por nivel) y la app cuenta:
+
+| Entra como muestra | Con qué categoría |
+|---|---|
+| Un punto con el **tipo revisado** | La que dejó la persona en ese nivel |
+| Una **ausencia de campo** (`Borreguil = no`), si se incluye | `no borreguil` |
+
+El resto no entra, y se dice por qué: borreguil con el tipo sin revisar, punto sin
+etiqueta de campo (lo que diga el modelo no cuenta), dudoso, ausencia de campo que
+además tiene un tipo revisado, o dos muestras en el mismo píxel de 10 m (si
+coinciden en categoría se queda una; si no, se apartan todas). **No se inventan
+ausencias ni se cambia la categoría de ningún punto.** La tabla punto por punto se
+puede descargar (`muestras_<nivel>.csv`).
+
+Cada categoría tiene un **código fijo**, el que llevará el mapa: 0 es siempre
+`no borreguil` y el resto sigue el orden de la app (por ejemplo, en ambiente:
+1 arroyo, 2 laguna, 3 ladera). No depende de qué categorías haya en cada ejecución.
+
+Para poder entrenar hacen falta **al menos dos categorías con 5 muestras cada una**;
+con menos de 30 por categoría la app avisa de que el resultado será poco fiable.
+
+> ⚠️ Sin clase `no borreguil`, el modelo solo distingue tipos: cualquier píxel que
+> se le dé recibirá uno de ellos. El mapa tendrá que limitarse a zonas donde ya se
+> sepa que hay borreguil; por sí solo no demuestra presencia frente a ausencia.
+
+**¿Qué variables se pueden usar?** Solo las que existen como **mapa continuo**, que
+son las que luego permiten predecir sobre el territorio: 36, calculadas en Earth
+Engine a partir de Sentinel-2 (31) y del modelo de elevaciones (5). Vienen todas
+marcadas y se pueden quitar. Las texturas de la imagen aérea, el radar Sentinel-1 y
+el TWI, que el detector sí usa, no están porque hoy solo se calculan punto a punto.
 
 ---
 

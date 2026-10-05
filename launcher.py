@@ -108,8 +108,9 @@ def selftest(res: Path) -> int:
         import borreguil_pipeline as bp
         bp._imports()
     comprobar('importar el pipeline y sus dependencias', _pipeline)
-    comprobar('módulos de la interfaz (point_profile, i18n)',
-              lambda: (__import__('point_profile'), __import__('i18n')))
+    comprobar('módulos de la interfaz (point_profile, i18n, mapeo_rf)',
+              lambda: (__import__('point_profile'), __import__('i18n'),
+                       __import__('mapeo_rf')))
     comprobar('streamlit', lambda: __import__('streamlit'))
     comprobar('scipy.ndimage', lambda: __import__('scipy.ndimage', fromlist=['ndimage']))
     comprobar('sklearn', lambda: __import__('sklearn.ensemble', fromlist=['ensemble']))
