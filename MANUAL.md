@@ -457,9 +457,9 @@ cuenta como revisado.
 ### Mapeo de tipos con Random Forest (en construcción)
 
 La pestaña **🌿 Mapeo RF** llevará de los puntos revisados a un mapa de tipos. Se
-construye por pasos; de momento están los dos primeros: **1 · Datos**, que
-responde a dos preguntas antes de entrenar nada, y **2 · Tabla de entrenamiento**.
-El modelo y el mapa llegarán después.
+construye por pasos; de momento están los tres primeros: **1 · Datos**, que
+responde a dos preguntas antes de entrenar nada, **2 · Tabla de entrenamiento** y
+**3 · Modelo**. El mapa llegará después.
 
 **¿Qué puntos sirven como muestra?** Se elige el nivel que se quiere cartografiar
 (ambiente, humedad o pureza: un modelo por nivel) y la app cuenta:
@@ -524,6 +524,63 @@ una columna por variable, en el orden exacto que verá el modelo.
 
 La rejilla de todo el mapeo es la de Sentinel-2: UTM, 10 m. La topografía, que
 está a 30 m, se interpola (bilineal) al pasarla a esa rejilla.
+
+**El modelo.** El botón **🌲 Entrenar y validar** hace dos cosas distintas, en este
+orden:
+
+1. **Validar por zonas.** La tabla se reparte en 5 partes y cada una se predice
+   con un modelo entrenado solo con las otras. Las partes se hacen por **zonas**
+   (la `cuenca_id` del punto si la tiene; si no, una celda de unos 5 km), de modo
+   que todos los puntos de una zona caen juntos. Los puntos vecinos se parecen
+   mucho: si unos entrenaran y otros validaran, el resultado saldría mejor de lo
+   que es. De aquí salen todas las cifras.
+2. **Entrenar el modelo final** con todas las muestras. Es el que hará el mapa.
+   No tiene cifras propias: las suyas son las de la validación.
+
+Qué enseña la validación:
+
+| Medida | Qué dice |
+|---|---|
+| **Precisión** (por categoría) | De lo que el modelo llama así, cuánto lo es |
+| **Sensibilidad** o *recall* (por categoría) | De lo que lo es, cuánto encuentra |
+| **F1** (por categoría) | Resume las dos anteriores |
+| **F1 medio (macro-F1)** | La media del F1 de las categorías: todas pesan igual, tengan muchas muestras o pocas |
+| **Exactitud equilibrada** | La media de la sensibilidad de las categorías |
+| **Aciertos sobre el total** | La cifra más conocida y la más engañosa si las categorías están desequilibradas; por eso va la última |
+| **Matriz de confusión** | Filas: lo que es. Columnas: lo que dice el modelo. Fuera de la diagonal, los errores |
+
+Debajo aparecen **lo que más se confunde**, el resultado de cada una de las partes
+y las **muestras mal clasificadas**. Estas últimas merecen una mirada: puede ser un
+fallo del modelo o una etiqueta que conviene revisar.
+
+Avisos que puede dar:
+
+- **No se ha podido validar por zonas**: las muestras caen en menos de 3 zonas. Se
+  valida al azar y el resultado saldrá mejor de lo que es; hay que repetirlo
+  cuando haya muestras de más sitios.
+- **Una categoría está en una sola zona**: al apartar esa zona, el modelo no ha
+  visto nunca esa categoría y no puede acertarla.
+
+**Parámetros** (plegados; los valores por defecto son un punto de partida
+razonable, no el resultado de una búsqueda):
+
+| Parámetro | Por defecto |
+|---|---|
+| Nº de árboles | 500 |
+| Variables probadas en cada división | raíz cuadrada del nº de variables |
+| Profundidad máxima | sin límite |
+| Muestras mínimas por hoja | 2 |
+| Semilla | 42 (mismos datos y misma semilla, mismo modelo) |
+| Si las categorías están desequilibradas | dar más peso a las escasas |
+
+Para el desequilibrio hay cuatro opciones: dar más peso a las categorías escasas,
+usar menos muestras de las abundantes (como mucho 3 veces la más escasa, elegidas
+con la semilla), las dos cosas, o no compensar. **No se generan muestras
+artificiales.** Con cualquiera de ellas se valida con todas las muestras.
+
+Hay un modelo por nivel: puedes tener entrenados a la vez el de ambiente, el de
+humedad y el de pureza. Si después cambias las muestras o las variables, la app
+avisa de que el modelo es de la tabla anterior hasta que vuelvas a entrenar.
 
 ---
 

@@ -683,6 +683,41 @@ def guion_tabla(lang):
               'la tabla X/y tiene 21 filas y las 34 variables en el orden del catálogo',
               str(list(xy.columns[:5])) if xy is not None else 'no está')
 
+    print('  M1 · entrenar y validar')
+    b = control(at, 'button', 'mrf_entrenar')
+    comprobar(b is not None and not b.disabled, 'con la tabla lista, se puede entrenar')
+    b.click()
+    at.run()
+    sin_error(at, 'M1')
+    mod = at.session_state['mrf_modelos'].get('humedad') if 'mrf_modelos' in at.session_state \
+        else None
+    comprobar(mod is not None and mod['n_muestras'] == 21 and len(mod['predictores']) == 34
+              and mod['params'] == mr.PARAMS_DEFECTO and mod['balance']['estrategia'] == 'pesos',
+              'queda un modelo de humedad con 21 muestras, 34 variables y los parámetros '
+              'por defecto', str({k: mod[k] for k in ('n_muestras', 'params')}) if mod else 'no')
+    comprobar(mod is not None and sum(map(sum, mod['matriz'])) == 21
+              and [c['categoria'] for c in mod['categorias']] == ['no borreguil', 'húmedo', 'seco'],
+              'la matriz de confusión reparte las 21 muestras entre las tres categorías')
+    comprobar(mod is not None and mod['validacion']['tipo'] == 'espacial'
+              and hay(at, T('**Validación por zonas**', '**Validation by zones**')),
+              'la validación se ha hecho por zonas, y se dice',
+              str(mod['validacion']) if mod else 'no')
+    etiquetas = [m.label for m in at.metric]
+    comprobar(T('F1 medio entre categorías (macro-F1)', 'Mean F1 across categories (macro-F1)')
+              in etiquetas and T('Exactitud equilibrada', 'Balanced accuracy') in etiquetas,
+              'se muestran el macro-F1 y la exactitud equilibrada, no solo los aciertos',
+              str(etiquetas[-4:]))
+    por_cat = tabla_con_columna(at, 'Precisión', 'Precision')
+    comprobar(por_cat is not None and len(por_cat) == 3 and 'F1' in por_cat.columns,
+              'hay precisión, sensibilidad y F1 de cada categoría')
+    matriz = tabla_con_columna(at, 'es ↓ · dice →', 'is ↓ · says →')
+    comprobar(matriz is not None and matriz.shape == (3, 4)
+              and int(matriz.iloc[:, 1:].to_numpy().sum()) == 21,
+              'se muestra la matriz de confusión con sus categorías')
+    comprobar(hay(at, T('**Modelo final** entrenado con 21 de las 21 muestras y 34 variables',
+                        '**Final model** trained with 21 of the 21 samples and 34 variables')),
+              'el modelo final se entrena con todas las muestras de la tabla')
+
     print('  T4 · quitar variables no obliga a leer otra vez')
     control(at, 'multiselect', 'mrf_vars_3').set_value(['wavi_mean', 'albedo_mean'])
     at.run()
@@ -693,6 +728,28 @@ def guion_tabla(lang):
               'sin «ndmi_mean», la muestra que no la tenía vuelve a entrar; no se relee')
     comprobar(not hay(at, T('Hay más variables', 'There are more variables')),
               'y ya no hay más variables que muestras')
+
+    print('  M2 · el modelo avisa si la tabla ha cambiado; reentrenar con otros parámetros')
+    aviso_tabla = T('La tabla ha cambiado desde que se entrenó este modelo',
+                    'The table has changed since this model was trained')
+    comprobar(hay(at, aviso_tabla), 'avisa de que el modelo es de la tabla anterior')
+    control(at, 'number_input', 'mrf_p_arboles').set_value(100)
+    control(at, 'number_input', 'mrf_p_prof').set_value(6)
+    control(at, 'selectbox', 'mrf_p_balance').select('submuestreo')
+    at.run()
+    control(at, 'button', 'mrf_entrenar').click()
+    at.run()
+    sin_error(at, 'M2')
+    mod = at.session_state['mrf_modelos']['humedad']
+    comprobar(mod['params']['n_estimators'] == 100 and mod['params']['max_depth'] == 6
+              and mod['modelo'].n_estimators == 100 and mod['modelo'].max_depth == 6,
+              'el modelo nuevo usa los parámetros elegidos', str(mod['params']))
+    comprobar(mod['balance']['estrategia'] == 'submuestreo'
+              and mod['modelo'].class_weight is None and mod['n_muestras'] == 22
+              and len(mod['predictores']) == 20,
+              'y la estrategia de balance elegida, con las 22 muestras y 20 variables',
+              str(mod['balance']))
+    comprobar(not hay(at, aviso_tabla), 'ya no avisa: el modelo es de la tabla actual')
 
     print('  T5 · cambiar los años invalida lo leído')
     [t for t in at.text_input if t.label.startswith(T('Años Sentinel-2', 'Sentinel-2 years'))

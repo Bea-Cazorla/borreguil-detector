@@ -309,8 +309,8 @@ def construir_tabla(res, valores, predictores):
     for f in res['tabla']:
         if not f['usada']:
             continue
-        base = {'ID': f['ID'], 'indice': f['indice'], 'categoria': f['categoria'],
-                'codigo': f['codigo']}
+        base = {'ID': f['ID'], 'indice': f['indice'], 'lon': float(f['lon']),
+                'lat': float(f['lat']), 'categoria': f['categoria'], 'codigo': f['codigo']}
         v = valores.get(clave_punto(f['lon'], f['lat']))
         if v is None:
             apartadas.append({**base, 'motivo': 'sin_leer', 'faltan': []})
@@ -490,6 +490,273 @@ def desequilibrio(clases):
     mayor = max(con, key=lambda c: c['n'])
     menor = min(con, key=lambda c: c['n'])
     return mayor['n'] / menor['n'], mayor, menor
+
+
+# ============================================================
+# Random Forest multiclase: validación por zonas y modelo final
+# ------------------------------------------------------------
+# Son dos procesos separados:
+#   1. VALIDAR: se reparte la tabla en partes; cada parte se predice con un modelo
+#      entrenado solo con las demás. De ahí salen la matriz de confusión y las
+#      métricas. Las partes se hacen por ZONAS (cuenca o celda de ~5 km): los puntos
+#      cercanos se parecen mucho, y si vecinos del mismo sitio cayeran a la vez en
+#      entrenamiento y en validación, el resultado saldría mejor de lo que es.
+#   2. MODELO FINAL: se entrena otra vez con TODAS las muestras válidas. Ese es el
+#      que después hace el mapa; sus métricas son las del paso 1.
+# ============================================================
+PARAMS_DEFECTO = {
+    'n_estimators': 500,        # árboles
+    'max_features': 'sqrt',     # variables que se prueban en cada división
+    'max_depth': None,          # sin límite de profundidad
+    'min_samples_leaf': 2,      # muestras mínimas por hoja
+    'random_state': 42,         # semilla: mismo dato, mismo modelo
+}
+# Qué se hace cuando unas categorías tienen muchas más muestras que otras.
+ESTRATEGIAS = ('pesos', 'submuestreo', 'ambas', 'ninguna')
+RAZON_MAXIMA = 3.0              # submuestreo: la abundante, como mucho 3 × la escasa
+CELDA_GRADOS = 0.05             # ~5 km: lado de la celda cuando el punto no tiene cuenca
+PARTICIONES = 5
+MIN_ZONAS = 3                   # con menos zonas no se puede validar por zonas
+
+
+def grupos_espaciales(tab, rows, celda=CELDA_GRADOS):
+    """Zona de cada muestra de la tabla, para validar por zonas.
+
+    Es la `cuenca_id` del punto si la tiene; si no, la celda de una rejilla de
+    `celda` grados (~5 km). Mismo criterio que usa el detector. Devuelve
+    (grupos, info): `grupos` es paralela a tab['filas'].
+    """
+    grupos, con_cuenca = [], 0
+    for f in tab['filas']:
+        r = rows[f['indice']] if 0 <= f['indice'] < len(rows) else {}
+        cuenca = bp._txt(r.get('cuenca_id'))
+        if cuenca and cuenca.lower() != 'nan':
+            grupos.append(f'cuenca {cuenca}')
+            con_cuenca += 1
+        else:
+            grupos.append(f"celda {round(f['lon'] / celda)}_{round(f['lat'] / celda)}")
+    return grupos, {'n_zonas': len(set(grupos)), 'con_cuenca': con_cuenca,
+                    'con_celda': len(grupos) - con_cuenca, 'celda_grados': celda}
+
+
+def submuestrear(y, razon_maxima=RAZON_MAXIMA, semilla=42):
+    """Posiciones que se quedan al recortar las categorías abundantes a
+    `razon_maxima` veces la más escasa. Reproducible: misma semilla, mismas
+    muestras. No inventa nada: solo deja fuera parte de las abundantes."""
+    import numpy as np
+    y = np.asarray(y)
+    clases, cuentas = np.unique(y, return_counts=True)
+    tope = max(int(cuentas.min()), int(math.floor(cuentas.min() * razon_maxima)))
+    rng = np.random.RandomState(semilla)
+    quedan = []
+    for c in clases:
+        pos = np.where(y == c)[0]
+        if len(pos) > tope:
+            pos = rng.choice(pos, tope, replace=False)
+        quedan.extend(int(i) for i in pos)
+    return sorted(quedan)
+
+
+def _params_validos(params):
+    p = dict(PARAMS_DEFECTO)
+    p.update({k: v for k, v in (params or {}).items() if k in PARAMS_DEFECTO})
+    if not (isinstance(p['n_estimators'], int) and p['n_estimators'] >= 10):
+        raise ValueError('n_estimators: tiene que ser un entero de 10 o más')
+    if not (p['max_features'] in ('sqrt', 'log2', None)
+            or (isinstance(p['max_features'], int) and p['max_features'] >= 1)):
+        raise ValueError("max_features: 'sqrt', 'log2', None (todas) o un entero ≥ 1")
+    if not (p['max_depth'] is None or (isinstance(p['max_depth'], int) and p['max_depth'] >= 1)):
+        raise ValueError('max_depth: None (sin límite) o un entero ≥ 1')
+    if not (isinstance(p['min_samples_leaf'], int) and p['min_samples_leaf'] >= 1):
+        raise ValueError('min_samples_leaf: tiene que ser un entero ≥ 1')
+    if not isinstance(p['random_state'], int):
+        raise ValueError('random_state: tiene que ser un entero')
+    return p
+
+
+def firma_tabla(tab):
+    """Huella de la tabla (muestras, categorías, variables y valores): sirve para
+    saber si un modelo se entrenó con la tabla que hay ahora en pantalla."""
+    import hashlib
+    h = hashlib.md5()
+    h.update('|'.join(tab['predictores']).encode())
+    for f, x in zip(tab['filas'], tab['X']):
+        h.update(f"{f['ID']}|{f['codigo']}|".encode())
+        h.update(','.join(f'{v:.6g}' for v in x).encode())
+    return h.hexdigest()
+
+
+def entrenar_y_validar(tab, grupos, params=None, estrategia='pesos',
+                       razon_maxima=RAZON_MAXIMA, particiones=PARTICIONES):
+    """Valida un Random Forest multiclase por zonas y entrena el modelo final.
+
+    tab: salida de construir_tabla(); grupos: zona de cada muestra (paralela a
+    tab['filas']); params: ver PARAMS_DEFECTO; estrategia: una de ESTRATEGIAS.
+
+    Lanza ValueError, con un mensaje claro, si no se puede entrenar (menos de dos
+    categorías, alguna por debajo del mínimo, tabla y zonas que no casan…).
+    Devuelve un dict con la validación (matriz de confusión, métricas por categoría
+    y globales, resultado de cada parte, predicción de cada muestra cuando le tocó
+    ser validada) y con el modelo final entrenado con todas las muestras.
+    """
+    import numpy as np
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.metrics import (accuracy_score, balanced_accuracy_score,
+                                 confusion_matrix, f1_score,
+                                 precision_recall_fscore_support)
+    from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
+
+    if estrategia not in ESTRATEGIAS:
+        raise ValueError(f'estrategia desconocida: {estrategia!r} (use {", ".join(ESTRATEGIAS)})')
+    p = _params_validos(params)
+    if not tab.get('listo'):
+        raise ValueError('la tabla de entrenamiento no cumple los mínimos: '
+                         + '; '.join(mensaje(e) for e in tab.get('errores', [])))
+    X = np.asarray(tab['X'], dtype=float)
+    y = np.asarray(tab['y'], dtype=int)
+    if X.ndim != 2 or len(X) != len(y) or X.shape[1] != len(tab['predictores']):
+        raise ValueError('la tabla está mal formada: filas, categorías y variables no casan')
+    if not np.isfinite(X).all():
+        raise ValueError('la tabla contiene valores no válidos (huecos o infinitos)')
+    if len(grupos) != len(y):
+        raise ValueError('hay que dar la zona de cada muestra, ni más ni menos')
+    nombre = {c: n for n, c in tab['codigos'].items()}
+    presentes = sorted(int(c) for c in np.unique(y))
+    if len(presentes) < 2:
+        raise ValueError('hacen falta al menos dos categorías con muestras')
+    grupos = np.asarray([str(g) for g in grupos])
+    semilla = p['random_state']
+    con_pesos = estrategia in ('pesos', 'ambas')
+    con_recorte = estrategia in ('submuestreo', 'ambas')
+
+    def nuevo_modelo():
+        return RandomForestClassifier(
+            n_estimators=p['n_estimators'], max_features=p['max_features'],
+            max_depth=p['max_depth'], min_samples_leaf=p['min_samples_leaf'],
+            class_weight='balanced' if con_pesos else None,
+            random_state=semilla, n_jobs=-1)
+
+    def para_entrenar(pos):
+        """Las posiciones con las que de verdad se entrena (tras el recorte)."""
+        pos = np.asarray(pos)
+        if not con_recorte:
+            return pos
+        return pos[submuestrear(y[pos], razon_maxima, semilla)]
+
+    # ---- 1) validación
+    n_zonas = len(set(grupos))
+    minimo = int(min(np.sum(y == c) for c in presentes))
+    avisos = []
+    if n_zonas >= MIN_ZONAS:
+        k = min(particiones, n_zonas)
+        tipo = 'espacial'
+        partes = list(StratifiedGroupKFold(n_splits=k, shuffle=True, random_state=semilla)
+                      .split(X, y, grupos))
+    else:
+        k = max(2, min(particiones, minimo))
+        tipo = 'estratificada'
+        avisos.append(('no_espacial', n_zonas))
+        partes = list(StratifiedKFold(n_splits=k, shuffle=True, random_state=semilla)
+                      .split(X, y))
+    for c in presentes:
+        if tipo == 'espacial' and len(set(grupos[y == c])) == 1:
+            avisos.append(('categoria_en_una_zona', nombre[c]))
+
+    import warnings
+    warnings.filterwarnings('ignore', message='y_pred contains classes not in y_true')
+    predicho = np.full(len(y), -1, dtype=int)
+    pmax = np.full(len(y), np.nan)
+    parte_de = np.full(len(y), -1, dtype=int)
+    pliegues = []
+    for i, (entrena, valida) in enumerate(partes, 1):
+        usadas = para_entrenar(entrena)
+        m = nuevo_modelo().fit(X[usadas], y[usadas])
+        prob = m.predict_proba(X[valida])
+        predicho[valida] = m.classes_[np.argmax(prob, axis=1)]
+        pmax[valida] = prob.max(axis=1)
+        parte_de[valida] = i
+        vistas = set(int(c) for c in m.classes_)
+        pliegues.append({
+            'parte': i, 'n_entrena': int(len(usadas)), 'n_valida': int(len(valida)),
+            'zonas_valida': sorted(set(grupos[valida])),
+            'exactitud': float(accuracy_score(y[valida], predicho[valida])),
+            'exactitud_equilibrada': float(balanced_accuracy_score(y[valida],
+                                                                   predicho[valida])),
+            'macro_f1': float(f1_score(y[valida], predicho[valida], average='macro',
+                                       labels=sorted(set(int(c) for c in y[valida])),
+                                       zero_division=0)),
+            'categorias_sin_entrenar': [nombre[c] for c in presentes if c not in vistas],
+        })
+
+    matriz = confusion_matrix(y, predicho, labels=presentes)
+    prec, rec, f1, sop = precision_recall_fscore_support(
+        y, predicho, labels=presentes, zero_division=0)
+    por_clase = [{'categoria': nombre[c], 'codigo': c, 'precision': float(prec[i]),
+                  'recall': float(rec[i]), 'f1': float(f1[i]), 'n_validacion': int(sop[i])}
+                 for i, c in enumerate(presentes)]
+    confusiones = sorted(
+        [(nombre[presentes[a]], nombre[presentes[b]], int(matriz[a, b]))
+         for a in range(len(presentes)) for b in range(len(presentes))
+         if a != b and matriz[a, b] > 0], key=lambda t: -t[2])
+    predicciones = [{
+        'ID': f['ID'], 'indice': f['indice'], 'zona': str(grupos[i]),
+        'parte': int(parte_de[i]), 'real': nombre[int(y[i])],
+        'predicha': nombre[int(predicho[i])], 'acierta': bool(y[i] == predicho[i]),
+        'confianza': float(pmax[i])} for i, f in enumerate(tab['filas'])]
+
+    # ---- 2) modelo final, con todas las muestras
+    todas = para_entrenar(np.arange(len(y)))
+    modelo = nuevo_modelo().fit(X[todas], y[todas])
+
+    def cuenta(pos):
+        return {nombre[c]: int(np.sum(y[pos] == c)) for c in presentes}
+
+    from datetime import datetime
+    return {
+        'nivel': tab['nivel'], 'codigos': dict(tab['codigos']),
+        'categorias': [{'categoria': nombre[c], 'codigo': c} for c in presentes],
+        'predictores': list(tab['predictores']), 'params': p,
+        'balance': {'estrategia': estrategia,
+                    'razon_maxima': razon_maxima if con_recorte else None,
+                    'class_weight': 'balanced' if con_pesos else None,
+                    'original': cuenta(np.arange(len(y))), 'final': cuenta(todas)},
+        'validacion': {'tipo': tipo, 'particiones': k, 'n_zonas': n_zonas,
+                       'avisos': avisos},
+        'pliegues': pliegues,
+        'matriz': [[int(v) for v in fila] for fila in matriz],
+        'por_clase': por_clase,
+        'exactitud': float(accuracy_score(y, predicho)),
+        'exactitud_equilibrada': float(balanced_accuracy_score(y, predicho)),
+        'macro_f1': float(f1_score(y, predicho, average='macro', labels=presentes,
+                                   zero_division=0)),
+        'confusiones': confusiones, 'predicciones': predicciones,
+        'modelo': modelo, 'n_muestras': int(len(y)), 'n_entrenadas': int(len(todas)),
+        'firma': firma_tabla(tab),
+        'cuando': datetime.now().isoformat(timespec='seconds'),
+    }
+
+
+def mensaje_validacion(item, en=False, traduce=None):
+    """Texto de un aviso de la validación."""
+    k = item[0]
+    if k == 'no_espacial':
+        return (f'The samples fall in only {item[1]} zone(s), so the validation could not '
+                'be done by zones: it mixes neighbouring points and will look better '
+                'than it is. It should be repeated by zones when there are samples from '
+                'more places.' if en else
+                f'Las muestras caen en solo {item[1]} zona(s), así que no se ha podido '
+                'validar por zonas: se mezclan puntos vecinos y el resultado saldrá mejor '
+                'de lo que es. Habrá que repetirla por zonas cuando haya muestras de más '
+                'sitios.')
+    if k == 'categoria_en_una_zona':
+        cat = traduce(item[1]) if traduce else item[1]
+        return (f'All the samples of "{cat}" are in a single zone: when that zone is held '
+                'out, the model has never seen that category, so it cannot get it right.'
+                if en else
+                f'Todas las muestras de «{cat}» están en una sola zona: cuando esa zona se '
+                'aparta para validar, el modelo no ha visto nunca esa categoría y no puede '
+                'acertarla.')
+    return str(item)
 
 
 # ============================================================

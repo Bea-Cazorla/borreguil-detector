@@ -2298,7 +2298,7 @@ git push
                 st.altair_chart(dc, width='stretch')
 
         # ----------------------------------------------------------------
-        # MAPEO DE BORREGUILES — RANDOM FOREST (por pasos; ahora: «Datos»)
+        # MAPEO DE BORREGUILES — RANDOM FOREST (por pasos: datos, tabla y modelo)
         # De los puntos con el tipo revisado a un mapa de tipos. La lógica está en
         # mapeo_rf.py; aquí solo se enseña. No toca los puntos ni el resto de la app.
         # ----------------------------------------------------------------
@@ -2309,12 +2309,13 @@ git push
                                    'Borreguil mapping — Random Forest'))
             st.markdown(i18n.pick(
                 'Usa los puntos cuyo **tipo has revisado** para entrenar un modelo y obtener '
-                'un **mapa de tipos de borreguil**. Se construye por pasos: ahora está '
-                'disponible el primero, **Datos**. El modelo y el mapa llegarán en los '
-                'siguientes.',
+                'un **mapa de tipos de borreguil**. Se construye por pasos: ya están '
+                '**Datos**, **Tabla de entrenamiento** y **Modelo**. El mapa llegará en '
+                'el siguiente.',
                 'Uses the points whose **type you have reviewed** to train a model and '
-                'produce a **map of borreguil types**. It is being built step by step: the '
-                'first one, **Data**, is available now. The model and the map come next.'))
+                'produce a **map of borreguil types**. It is being built step by step: '
+                '**Data**, **Training table** and **Model** are available. The map comes '
+                'next.'))
 
             st.markdown(i18n.pick('#### 1 · Datos', '#### 1 · Data'))
             _niv_txt = {
@@ -2594,6 +2595,7 @@ git push
                             st.rerun()
 
             # La tabla, con lo que ya está leído
+            _tab = None
             if _predictores and any(mr.clave_punto(f['lon'], f['lat']) in _leidos
                                     for f in _usadas):
                 _tab = mr.construir_tabla(_res, _leidos, _predictores)
@@ -2665,7 +2667,8 @@ git push
                                            'See the training table')):
                     _dft = pd.DataFrame(_tab['filas'])
                     if len(_dft):
-                        _dft = _dft.drop(columns=['indice'])
+                        # solo lo que es la tabla X/y: las coordenadas no son variables
+                        _dft = _dft.drop(columns=['indice', 'lon', 'lat'])
                         _dft['ID'] = bp.abreviar_ids(_dft['ID'].tolist())
                         _dft['categoria'] = _dft['categoria'].map(i18n.tv)
                         st.dataframe(_dft.rename(columns={
@@ -2690,9 +2693,249 @@ git push
                         f"{bp.abreviar_anios(_inf.get('anios', []))} · 30 m topography "
                         'interpolated (bilinear).'))
 
+            # ------------------------------------------------------ 3 · Modelo
+            # Validar (por zonas) y entrenar el modelo final son dos procesos
+            # distintos: las métricas salen del primero; el mapa, del segundo.
+            st.divider()
+            st.markdown(i18n.pick('#### 3 · Modelo', '#### 3 · Model'))
+            st.caption(i18n.pick(
+                'Entrena un Random Forest con la tabla y lo **valida por zonas**: cada '
+                'zona (una cuenca, o una celda de unos 5 km) se predice con un modelo que '
+                'no ha visto ningún punto de ella. Después entrena el **modelo final** con '
+                'todas las muestras, que es el que hará el mapa.',
+                'Trains a Random Forest with the table and **validates it by zones**: each '
+                'zone (a basin, or a cell of about 5 km) is predicted by a model that has '
+                'seen no point from it. It then trains the **final model** with all the '
+                'samples, which is the one that will make the map.'))
+            _est_txt = {
+                'pesos': i18n.pick('Dar más peso a las categorías escasas (recomendado)',
+                                   'Give more weight to the scarce categories (recommended)'),
+                'submuestreo': i18n.pick('Usar menos muestras de las abundantes',
+                                         'Use fewer samples of the abundant ones'),
+                'ambas': i18n.pick('Las dos cosas', 'Both'),
+                'ninguna': i18n.pick('No compensar', 'Do not compensate'),
+            }
+            _est_corto = {
+                'pesos': i18n.pick('más peso a las categorías escasas',
+                                   'more weight to the scarce categories'),
+                'submuestreo': i18n.pick('menos muestras de las abundantes',
+                                         'fewer samples of the abundant ones'),
+                'ambas': i18n.pick('más peso a las escasas y menos muestras de las '
+                                   'abundantes', 'more weight to the scarce ones and fewer '
+                                   'samples of the abundant ones'),
+                'ninguna': i18n.pick('sin compensar el desequilibrio',
+                                     'without compensating the imbalance'),
+            }
+            _mf_txt = {
+                'sqrt': i18n.pick('raíz cuadrada del nº de variables (recomendado)',
+                                  'square root of the nº of variables (recommended)'),
+                'log2': i18n.pick('logaritmo del nº de variables',
+                                  'logarithm of the nº of variables'),
+                'todas': i18n.pick('todas', 'all'),
+            }
+            with st.expander(i18n.pick('Parámetros del modelo', 'Model parameters')):
+                _pa, _pb = st.columns(2)
+                with _pa:
+                    _p_arboles = st.number_input(
+                        i18n.pick('Nº de árboles', 'Nº of trees'), 50, 2000,
+                        mr.PARAMS_DEFECTO['n_estimators'], 50, key='mrf_p_arboles')
+                    _p_prof = st.number_input(
+                        i18n.pick('Profundidad máxima (0 = sin límite)',
+                                  'Maximum depth (0 = no limit)'), 0, 50, 0, 1,
+                        key='mrf_p_prof')
+                    _p_semilla = st.number_input(
+                        i18n.pick('Semilla', 'Seed'), 0, 99999,
+                        mr.PARAMS_DEFECTO['random_state'], 1, key='mrf_p_semilla',
+                        help=i18n.pick(
+                            'Con la misma semilla y los mismos datos sale el mismo modelo.',
+                            'The same seed and the same data give the same model.'))
+                with _pb:
+                    _p_hoja = st.number_input(
+                        i18n.pick('Muestras mínimas por hoja', 'Minimum samples per leaf'),
+                        1, 20, mr.PARAMS_DEFECTO['min_samples_leaf'], 1, key='mrf_p_hoja')
+                    _p_mf = st.selectbox(
+                        i18n.pick('Variables probadas en cada división',
+                                  'Variables tried at each split'),
+                        list(_mf_txt), key='mrf_p_maxfeat', format_func=lambda o: _mf_txt[o])
+                _p_bal = st.selectbox(
+                    i18n.pick('Si unas categorías tienen muchas más muestras que otras',
+                              'If some categories have many more samples than others'),
+                    list(mr.ESTRATEGIAS), key='mrf_p_balance',
+                    format_func=lambda o: _est_txt[o],
+                    help=i18n.pick(
+                        'No se generan muestras artificiales en ningún caso.',
+                        'No artificial samples are generated in any case.'))
+                _p_razon = mr.RAZON_MAXIMA
+                if _p_bal in ('submuestreo', 'ambas'):
+                    _p_razon = st.number_input(
+                        i18n.pick('Como mucho, cuántas veces la categoría más escasa',
+                                  'At most, how many times the scarcest category'),
+                        1.0, 10.0, mr.RAZON_MAXIMA, 0.5, key='mrf_p_razon')
+            _params = {'n_estimators': int(_p_arboles),
+                       'max_features': None if _p_mf == 'todas' else _p_mf,
+                       'max_depth': int(_p_prof) or None,
+                       'min_samples_leaf': int(_p_hoja), 'random_state': int(_p_semilla)}
+
+            _listo_m = bool(_tab and _tab['listo'])
+            if not _listo_m:
+                st.caption(i18n.pick(
+                    'Antes hace falta una tabla de entrenamiento válida («2 · Tabla de '
+                    'entrenamiento»).',
+                    'A valid training table is needed first ("2 · Training table").'))
+            if st.button(i18n.pick('🌲 Entrenar y validar', '🌲 Train and validate'),
+                         key='mrf_entrenar', type='primary', disabled=not _listo_m):
+                with st.spinner(i18n.pick('Validando por zonas y entrenando el modelo final…',
+                                          'Validating by zones and training the final model…')):
+                    try:
+                        _grupos, _ginfo = mr.grupos_espaciales(_tab, rows)
+                        _nuevo_m = mr.entrenar_y_validar(_tab, _grupos, _params,
+                                                         estrategia=_p_bal,
+                                                         razon_maxima=float(_p_razon))
+                        _nuevo_m['zonas'] = _ginfo
+                        # uno por nivel: se pueden tener los tres entrenados a la vez
+                        st.session_state.setdefault('mrf_modelos', {})[_nivel] = _nuevo_m
+                    except ValueError as _e:
+                        st.error(i18n.pick(f'No se ha podido entrenar: {_e}',
+                                           f'Training was not possible: {_e}'))
+
+            _mod = st.session_state.get('mrf_modelos', {}).get(_nivel)
+            if _mod:
+                if _tab is None or _mod['firma'] != mr.firma_tabla(_tab):
+                    st.warning(i18n.pick(
+                        'La tabla ha cambiado desde que se entrenó este modelo (otras '
+                        'muestras u otras variables). Lo de abajo corresponde al modelo '
+                        'anterior: vuelve a entrenar para ponerlo al día.',
+                        'The table has changed since this model was trained (other samples '
+                        'or other variables). What follows belongs to the previous model: '
+                        'train again to bring it up to date.'))
+                _val, _zi = _mod['validacion'], _mod.get('zonas', {})
+                if _val['tipo'] == 'espacial':
+                    st.markdown(i18n.pick(
+                        f"**Validación por zonas**: {_val['particiones']} partes sobre "
+                        f"{_val['n_zonas']} zonas ({_zi.get('con_cuenca', 0)} muestras con "
+                        f"cuenca, {_zi.get('con_celda', 0)} por celda de ~5 km).",
+                        f"**Validation by zones**: {_val['particiones']} folds over "
+                        f"{_val['n_zonas']} zones ({_zi.get('con_cuenca', 0)} samples with a "
+                        f"basin, {_zi.get('con_celda', 0)} by ~5 km cell)."))
+                else:
+                    st.markdown(i18n.pick(
+                        f"**Validación sin zonas** ({_val['particiones']} partes al azar, "
+                        'respetando la proporción de cada categoría).',
+                        f"**Validation without zones** ({_val['particiones']} random folds, "
+                        'keeping the proportion of each category).'))
+                if _val['avisos']:
+                    st.warning(''.join('- ' + mr.mensaje_validacion(a, _en, i18n.tv) + '\n'
+                                       for a in _val['avisos']))
+
+                _m1, _m2, _m3 = st.columns(3, vertical_alignment='bottom')
+                _m1.metric(i18n.pick('F1 medio entre categorías (macro-F1)',
+                                     'Mean F1 across categories (macro-F1)'),
+                           bp.fmt_num(_mod['macro_f1']))
+                _m2.metric(i18n.pick('Exactitud equilibrada', 'Balanced accuracy'),
+                           bp.fmt_num(_mod['exactitud_equilibrada']))
+                _m3.metric(i18n.pick('Aciertos sobre el total', 'Overall accuracy'),
+                           bp.fmt_num(_mod['exactitud']))
+
+                _c4 = st.column_config.NumberColumn(format='%.4f')
+                st.markdown(i18n.pick('**Por categoría**', '**By category**'))
+                _k_pre = i18n.pick('Precisión', 'Precision')
+                _k_rec = i18n.pick('Sensibilidad (recall)', 'Recall')
+                st.dataframe(pd.DataFrame([{
+                    i18n.pick('Categoría', 'Category'): i18n.tv(c['categoria']),
+                    _k_pre: c['precision'], _k_rec: c['recall'], 'F1': c['f1'],
+                    i18n.pick('Muestras validadas', 'Validated samples'): c['n_validacion']}
+                    for c in _mod['por_clase']]), hide_index=True, width='stretch',
+                    column_config={_k_pre: _c4, _k_rec: _c4, 'F1': _c4})
+                st.caption(i18n.pick(
+                    '**Precisión**: de lo que el modelo llama así, cuánto lo es. '
+                    '**Sensibilidad**: de lo que lo es, cuánto encuentra. **F1** resume '
+                    'las dos.',
+                    '**Precision**: of what the model calls this, how much is. '
+                    '**Recall**: of what is this, how much it finds. **F1** summarises '
+                    'both.'))
+
+                st.markdown(i18n.pick('**Matriz de confusión** (filas: lo que es; columnas: '
+                                      'lo que dice el modelo)',
+                                      '**Confusion matrix** (rows: what it is; columns: what '
+                                      'the model says)'))
+                _cats = [i18n.tv(c['categoria']) for c in _mod['categorias']]
+                _k_real = i18n.pick('es ↓ · dice →', 'is ↓ · says →')
+                st.dataframe(pd.DataFrame(
+                    [{_k_real: _cats[a], **{_cats[b]: _mod['matriz'][a][b]
+                                            for b in range(len(_cats))}}
+                     for a in range(len(_cats))]), hide_index=True, width='stretch')
+                if _mod['confusiones']:
+                    st.markdown(i18n.pick('**Lo que más se confunde**',
+                                          '**Most frequent confusions**')
+                                + ''.join(i18n.pick(
+                                    f'\n- «{i18n.tv(a)}» tomado por «{i18n.tv(b)}»: {n}',
+                                    f'\n- "{i18n.tv(a)}" taken for "{i18n.tv(b)}": {n}')
+                                    for a, b, n in _mod['confusiones'][:5]))
+                else:
+                    st.caption(i18n.pick('Ninguna muestra mal clasificada en la validación.',
+                                         'No sample misclassified in the validation.'))
+
+                with st.expander(i18n.pick('Resultado de cada parte',
+                                           'Result of each fold')):
+                    _k_f1 = 'macro-F1'
+                    _k_ba = i18n.pick('exactitud equilibrada', 'balanced accuracy')
+                    st.dataframe(pd.DataFrame([{
+                        i18n.pick('parte', 'fold'): p['parte'],
+                        i18n.pick('zonas apartadas', 'held-out zones'):
+                            ', '.join(p['zonas_valida']),
+                        i18n.pick('entrena', 'trains'): p['n_entrena'],
+                        i18n.pick('valida', 'validates'): p['n_valida'],
+                        _k_f1: p['macro_f1'], _k_ba: p['exactitud_equilibrada'],
+                        i18n.pick('categorías que no había visto', 'categories not seen'):
+                            ', '.join(i18n.tv(c) for c in p['categorias_sin_entrenar'])}
+                        for p in _mod['pliegues']]), hide_index=True, width='stretch',
+                        column_config={_k_f1: _c4, _k_ba: _c4})
+                _mal = [p for p in _mod['predicciones'] if not p['acierta']]
+                if _mal:
+                    with st.expander(i18n.pick(
+                            f'Ver las {len(_mal)} muestras mal clasificadas',
+                            f'See the {len(_mal)} misclassified samples')):
+                        _k_conf = i18n.pick('confianza', 'confidence')
+                        st.dataframe(pd.DataFrame({
+                            'ID': bp.abreviar_ids([p['ID'] for p in _mod['predicciones']]),
+                            i18n.pick('zona', 'zone'):
+                                [p['zona'] for p in _mod['predicciones']],
+                            i18n.pick('es', 'is'):
+                                [i18n.tv(p['real']) for p in _mod['predicciones']],
+                            i18n.pick('el modelo dice', 'the model says'):
+                                [i18n.tv(p['predicha']) for p in _mod['predicciones']],
+                            _k_conf: [p['confianza'] for p in _mod['predicciones']],
+                        })[[not p['acierta'] for p in _mod['predicciones']]],
+                            hide_index=True, width='stretch', column_config={_k_conf: _c4})
+                        st.caption(i18n.pick(
+                            'Merece la pena mirarlas: una muestra mal clasificada puede '
+                            'ser un fallo del modelo o una etiqueta que conviene revisar.',
+                            'They are worth a look: a misclassified sample may be a model '
+                            'error or a label worth reviewing.'))
+
+                _bal = _mod['balance']
+                _pm = _mod['params']
+                st.success(i18n.pick(
+                    f"**Modelo final** entrenado con {_mod['n_entrenadas']} de las "
+                    f"{_mod['n_muestras']} muestras y {len(_mod['predictores'])} variables "
+                    f"({_pm['n_estimators']} árboles, semilla {_pm['random_state']}; "
+                    f"{_est_corto[_bal['estrategia']]}). Es el que hará el mapa; las "
+                    'cifras de arriba son de la validación.',
+                    f"**Final model** trained with {_mod['n_entrenadas']} of the "
+                    f"{_mod['n_muestras']} samples and {len(_mod['predictores'])} variables "
+                    f"({_pm['n_estimators']} trees, seed {_pm['random_state']}; "
+                    f"{_est_corto[_bal['estrategia']]}). It is the one that will make "
+                    'the map; the figures above come from the validation.'))
+                if _bal['final'] != _bal['original']:
+                    st.dataframe(pd.DataFrame([{
+                        i18n.pick('Categoría', 'Category'): i18n.tv(c),
+                        i18n.pick('Muestras', 'Samples'): _bal['original'][c],
+                        i18n.pick('Usadas al entrenar', 'Used to train'): _bal['final'][c]}
+                        for c in _bal['original']]), hide_index=True, width='stretch')
+
             st.divider()
             st.info(i18n.pick(
-                '**Siguiente paso (todavía no disponible):** entrenar el Random Forest con '
-                'esta tabla y validarlo por zonas.',
-                '**Next step (not available yet):** train the Random Forest with this '
-                'table and validate it by zones.'))
+                '**Siguiente paso (todavía no disponible):** aplicar el modelo final a '
+                'todos los píxeles del área de estudio para obtener el mapa.',
+                '**Next step (not available yet):** apply the final model to every pixel '
+                'of the study area to obtain the map.'))
