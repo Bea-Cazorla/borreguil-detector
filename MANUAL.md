@@ -120,6 +120,11 @@ Español o inglés. Cambia toda la interfaz al instante.
     Sierra Nevada; ajústalo a la altitud de tu macizo.
   - *Semilla*: fija el azar para poder **reproducir** exactamente el mismo
     conjunto de puntos. Importante para publicar.
+  - *Lejos de tus puntos de campo (m)*: si subes tu verdad-terreno, los puntos al
+    azar quedan al menos a esa distancia de tus puntos de campo. Así caen en sitios
+    que todavía no has muestreado, para buscar allí **ausencias** (ver «Ausencias
+    fuera de tus puntos», en la pestaña 📋 Tabla). 0 = sin límite, que es como
+    viene.
 
 > Los puntos generados se ajustan al **centro del píxel Sentinel-2 (10 m)**, de
 > modo que las variables extraídas corresponden exactamente a ese píxel.
@@ -212,6 +217,31 @@ En KML, dentro de cada `Placemark`:
 > Un punto **sin** atributo de clase se interpreta como **presencia**.
 > Las coordenadas deben ser **geográficas (WGS84, EPSG:4326)**.
 
+### Etiquetas en los puntos candidatos
+Lo anterior es para la **verdad-terreno**. Los **puntos candidatos** también
+pueden traer ya su etiqueta (por ejemplo, tus puntos revisados o los de otra
+persona), y entonces el modelo de la pestaña «Mapa Modelo RF» los usa como muestras. La app
+la guarda en `Borreguil` (`si`/`no`) y la duda en `Duda` (`si`), pero al cargar el
+fichero **traduce** otros nombres y valores:
+
+| | Columnas reconocidas (sin distinguir mayúsculas) | Valores |
+|---|---|---|
+| ¿Es borreguil? | `Borreguil`, `presencia`, `presence`, `presente`, `etiqueta`, `label`, `clase`, `class`, `target`, `verdad`, `truth` | sí: `si`, `sí`, `yes`, `1`, `true`, `presencia`, `presence`… · no: `no`, `0`, `false`, `ausencia`, `absence`… |
+| ¿Es dudoso? | `Duda`, `dudoso`, `dudosa`, `doubtful`, `doubt`, `uncertain`, `incierto` | los mismos |
+
+- Se usa la **primera** columna de la lista que tenga algún valor de sí o no.
+  Una que no sea `Borreguil` solo se acepta si casi todos sus valores (≥ 90 %)
+  son de sí o no; así una `clase` con tipos de vegetación no se toma por
+  etiqueta. `tipo` no se mira nunca (suele ser el tipo de borreguil).
+- Si la columna solo cambia en las mayúsculas (`borreguil`, `duda`) se renombra;
+  si tiene otro nombre (`presence`, `doubtful`) se conserva y se añade `Borreguil`
+  o `Duda` al lado.
+- **Al subir el fichero**, debajo aparece qué columna ha leído y cuántos sí, no y
+  dudosos hay. Si **no encuentra ninguna**, avisa y lista las columnas del
+  fichero: los puntos se clasifican igual, pero ninguno cuenta como etiquetado.
+  Si hay valores que no entiende (`quizás`), se quedan sin etiqueta y también
+  lo dice.
+
 ---
 
 ## 6. Los modelos
@@ -286,7 +316,8 @@ El modelo da una **probabilidad** (0–1). El umbral la convierte en decisión:
 | `wavi_*` | Índice adaptado a zonas húmedas. |
 
 Sufijos: `_early`/`_late` (inicio/fin de verano), `_mean`/`_min`/`_max`/`_sd`
-(estadísticos entre años).
+(estadísticos de junio a septiembre con todas las imágenes de todos los años
+juntas; en el mapa de tipos se calculan año a año, ver la sección 10).
 
 ### Topográficas (DEM Copernicus, 30 m)
 | Variable | Qué mide |
@@ -330,7 +361,31 @@ Seleccionar una fila centra el mapa y despliega el **📈 perfil espectral**, qu
 compara el punto con el rango típico (p25–p75) de los borreguiles de referencia.
 
 Con varias filas seleccionadas puedes **marcarlas como borreguil verificado y
-reentrenar** (aprendizaje activo).
+reentrenar** (aprendizaje activo), **quitarlas del análisis** o, debajo, **marcarlas
+como no borreguil verificado y reentrenar**: quedan como «NO BORREGUIL VERIFICADO»,
+igual que las ausencias de tu verdad-terreno, y sirven de ausencias para el modelo y
+para el mapa de tipos. Si alguna tenía un tipo revisado, se le quita: un no
+borreguil no tiene tipo.
+
+**Ausencias fuera de tus puntos.** El modelo solo sabe decir «no» en sitios
+parecidos a tus ausencias. Si todas están en la misma parte de la sierra, en las
+demás (otra vertiente, pinar, matorral) puede ver borreguil donde no lo hay. Para
+tener ausencias repartidas por toda la zona:
+
+1. En el panel lateral, **🎲 Generar aleatoriamente en el área**, con el área de
+   estudio (por ejemplo, el Espacio Natural por encima de 2000 m) y tu
+   verdad-terreno subida. Unos **200 puntos**, estrategia `poisson_disc` con
+   **500 m** de distancia mínima. *Lejos de tus puntos de campo* puede quedarse en
+   0: algunos puntos caerán junto a los tuyos (en Sierra Nevada, unos 30 de cada 200),
+   y basta con dejarlos sin marcar.
+2. Ejecuta el análisis.
+3. En **📋 Tabla**, mira cada punto `rand_…` con la ortofoto: si no es borreguil,
+   **✗ Marcar como no borreguil verificado**; si lo es, **✓ Marcar como borreguil
+   verificado** y revisa su tipo. Lo que no tengas claro, déjalo sin marcar.
+4. Al terminar, descarga `puntos.geojson`: guarda todo lo que has marcado.
+
+Son ausencias revisadas por ti, no inventadas: la app no da ningún punto por
+ausencia sin que una persona lo haya mirado.
 
 Con las filas de borreguil seleccionadas aparece también el panel **🌿 Revisar el
 tipo de borreguil**, para confirmar o corregir el ambiente, la humedad y la pureza
@@ -458,38 +513,80 @@ vuelven con sus puntos. Si un punto llega marcado como revisado pero con una
 categoría que no existe (por ejemplo, editada a mano), la app lo avisa y no lo
 cuenta como revisado.
 
-### Mapa de tipos con Random Forest (en construcción)
+### Mapa de tipos con Random Forest
 
 La pestaña **🌿 Mapa Modelo RF** está arriba del todo, junto a **📍 Verdad
 terreno**, y lleva de los puntos revisados a un mapa de tipos. Antes de ejecutar un análisis
 solo explica qué hace falta. Después enseña, de arriba abajo:
 
-- **Qué quieres cartografiar**: ambiente, humedad, pureza, o humedad y ambiente a
-  la vez. Lo que elijas vale para todos los pasos; hay un modelo para cada opción.
+- **Qué quieres cartografiar**: viene elegido **borreguil sí o no**, el primer
+  paso. Para el tipo, después, **ambiente y humedad**, que es el tipo completo
+  (arroyo, laguna o ladera y, dentro de cada uno, húmedo o seco), o un solo nivel:
+  ambiente, humedad o pureza. Lo que elijas vale para todos los pasos; hay un
+  modelo para cada opción.
 - **Una línea de estado**, con un rótulo por paso: hecho (verde), pendiente (gris)
   o algo que atender (naranja), siempre con su texto.
-- **Los pasos, cada uno en su pestaña.** De momento están los tres primeros:
-  **1 · Datos**, que responde a dos preguntas antes de entrenar nada,
-  **2 · Tabla de entrenamiento** y **3 · Modelo**. El mapa llegará después.
+- **Los pasos, cada uno en su pestaña**, en orden: **1 · Datos**, que responde a
+  dos preguntas antes de entrenar nada, **2 · Tabla de entrenamiento**,
+  **3 · Modelo**, **4 · Mapa** y **5 · Peso**, que dice cuánto pesa cada variable en
+  el modelo. Queda por llegar la exportación completa de cada ejecución.
 
-**¿Qué se puede cartografiar?** Cuatro cosas, cada una con su modelo:
+**¿Qué se puede cartografiar?** Cinco cosas, cada una con su modelo:
 
 | Opción | Categorías |
 |---|---|
+| **Borreguil sí o no** *(la que viene elegida)* | borreguil · no borreguil |
 | Ambiente | arroyo · laguna · ladera |
 | Humedad | húmedo · seco |
 | Pureza | puro · mixto-agua · mixto-roca |
-| Humedad y ambiente | húmedo o seco y, dentro de cada uno, arroyo, laguna o ladera: `húmedo · arroyo`, `húmedo · laguna`, `húmedo · ladera`, `seco · arroyo`, `seco · laguna`, `seco · ladera` |
+| **Ambiente y humedad** | arroyo, laguna o ladera y, dentro de cada uno, húmedo o seco: `arroyo · húmedo`, `arroyo · seco`, `laguna · húmedo`, `laguna · seco`, `ladera · húmedo`, `ladera · seco` |
 
-La última no pide revisar nada más: la categoría de cada punto se compone con la
-humedad y el ambiente que ya se revisaron. A cambio necesita muestras de cada una
-de las seis categorías que quieras ver en el mapa.
+**El mapa en dos pasos: sí o no, y después el tipo.** El modelo de **borreguil sí o
+no** aprende de **todos los puntos marcados en campo** como borreguil o no
+(`Borreguil = si` o `no`), **tengan o no el tipo revisado**; un borreguil con el tipo
+revisado también cuenta. Su mapa ya es el de borreguil sí o no. Para el tipo se
+entrena después otro nivel; en **1 · Datos** se elige **quién decide si un píxel es
+borreguil**:
+
+| Quién decide | Qué aprende el modelo del tipo |
+|---|---|
+| **El modelo «Borreguil sí o no»** *(recomendado; viene elegido)* | Solo el tipo, de los borreguiles con el tipo revisado. En el mapa, si un píxel es borreguil lo decide el modelo de sí o no (con su umbral) y este le pone el tipo. Hay que entrenar los dos |
+| **Este mismo modelo, con las ausencias de campo** | También `no borreguil`, y decide él solo. Solo cuentan los borreguiles con el tipo revisado |
+
+Así, para saber si hay borreguil se aprovechan todos los puntos de campo, aunque
+todavía no se haya revisado su tipo. Las probabilidades del mapa en dos pasos son
+`1 − p` para `no borreguil` y `p ×` la del tipo para cada tipo, con `p` la
+probabilidad de borreguil del modelo de sí o no.
+
+**Ambiente y humedad** da el tipo completo, y en él cada cosa sale de donde puede
+salir:
+
+- **El modelo** decide si cada píxel es borreguil y si es **húmedo o seco**. Por eso
+  en **1 · Datos**, **2 · Tabla** y **3 · Modelo** se cuentan y se validan esas
+  categorías (`no borreguil`, `húmedo`, `seco`), y solo hacen falta muestras de
+  húmedo y de seco, no de las seis combinaciones.
+- **El ambiente** (arroyo, laguna o ladera) **no lo decide el modelo**: lo pone el
+  mapa por **cercanía de cada píxel a lagunas y cauces** (ver «El ambiente, por
+  cercanía», en el apartado del mapa). El ambiente dice *dónde está* el borreguil, y
+  eso no se ve dentro del píxel: un modelo que solo conoce las variables de cada
+  píxel daba por «laguna» borreguiles que estaban a cientos de metros de cualquier
+  laguna.
+
+La categoría del mapa es la compuesta («laguna · húmedo»). Las leyendas van por
+ambientes, cada uno con sus dos colores, **lo húmedo en un tono frío** (verde azulado
+en el arroyo, azul en la laguna, verde oliva en la ladera) **y lo seco en uno cálido**
+(mostaza, naranja y teja); y debajo de la tabla de hectáreas va la suma de cada
+ambiente.
+
+> ⚠️ En la opción **Ambiente** sola, el ambiente sí lo decide el modelo, con ese mismo
+> defecto: puede poner «laguna» lejos de cualquier laguna. La app lo avisa al elegirla.
 
 **¿Qué puntos sirven como muestra?** Para lo que se haya elegido, la app cuenta:
 
 | Entra como muestra | Con qué categoría |
 |---|---|
-| Un punto con el **tipo revisado** | La que dejó la persona en ese nivel |
+| Un punto con el **tipo revisado** | La que dejó la persona en ese nivel (en **borreguil sí o no**, `borreguil`) |
+| En **borreguil sí o no**, un punto marcado en campo como borreguil (`Borreguil = si`), aunque no tenga el tipo revisado | `borreguil` |
 | Una **ausencia de campo** (`Borreguil = no`), si se incluye | `no borreguil` |
 
 El resto no entra, y se dice por qué: borreguil con el tipo sin revisar, punto sin
@@ -501,9 +598,9 @@ puede descargar (`muestras_<nivel>.csv`).
 
 Cada categoría tiene un **código fijo**, el que llevará el mapa: 0 es siempre
 `no borreguil` y el resto sigue el orden de la app (por ejemplo, en ambiente:
-1 arroyo, 2 laguna, 3 ladera; en humedad y ambiente: 1 a 3 los húmedos de arroyo,
-laguna y ladera, y 4 a 6 los secos en el mismo orden). No depende de qué categorías
-haya en cada ejecución.
+1 arroyo, 2 laguna, 3 ladera; en ambiente y humedad: 1 y 2 el arroyo húmedo y el
+seco, 3 y 4 la laguna, 5 y 6 la ladera). No depende de qué categorías haya en cada
+ejecución.
 
 Para poder entrenar hacen falta **al menos dos categorías**, y que cada categoría
 que tenga alguna muestra llegue a **5**; con menos de 30 por categoría la app avisa
@@ -511,14 +608,30 @@ de que el resultado será poco fiable. Con seis categorías es más fácil que a
 se quede corta: la app dice cuál y cuántas muestras tiene.
 
 > ⚠️ Sin clase `no borreguil`, el modelo solo distingue tipos: cualquier píxel que
-> se le dé recibirá uno de ellos. El mapa tendrá que limitarse a zonas donde ya se
-> sepa que hay borreguil; por sí solo no demuestra presencia frente a ausencia.
+> se le dé recibirá uno de ellos. Por eso, para hacer el mapa con un modelo así, la
+> app exige una **máscara de zonas candidatas** (ver «El mapa», más abajo); por sí
+> solo no demuestra presencia frente a ausencia.
 
 **¿Qué variables se pueden usar?** Solo las que existen como **mapa continuo**, que
 son las que luego permiten predecir sobre el territorio: 34, calculadas en Earth
 Engine a partir de Sentinel-2 (29) y del modelo de elevaciones (5). Vienen todas
 marcadas y se pueden quitar. Las texturas de la imagen aérea, el radar Sentinel-1 y
 el TWI, que el detector sí usa, no están porque hoy solo se calculan punto a punto.
+
+Las **estadísticas de junio a septiembre** (media, mínimo, máximo y variabilidad de
+WAVI, albedo, NDMI y NDWI) se calculan **en cada año** y después se hace la **media
+entre los años** que tienen dato. Así, el mínimo es lo bajo que llega la variable en
+un verano normal, y la variabilidad, lo que cambia dentro del verano. Con todos los
+años juntos, el mínimo y el máximo serían los de una sola imagen en nueve veranos
+(basta una sombra de nube), y la variabilidad mezclaría el cambio dentro del verano
+con las diferencias entre años. Una variabilidad necesita al menos dos imágenes
+válidas en el año; si no, ese año no cuenta para ella.
+
+> ℹ️ El **detector** (pestaña **📍 Verdad terreno**) sigue calculando esas mismas
+> estadísticas con todos los años juntos: sus modelos guardados se entrenaron así, y
+> cambiarlo sería darles números distintos de los que aprendieron. Por eso el valor
+> de, por ejemplo, `albedo_min` de un punto no es el mismo en la tabla del detector
+> que en la tabla de entrenamiento del mapa.
 
 **La tabla de entrenamiento.** El botón **📥 Leer las variables… en Earth Engine**
 lee el valor de cada variable en el **píxel de 10 m** de cada muestra. Es el mismo
@@ -528,7 +641,10 @@ Earth Engine (la app lo recuerda de una vez para otra) y usa los años de Sentin
 del panel lateral. Con 21 muestras y los años 2017-2025 tarda alrededor de un minuto.
 
 Lo leído se conserva mientras no cambien los años: añadir muestras solo lee las
-nuevas, y quitar o poner variables no obliga a leer nada. La app enseña:
+nuevas, y quitar o poner variables no obliga a leer nada. (Si una versión nueva de la
+app cambia la manera de calcular alguna variable, lo leído antes deja de valer y la
+app pide leerlo otra vez: muestras y mapa tienen que salir del mismo cálculo.) La app
+enseña:
 
 - **Cuántas muestras entran en la tabla** y cuáles no. Una muestra entra solo si
   tiene dato en todas las variables elegidas; las demás se apartan diciendo por qué
@@ -537,12 +653,39 @@ nuevas, y quitar o poner variables no obliga a leer nada. La app enseña:
 - **Control de calidad de las variables**: constantes o casi constantes, repetidas,
   la misma con el signo cambiado, muy correlacionadas (|r| ≥ 0,95) y pocas muestras
   para tantas variables. **Solo avisa; no quita ninguna.** Quitar o no es decisión
-  tuya, desmarcándola en **1 · Datos**.
+  tuya: desmarcándola en **1 · Datos** o con la opción del VIF (ver más abajo).
 - **Desequilibrio entre categorías**, cuando la más abundante triplica a la más
   escasa.
 
 La tabla se descarga como `tabla_entrenamiento_<nivel>.csv`: una fila por muestra y
 una columna por variable, en el orden exacto que verá el modelo.
+
+**Variables repetidas (VIF).** Al final de **2 · Tabla de entrenamiento** hay una
+opción, desactivada de entrada, para **quitar las variables repetidas con el VIF**.
+El VIF de una variable dice qué parte de ella se puede adivinar con todas las demás
+juntas: 5 quiere decir el 80 %; 10, el 90 %; infinito, que se obtiene exactamente con
+otras (la caída del NDVI es el NDVI de inicio menos el de fin de verano). Con la
+opción activada, la app quita la variable de VIF más alto, vuelve a calcular y sigue
+mientras alguna pase del umbral. Se calcula con los valores de las muestras de esa
+tabla.
+
+| Control | Qué es | Recomendado |
+|---|---|---|
+| Umbral del VIF | Se quitan variables mientras alguna lo pase. Cuanto más bajo, más se quitan | **10**; 5 para quedarte con menos |
+| Variables que se quedan siempre | No se quitan nunca, aunque pasen del umbral (sí cuentan en el VIF de las demás) | **La altitud**, que viene marcada |
+
+La app dice cuántas se quedan y enseña una tabla con cada variable, su VIF y qué
+pasa con ella: se queda, se queda siempre o se quita en tal paso. Desde ahí, el
+modelo, el mapa y el peso usan **solo las que se quedan**, y la línea de estado lo
+dice: «2 · Tabla · … variables (VIF)». Si hay menos del doble de muestras que
+variables, avisa de que el VIF no es fiable. Con las 161 muestras del ejemplo y las
+34 variables, el umbral 10 deja 14; el 5, 12.
+
+El Random Forest no necesita el VIF para acertar: tolera bien las variables
+parecidas. Sirve para tener un modelo más sencillo y un peso de las variables que
+se lea mejor (dos variables que dicen lo mismo se reparten el peso y, sueltas,
+parecen pesar poco). Si con menos variables acierta igual, lo dice la comparación
+del final de **3 · Modelo**.
 
 > 💡 `gndvi` no está entre las variables del mapeo: es `ndwi` con el signo cambiado
 > (las dos se calculan con las mismas dos bandas), así que tenerlas ambas sería
@@ -561,7 +704,7 @@ orden:
    que todos los puntos de una zona caen juntos. Los puntos vecinos se parecen
    mucho: si unos entrenaran y otros validaran, el resultado saldría mejor de lo
    que es. De aquí salen todas las cifras.
-2. **Entrenar el modelo final** con todas las muestras. Es el que hará el mapa.
+2. **Entrenar el modelo final** con todas las muestras. Es el que hace el mapa.
    No tiene cifras propias: las suyas son las de la validación.
 
 Qué enseña la validación:
@@ -579,6 +722,44 @@ Qué enseña la validación:
 Debajo aparecen **lo que más se confunde**, el resultado de cada una de las partes
 y las **muestras mal clasificadas**. Estas últimas merecen una mirada: puede ser un
 fallo del modelo o una etiqueta que conviene revisar.
+
+**¿Borreguil o no? El umbral.** El modelo da a cada caso la probabilidad de cada
+categoría. La categoría se decide en dos pasos:
+
+1. **¿Es borreguil?** Sí, si la probabilidad de serlo llega a un **umbral**. Esa
+   probabilidad es la **suma de la de sus tipos** (lo mismo que 1 − la de
+   `no borreguil`).
+2. **¿De qué tipo?** El más probable entre los tipos.
+
+No se usa sin más «la categoría más probable» porque perjudica a los borreguiles: su
+probabilidad se reparte entre los tipos y `no borreguil` conserva la suya entera. Un
+píxel con 0.40 de `no borreguil`, 0.35 de `húmedo` y 0.25 de `seco` saldría
+`no borreguil` teniendo 0.60 de serlo; y con seis tipos, peor.
+
+En **ambiente y humedad** estos dos pasos son los del modelo (borreguil o no, y
+húmedo o seco); el ambiente se añade después, en el mapa, por cercanía a lagunas y
+cauces. Las cifras de la validación y el peso de las variables son, por tanto, los
+de la humedad: el ambiente no entra en ellos.
+
+El umbral se elige encima de las cifras de la validación, porque de él salen esas
+cifras, el mapa y el peso de las variables. Cambiarlo no vuelve a entrenar nada:
+
+| Cómo se elige | Qué hace |
+|---|---|
+| **El de mayor F1** *(recomendado; viene elegido)* | De 39 umbrales, de 0.025 a 0.975, el que mejor equilibra en la validación encontrar borreguiles y no dar por borreguil lo que no lo es |
+| **El que mejor separa en la validación, TSS** | El de mayor TSS: sensibilidad + especificidad − 1, es decir, lo que acierta con los borreguiles más lo que acierta con lo que no lo es. Como hay mucho más `no borreguil` que borreguil, suele elegir un umbral bajo y el mapa se llena de pasto que no es borreguil (pasó en Sierra Nevada por encima de 2000 m) |
+| **Lo fijo yo** | El valor del deslizador. 0.5 es «más probable que sí que que no» |
+
+Debajo dice lo que da ese umbral en la validación: cuántos borreguiles encuentra
+(sensibilidad), cuánto de lo que no lo es descarta bien (especificidad), el TSS y el
+F1. Una gráfica y una tabla enseñan las mismas medidas con cada umbral.
+
+- Con pocas muestras suelen **empatar** muchos umbrales seguidos. Se toma el del
+  centro del tramo, que es el que más margen deja a los dos lados.
+- El umbral se elige y se mide con las mismas muestras, así que esas cifras salen
+  **algo optimistas**. La app lo recuerda.
+- Si el modelo **no tiene la clase `no borreguil`**, no hay umbral: a cada caso le
+  pone su tipo más probable.
 
 Avisos que puede dar:
 
@@ -608,8 +789,303 @@ con la semilla), las dos cosas, o no compensar. **No se generan muestras
 artificiales.** Con cualquiera de ellas se valida con todas las muestras.
 
 Hay un modelo por cada opción: puedes tener entrenados a la vez el de ambiente, el
-de humedad, el de pureza y el de humedad y ambiente. Si después cambias las muestras o las variables, la app
-avisa de que el modelo es de la tabla anterior hasta que vuelvas a entrenar.
+de humedad, el de pureza y el de ambiente y humedad. Si después cambias las
+muestras o las variables, la app avisa de que el modelo es de la tabla anterior
+hasta que vuelvas a entrenar.
+
+**Con qué variables acierta más.** Al final de **3 · Modelo**, en cuanto hay dos
+modelos del mismo nivel entrenados en la sesión con las mismas muestras y distintas
+variables (por ejemplo, con todas y con las que deja el VIF), una tabla los compara:
+las variables de cada uno, sus muestras y su **F1 medio** de la validación por zonas.
+El de ahora, el que hace el mapa, va marcado con ▶. Una diferencia de unas
+centésimas puede ser azar: con pocas muestras, una sola cambia la cifra. Para quedarte
+con otro, cambia la opción del VIF en **2 · Tabla de entrenamiento** y vuelve a
+entrenar.
+
+**El mapa.** El paso **4 · Mapa** aplica el modelo final a todos los píxeles de
+10 m de una zona. Los lee de Earth Engine con los mismos años y en la misma rejilla
+que las muestras, de modo que el modelo ve en cada píxel exactamente lo que vio al
+entrenar. Hace falta que el modelo esté al día (si la tabla ha cambiado, pide volver
+a entrenar).
+
+*Qué zona.* Hay hasta cuatro opciones:
+
+| Zona | Cuándo aparece |
+|---|---|
+| **Un rectángulo que elijo yo** | Siempre. Se da el centro (también pinchando en el mapa de debajo) y el ancho y el alto en km |
+| **El rectángulo que ocupan las muestras** | Siempre. Con 100 m de margen |
+| **El área de estudio** | Si la ejecución tenía un área de estudio. Solo se clasifica lo que cae dentro |
+| **Todo lo que cubre la máscara** | Si has subido una máscara |
+
+Antes de lanzarlo, la app dice **cuánta superficie es, cuántos bloques y cuánto
+tardará**. Earth Engine sirve unos 6 km² por minuto y no va más deprisa pidiendo
+varios trozos a la vez, así que conviene **empezar por un rectángulo de 2 × 2 km**
+(un minuto), ver cómo sale y ampliar después. Como orientación: 100 km² son unos
+20 minutos y el Parque Nacional entero, más de dos horas. El máximo de una sola vez
+son 400 bloques (unos 2 600 km²). Los mapas grandes también gastan más cuota de tu
+proyecto de Earth Engine.
+
+*Si el mapa es largo.* Se lee por bloques de 2,5 km de lado, de uno en uno, y cada
+bloque leído se guarda en el ordenador mientras la app esté abierta. Por eso:
+
+- **Mientras se hace el mapa no uses la app**: cualquier clic lo interrumpe.
+- Si se interrumpe, o Earth Engine falla, **no se pierde lo leído**: vuelve a pulsar
+  el botón y sigue donde iba. No queda nunca un mapa a medias.
+- El mapa de **otro nivel sobre la misma zona** (por ejemplo, ambiente después de
+  humedad) no vuelve a pedir nada si usa las mismas variables: sale en segundos.
+- Los bloques que quedan enteros fuera de la zona o de la máscara ni se piden.
+
+*La máscara de zonas candidatas.* Es un fichero de polígonos (KML, GeoJSON,
+GeoPackage o shapefile) con las zonas donde puede haber borreguil; solo se
+clasifican los píxeles cuyo centro cae dentro.
+
+- Si el modelo **tiene la clase `no borreguil`**, la máscara es opcional.
+- Si **no la tiene**, es **obligatoria**: sin ella no se puede hacer el mapa. Ese
+  modelo solo distingue tipos, así que le pondría uno a cualquier píxel (roca,
+  pinar, agua…). Con la máscara, el mapa dice de qué tipo sería cada sitio, **pero no
+  demuestra que allí haya borreguil**. La app no trae ninguna máscara ni la inventa.
+- Salvo si está entrenado el modelo de **borreguil sí o no**: entonces el mapa se
+  hace en dos pasos (ver «El mapa en dos pasos»), con `no borreguil`, y la máscara
+  vuelve a ser opcional.
+
+*El agua de laguna no es borreguil.* El agua abierta de una laguna se parece a un
+borreguil muy húmedo, y el modelo la puede dar por borreguil. Con **Quitar el agua de
+laguna** (viene marcado; solo si el mapa tiene `no borreguil`), los píxeles de agua que
+se ven en Sentinel-2 (NDWI medio de verano mayor de 0,05, pendiente menor de 15° y
+manchas de 3 píxeles o más: la misma agua que usa el ambiente por cercanía) pasan a
+`no borreguil`. El agua se guarda en `agua_de_laguna.tif` y la ficha del mapa dice
+cuántas hectáreas se han quitado. Las probabilidades del modelo no cambian; la de la
+categoría elegida pasa a ser la de `no borreguil`.
+
+*La pureza dentro del píxel.* Un píxel de 10 m puede ser borreguil entero o
+mezclarse con roca o con agua. En el desplegable **Pureza dentro del píxel**, antes
+de hacer el mapa, se puede pedir que el mapa lo diga (viene marcado). No sale del
+modelo ni cambia qué es borreguil o su tipo: se calcula **solo en los píxeles que el
+modelo da por borreguil**, y solo con Sentinel-2:
+
+1. Se estima **cuánto verde hay dentro** del píxel con su NDVI de inicio de verano:
+   0 % si vale lo que la roca, 100 % si vale lo que un borreguil puro, y en proporción
+   entre los dos.
+2. Con ese verde: **puro** si llega al corte; si no, **mixto-agua** si el píxel es
+   agua o toca un píxel de agua, y **mixto-roca** en otro caso.
+
+| Valor | Qué es | Recomendado |
+|---|---|---|
+| NDVI de un píxel sin verde | El de la roca o el suelo desnudo | **0.08** |
+| NDVI de un píxel todo verde | El de un píxel cubierto entero por borreguil | El de tus **muestras de borreguil puro** (su mediana): viene puesto si hay al menos 5; si no, 0.60 |
+| Verde a partir del cual el píxel es puro | Con menos, es mixto | **75 %** |
+
+Debajo, una tabla enseña cómo quedan con esos valores **tus muestras de borreguil**,
+según la pureza que revisaste: sirve para ajustarlos. En un punto suelto no se sabe
+si toca agua, así que ahí solo se compara puro frente a mixto. Si el NDVI de «todo
+verde» no es mayor que el de «sin verde», la app lo dice y no deja hacer el mapa hasta
+que lo corrijas o desmarques la pureza.
+
+Si lo que cartografías es la **propia pureza**, el mapa lleva dos: la *categoría*, que
+es la que el modelo aprende de tus muestras, y esta, estimada solo con el NDVI. Son dos
+cálculos distintos y no tienen por qué coincidir; la app lo recuerda en el desplegable y
+debajo de la tabla.
+
+Qué fiabilidad tiene. Se comparó con la ortofoto de 0,25 m en una zona de prueba de
+39 ha: el verde estimado se equivoca unos 6 puntos de media entre todos los píxeles
+y unos 12 dentro de los de borreguil, y puro frente a mixto coincide en 3 de cada 4
+píxeles de borreguil. Lo que peor se ve es el **agua**: Sentinel-2 no distingue una
+orilla que ocupa una parte pequeña del píxel, y por eso el mixto-agua se deduce de
+los píxeles vecinos. Tampoco distingue poco verde muy vivo de mucho verde apagado.
+
+> ℹ️ Un píxel que el modelo da por `no borreguil` **no recibe pureza**, aunque
+> tenga algo de verde: es lo que pasa con un borreguil estrecho de arroyo, que
+> ocupa una cuarta parte de sus píxeles. Su verde sí se puede ver, pinchando el píxel
+> o en el fichero del verde estimado.
+
+*El ambiente, por cercanía a lagunas y cauces.* En **ambiente y humedad** y en
+**borreguil sí o no**. En el de sí o no lo da la casilla **Decir el ambiente de cada
+píxel de borreguil (arroyo, laguna o ladera)**, marcada de entrada: el modelo decide
+si hay borreguil y cada píxel de borreguil sale en el mapa como **arroyo**,
+**laguna** o **ladera** (códigos 1, 2 y 3, los mismos que en el nivel «ambiente»; 0
+sigue siendo «no borreguil»). No hace falta ningún punto con el tipo revisado, y la
+superficie de borreguil es la misma que sin la casilla: solo se reparte por ambiente.
+Las probabilidades siguen siendo las del modelo (no borreguil, borreguil). En el
+desplegable **Ambiente (arroyo, laguna o ladera): por cercanía a lagunas y cauces**,
+antes de hacer el mapa, están las distancias de la regla:
+
+1. **laguna**, si el píxel está cerca de una laguna;
+2. si no, **arroyo**, si está cerca de un cauce;
+3. si no, **ladera**.
+
+| Valor | Qué es | Recomendado |
+|---|---|---|
+| Laguna: metros a una laguna de la capa | Distancia al punto de una laguna de la capa de la app (65 lagunas de Sierra Nevada). El punto es el centro de la laguna: sirve sobre todo para las pequeñas, que Sentinel-2 no ve | **120 m**, lo que usa la app al proponer el tipo de un punto |
+| Laguna: metros al agua que ve Sentinel-2 | Distancia a la orilla de una laguna que se ve: píxeles con NDWI medio de verano mayor de 0,05, en terreno casi llano (menos de 15°) y en manchas de 3 o más. Vale en cualquier sitio, aunque no haya capa | **100 m** |
+| Arroyo: metros a un cauce | Distancia a un cauce | **30 m**, lo que usa la app en los puntos. Con cauces del relieve no conviene bajar de ahí |
+| Cauces del relieve: hectáreas que vierten | Si no subes una capa de cauces, salen del relieve: es cauce la celda que recibe el agua de esta superficie o más | **8 ha**. Con menos salen más cauces y más arriba |
+| Capa de cauces propia | Un fichero de líneas (KML, GeoJSON, GeoPackage o shapefile) con los cauces. Si se sube, se usa en lugar de los del relieve | Súbela si tienes una de la que te fíes: es más precisa |
+
+De dónde salen los **cauces del relieve**: se rellenan los hoyos del modelo de
+elevaciones (así el agua cruza una laguna y sigue por su desagüe), cada celda vierte a
+su vecina más baja y se cuenta cuánta superficie vierte a cada una. Para contar
+también el agua que entra de fuera, el relieve se lee con **1 km de margen** alrededor
+de la zona (una sola variable: son unos segundos).
+
+Qué fiabilidad tiene. La laguna es lo más seguro: sale solo junto a una laguna de la
+capa o al agua que se ve. Los cauces del relieve son una **aproximación**: el relieve
+tiene 30 m de detalle, así que sitúa bien las vaguadas, no el hilo de agua, y en
+terreno llano puede errar. Por eso el mapa lleva una capa, **Lagunas y cauces**, con
+lo que se ha tomado por laguna y por cauce: si ahí falta una laguna o sobra un cauce,
+el ambiente de alrededor saldrá mal. Todo lo que no queda cerca de una laguna ni de un
+cauce es **ladera**, también lo que el modelo dé por borreguil sin serlo.
+
+Debajo del mapa, una tabla compara, en las muestras de borreguil que caen dentro, el
+ambiente por cercanía con el que revisaste: sirve para ajustar las distancias. Si las
+cambias, el mapa avisa de que es de otras; rehacerlo no vuelve a leer nada.
+
+> ℹ️ Una laguna que quede justo fuera del rectángulo del mapa solo cuenta si está en
+> la capa de lagunas: el agua se busca en lo que se lee, que es la zona.
+
+*Qué sale.* Varios GeoTIFF en la rejilla de Sentinel-2 (UTM, 10 m), que se abren
+directamente en QGIS:
+
+| Fichero | Contenido |
+|---|---|
+| `mapa_<nivel>_categoria.tif` | El **código** de la categoría de cada píxel (255 = sin dato), decidida con la regla y el umbral de **3 · Modelo**. Lleva dentro los colores, la lista de códigos y el umbral. En ambiente y humedad es la categoría compuesta (el ambiente por cercanía con la humedad del modelo) y lleva también la regla del ambiente; en borreguil sí o no con el ambiente, 0 no borreguil, 1 arroyo, 2 laguna, 3 ladera |
+| `mapa_<nivel>_probabilidad_maxima.tif` | La **probabilidad**, de 0 a 1, de la categoría elegida. Es la confianza del modelo en ese píxel |
+| `mapa_<nivel>_probabilidad_por_categoria.tif` | Una banda por categoría, con su nombre: la probabilidad de cada una |
+| `mapa_<nivel>_probabilidad_borreguil.tif` | La **probabilidad de ser borreguil**, del tipo que sea: la suma de la de los tipos. Con el umbral, da el mapa de borreguil sí o no. Solo si el modelo tiene la clase `no borreguil` |
+| `mapa_<nivel>_pureza.tif` | La **pureza dentro de cada píxel de borreguil**, como código: 1 puro, 2 mixto-agua, 3 mixto-roca (255 = no es borreguil o no hay dato). Solo si se pidió |
+| `mapa_<nivel>_verde_estimado.tif` | Cuánto **verde** hay dentro de cada píxel, de 0 a 1, estimado con su NDVI. De todos los píxeles, sean o no borreguil. Solo si se pidió la pureza |
+| `mapa_<nivel>_ambiente.tif` | El **ambiente por cercanía** de cada píxel, como código: 1 arroyo, 2 laguna, 3 ladera (255 = sin dato). De todos los píxeles, sean o no borreguil. Solo con el ambiente por cercanía (ambiente y humedad, o borreguil sí o no con su casilla) |
+| `mapa_<nivel>_distancias_ambiente.tif` | Tres bandas, en metros: la distancia de cada píxel al agua de una laguna, a una laguna de la capa (hasta 1 km) y a un cauce. De ellas sale el ambiente. Solo con el ambiente por cercanía (ambiente y humedad, o borreguil sí o no con su casilla) |
+| `mapa_<nivel>_lagunas_y_cauces.tif` | Lo que se ha tomado por laguna y por cauce: 1 agua de laguna (Sentinel-2), 2 cauce, 3 laguna de la capa. Solo con el ambiente por cercanía (ambiente y humedad, o borreguil sí o no con su casilla) |
+| `mapa_<nivel>_codigos.csv` | Qué categoría es cada código, con su color y su superficie |
+
+Los ficheros casan entre sí exactamente: un píxel es borreguil en el mapa de
+categorías si, y solo si, su valor en el de probabilidad de borreguil llega al umbral.
+En ambiente y humedad, además, el ambiente es el que sale de aplicar la regla a las
+distancias guardadas, y la categoría es ese ambiente con la humedad del modelo. Ahí
+las probabilidades siguen siendo las del modelo: de `no borreguil`, de `húmedo` y de
+`seco`.
+
+Un píxel queda **sin dato**, y no recibe ninguna categoría, si cae fuera de la zona o
+de la máscara o si le falta alguna variable (por ejemplo, nube o nieve todos los
+años). No se rellena nada.
+
+Todos los GeoTIFF están en la **rejilla de píxeles de Sentinel-2**: la misma zona UTM,
+píxeles de 10 m y bordes en múltiplos de 10 m. Cada píxel del mapa es un píxel de
+Sentinel-2, el mismo en el que se leyeron las muestras. Los mapas grandes llevan
+dentro versiones reducidas, que QGIS y el visor usan para dibujarlos deprisa cuando
+se ven de lejos; los datos a tamaño real no cambian.
+
+*Verlo.* Debajo aparecen la superficie clasificada, la probabilidad media, las
+hectáreas de cada categoría (en ambiente y humedad, también la suma de cada
+ambiente; y, si se pidió, las de borreguil puro y mixto) y un visor sobre la
+ortofoto. Las capas se encienden y se
+apagan en el **recuadro de arriba a la derecha del mapa**:
+
+| Capa | Qué enseña |
+|---|---|
+| **Categoría** | La que el modelo pone en cada píxel, con los mismos nombres y colores que las muestras. `no borreguil` va más transparente para que no tape el terreno |
+| **Probabilidad máxima** | La probabilidad de la categoría elegida en cada píxel, **sea la que sea**. De oscuro (el modelo duda) a claro (está seguro) |
+| **Probabilidad de borreguil** | La suma de la probabilidad de los tipos: donde llega al umbral, el mapa pone borreguil. **Es la capa para ver dónde hay borreguil.** Solo si el modelo tiene la clase `no borreguil` |
+| **Pureza dentro del píxel** | De cada píxel de borreguil, si es puro o está mezclado con agua o con roca. Solo si se pidió al hacer el mapa |
+| **Lagunas y cauces** | Lo que se ha tomado por laguna y por cauce para poner el ambiente: en turquesa, el agua de laguna que ve Sentinel-2; en azul, los cauces; en rosa, las lagunas de la capa. No tiene bloque en la leyenda del mapa: sus colores van en el texto de debajo. Solo en ambiente y humedad. **Es la capa para comprobar el ambiente** |
+| **Probabilidad de «…»** | Aparece al elegir una categoría en **Ver también la probabilidad de una categoría**, encima del mapa: la probabilidad que el modelo le da en cada píxel, la elija o no. Sirve para ver dónde ve ese tipo de borreguil y las zonas de transición |
+
+La leyenda, abajo a la izquierda, lleva los colores de las categorías y la escala de
+la probabilidad (de 0 a 1). Las muestras no se pintan en este visor, para ver solo lo
+que dice el modelo; están en el mapa pequeño de la zona, el de antes de lanzar el mapa,
+que lleva la misma leyenda de colores para los puntos. En ambiente y humedad la leyenda
+va **por ambientes**: una línea para cada uno (arroyo, laguna, ladera) y, al lado, sus
+dos colores, el frío para húmedo y el cálido para seco.
+
+> 💡 La **probabilidad máxima no dice dónde hay borreguil**: dice lo seguro que está
+> el modelo de lo que ha puesto. En una zona de `no borreguil` sale clara (cerca de
+> 1) porque el modelo está seguro de que **no** lo es. Para ver dónde ve borreguil,
+> mira la capa **Probabilidad de borreguil**, la de **Categoría** o la probabilidad
+> de un tipo concreto. En un píxel que es borreguil por la suma de sus tipos, la
+> probabilidad «máxima» es la de su tipo, que puede ser menor que la de
+> `no borreguil` (0.35 en el ejemplo de antes).
+
+**Lo pintado son los píxeles de 10 m de Sentinel-2, cada uno en su sitio.** El visor
+dibuja en cada momento lo que se está viendo, a la resolución de la pantalla: al
+acercarse se ven los píxeles reales, con los bordes donde son, sea el mapa pequeño o
+grande. Moverse, cambiar la opacidad o pedir la probabilidad de una categoría no
+recarga el mapa: conserva el zoom y las capas que tuvieras encendidas.
+
+**Pinchando en cualquier píxel** del mapa aparece debajo su categoría, su
+probabilidad, la de ser borreguil (junto al umbral), el verde que se estima que tiene
+dentro (y la pureza que sale de ese verde, si es borreguil) y la probabilidad de las
+demás categorías, y el píxel queda marcado en rojo. En ambiente y humedad dice además
+su ambiente por cercanía y a cuántos metros está del agua de una laguna, de una laguna
+de la capa y de un cauce: así se ve por qué ha salido de ese ambiente.
+
+> ⚠️ Que el mapa coincida con las muestras **no mide su acierto**: el modelo final
+> se entrenó con ellas. El acierto esperable es el de la validación por zonas del
+> paso 3. Y un mapa hecho con pocas muestras es una primera aproximación: mira la
+> probabilidad antes de fiarte de una mancha.
+
+El único umbral que se aplica es el de «¿borreguil o no?». No se filtra por
+confianza: ningún píxel se queda sin categoría por tener una probabilidad baja; se ve
+el resultado completo, con sus probabilidades. Si vuelves a entrenar, la app avisa de
+que el mapa es de un modelo anterior hasta que lo rehagas; y si cambias el umbral,
+de que se hizo con otro. Rehacerlo entonces tarda poco: lo ya leído en Earth Engine
+se aprovecha.
+
+El mapa es **exactamente repetible**: con las mismas muestras, las mismas variables,
+los mismos parámetros, la misma semilla y el mismo umbral sale el mismo modelo, y ese
+modelo da siempre el mismo mapa, píxel a píxel. Si dos tipos empatan en un píxel, se
+queda el de código más bajo; un píxel justo en el umbral cuenta como borreguil.
+
+**El peso de las variables.** La pestaña **5 · Peso** dice cuánto cuenta cada
+variable para el modelo. Se calcula al entrenar (alarga el entrenamiento un par de
+segundos) y aquí solo se consulta. Se mide de dos maneras:
+
+| Medida | Cómo se mide | Qué dice |
+|---|---|---|
+| **Lo que pierde el modelo sin ella** (importancia por permutación) | Se repite la validación por zonas con los valores de esa variable **desordenados** entre las muestras, como si dejara de informar, y se mira cuánto baja el F1 medio. Se hace entre 5 y 30 veces (más cuantas menos muestras haya); el «±» es lo que cambia de una vez a otra | Qué variables necesita el modelo para acertar en sitios que no ha visto |
+| **Uso interno** (importancia por impureza) | Cuánto ha usado el modelo final esa variable para separar las muestras al entrenar. Es un reparto: entre todas suman 100 % | Con qué variables se han construido los árboles |
+
+Por ejemplo: si el F1 medio de la validación es 0.65 y una variable tiene 0.04, con
+esa variable desordenada el F1 se queda en 0.61. En los artículos, y en R, las dos
+medidas suelen llamarse *MeanDecreaseAccuracy* (aquí con el F1 medio, que trata igual
+a todas las categorías) y *MeanDecreaseGini*.
+
+Qué enseña la pestaña:
+
+- **Una frase de resumen**: cuál es la variable que más pesa y cuántas hacen bajar el
+  F1 **con claridad**, es decir, más del doble de su «±». Si no lo hace ninguna, lo
+  dice: el orden entonces no es de fiar.
+- **Un gráfico ordenado**, de la que más pesa a la que menos, con el «±» de cada una.
+  Encima se elige cuál de las dos medidas se dibuja; al pasar el ratón por una fila
+  dice qué mide esa variable y sus dos pesos.
+- **Variables juntas**: lo mismo, pero desordenando a la vez todas las variables de
+  una **familia** (el mismo índice en distintos momentos: el NDMI de inicio de
+  verano, el de fin, su media…) o de una **época u origen** (inicio de verano, fin de
+  verano, estadísticas de junio a septiembre, topografía).
+- **Todas las variables**, con las dos medidas y su puesto en cada una. Se descarga
+  como `peso_variables_<nivel>.csv`.
+
+Cómo leerlo, y con qué cuidado:
+
+- **Las variables parecidas se reparten el peso.** Si se desordena una, las otras la
+  cubren, y todas salen con poco peso aunque juntas sean imprescindibles. Para eso
+  están las tablas de variables juntas.
+- **Cerca de cero, o negativo, no es un error**: desordenar esa variable no empeora
+  el resultado (o lo mejora un poco, por azar). Si la bajada es menor que su «±», no
+  se distingue de cero.
+- **Las dos medidas no tienen por qué coincidir.** El uso interno reparte peso entre
+  todas las variables que el modelo usa al entrenar, también las que no le ayudan a
+  acertar fuera; lo que pierde sin ella se mide con muestras que no ha visto.
+- **Con pocas muestras, el orden baila**: entre variables de peso parecido, el puesto
+  puede cambiar con otra semilla o al añadir muestras. Fíate de las diferencias
+  grandes.
+- **Que pese no quiere decir que sea la causa.** Dice que al modelo le sirve para
+  separar tus categorías con estas muestras.
+
+**La app no quita ninguna variable por su cuenta.** Para probar sin una, desmárcala
+en **1 · Datos** (no hay que volver a leer nada en Earth Engine), entrena otra vez y
+compara el F1 medio. Para quitar de golpe las repetidas está la opción del VIF, en
+**2 · Tabla de entrenamiento**, que tampoco viene activada. Las cifras son repetibles: mismos datos, mismos parámetros y
+misma semilla dan los mismos pesos.
 
 ---
 
