@@ -107,16 +107,47 @@ def _info(geom, **extra):
 # ======================================================================
 # Carga desde archivo vectorial
 # ======================================================================
+def geometrias_geojson(path):
+    """Geometrías de un GeoJSON en EPSG:4326, leídas como JSON, sin GDAL. Admite el
+    miembro «crs» antiguo (p. ej. EPSG:25830)."""
+    import json
+    import re
+
+    from shapely.geometry import shape
+    from shapely.ops import transform
+    with open(path, encoding='utf-8-sig') as f:
+        datos = json.load(f)
+    feats = datos.get('features', []) if datos.get('type') == 'FeatureCollection' \
+        else [datos]
+    geoms = [shape(ft['geometry']) for ft in feats if ft.get('geometry')]
+    crs = ((datos.get('crs') or {}).get('properties') or {}).get('name', '')
+    m = re.search(r'EPSG:+(\d+)', str(crs))
+    if m and m.group(1) not in ('4326', '4258'):
+        import pyproj
+        a_wgs84 = pyproj.Transformer.from_crs(int(m.group(1)), 4326, always_xy=True)
+        geoms = [transform(a_wgs84.transform, g) for g in geoms]
+    return geoms
+
+
 def load_vector(path):
     """Lee un vector (KML/Shp/GeoJSON/GeoPackage/.zip) y devuelve un Polygon o
     MultiPolygon fusionado en EPSG:4326."""
     import geopandas as gpd
-    gdf = gpd.read_file(path)
-    if gdf.crs is None:
-        gdf = gdf.set_crs('EPSG:4326')
-    elif gdf.crs.to_epsg() != 4326:
-        gdf = gdf.to_crs(4326)
-    polys = [g for g in gdf.geometry
+    try:
+        gdf = gpd.read_file(path)
+    except ImportError:
+        # Sin pyogrio/GDAL (p. ej. su DLL bloqueada por Windows) un GeoJSON se
+        # puede leer igual, porque es JSON; los demás formatos no.
+        if Path(path).suffix.lower() not in ('.geojson', '.json'):
+            raise
+        geometrias = geometrias_geojson(path)
+    else:
+        if gdf.crs is None:
+            gdf = gdf.set_crs('EPSG:4326')
+        elif gdf.crs.to_epsg() != 4326:
+            gdf = gdf.to_crs(4326)
+        geometrias = list(gdf.geometry)
+    polys = [g for g in geometrias
              if g is not None and g.geom_type in ('Polygon', 'MultiPolygon')]
     if not polys:
         raise ValueError(f'No hay polígonos en {Path(path).name} '

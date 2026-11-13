@@ -68,6 +68,20 @@ class _RasterioNoDisponible:
             f'Causa original: {self._error}')
 
 
+# scikit-image SOLO hace falta para las texturas de las imágenes ESRI (GLCM y
+# morfología). Su DLL también puede estar bloqueada por Windows; sin ella la app
+# arranca igual y funciona sin imágenes (modo rápido o «Saltar imágenes»).
+class _SkimageNoDisponible:
+    def __init__(self, error):
+        self._error = error
+
+    def __call__(self, *args, **kwargs):
+        raise ImportError(
+            'No se pudo cargar «scikit-image», necesario para las texturas de las '
+            'imágenes. Usa el modo rápido o «Saltar imágenes», que no lo necesitan. '
+            f'Causa original: {self._error}')
+
+
 # ===== Lazy imports (so --help works without all deps) =====
 def _imports():
     global np, gpd, requests, Image, ImageDraw, rasterio
@@ -89,12 +103,17 @@ def _imports():
     import planetary_computer
     import pyproj
     from scipy import ndimage as ndi
-    from skimage.feature import graycomatrix, graycoprops
     try:
-        from skimage.morphology import opening, disk        # skimage ≥0.26
-    except ImportError:
-        from skimage.morphology import binary_opening as opening, disk  # versiones antiguas
-    from skimage.color import rgb2gray
+        from skimage.feature import graycomatrix, graycoprops
+        try:
+            from skimage.morphology import opening, disk        # skimage ≥0.26
+        except ImportError:
+            from skimage.morphology import binary_opening as opening, disk  # versiones antiguas
+        from skimage.color import rgb2gray
+    except Exception as exc:            # ImportError, DLL bloqueada…
+        graycomatrix = graycoprops = opening = disk = rgb2gray = _SkimageNoDisponible(exc)
+        print(f'  AVISO: scikit-image no disponible ({exc}). Sin texturas de imagen: '
+              'usa el modo rápido o «Saltar imágenes».')
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_val_predict
     from sklearn.metrics import roc_auc_score, confusion_matrix
@@ -144,7 +163,14 @@ def read_points(path):
             rows.append(d)
         return rows
     else:
-        gdf = gpd.read_file(path).to_crs(4326)
+        try:
+            gdf = gpd.read_file(path).to_crs(4326)
+        except ImportError:
+            # Sin pyogrio/GDAL (p. ej. su DLL bloqueada por Windows) un GeoJSON se
+            # puede leer igual, porque es JSON; un Shapefile no.
+            if not path.lower().endswith(('.geojson', '.json')):
+                raise
+            return _read_geojson_sin_gdal(path)
         rows = []
         for i, row in gdf.iterrows():
             d = dict(row)
@@ -157,6 +183,42 @@ def read_points(path):
             d.pop('geometry', None)
             rows.append(d)
         return rows
+
+
+def _read_geojson_sin_gdal(path):
+    """Puntos de un GeoJSON leídos como JSON, sin GDAL. Mismo resultado que la
+    lectura con geopandas: un dict por punto con sus atributos, lon/lat en EPSG:4326
+    e ID. Admite el miembro «crs» antiguo (p. ej. EPSG:25830) y toma el primer punto
+    de un MultiPoint."""
+    import re
+    with open(path, encoding='utf-8-sig') as f:
+        datos = json.load(f)
+    feats = datos.get('features', []) if datos.get('type') == 'FeatureCollection' \
+        else [datos]
+    a_wgs84 = None
+    crs = ((datos.get('crs') or {}).get('properties') or {}).get('name', '')
+    m = re.search(r'EPSG:+(\d+)', str(crs))
+    if m and m.group(1) not in ('4326', '4258'):
+        a_wgs84 = pyproj.Transformer.from_crs(int(m.group(1)), 4326, always_xy=True)
+    rows = []
+    for i, ft in enumerate(feats):
+        geom = ft.get('geometry') or {}
+        coords = geom.get('coordinates')
+        if geom.get('type') == 'MultiPoint' and coords:
+            coords = coords[0]
+        if geom.get('type') not in ('Point', 'MultiPoint') or not coords:
+            continue
+        x, y = float(coords[0]), float(coords[1])
+        if a_wgs84 is not None:
+            x, y = a_wgs84.transform(x, y)
+        d = dict(ft.get('properties') or {})
+        d['lon'], d['lat'] = x, y
+        if 'ID' not in d and 'id' not in d:
+            d['ID'] = f'pt_{i}'
+        elif 'id' in d and 'ID' not in d:
+            d['ID'] = str(d['id'])
+        rows.append(d)
+    return rows
 
 
 def bbox_with_buffer(rows, buf=0.02):
@@ -277,6 +339,175 @@ def truth_label(d):
             if v in _TRUTH_POS:
                 return 'si'
     return 'si'
+
+
+# Puntos candidatos: la app guarda la etiqueta en `Borreguil` (si/no) y la duda en
+# `Duda` (si), pero los ficheros de otras personas traen otros nombres (`borreguil`
+# yes/no, `presence` 1/0, `doubtful`…). leer_etiquetas() los traduce al cargar.
+# Sin 'tipo' ni 'y' (en un fichero de candidatos suelen ser el tipo de borreguil o
+# una coordenada).
+CLAVES_ETIQUETA = ('Borreguil', 'presencia', 'presence', 'presente', 'present',
+                   'etiqueta', 'label', 'clase', 'class', 'target', 'verdad', 'truth')
+CLAVES_DUDA = ('Duda', 'dudoso', 'dudosa', 'doubtful', 'doubt', 'uncertain',
+               'incierto')
+_POS_EXTRA = {'presente', 'present', 'verdadero', 's'}
+_NEG_EXTRA = {'absent', 'falso', 'f'}
+_MIN_ENTENDIDOS = 0.9    # fracción de valores reconocidos para aceptar otra columna
+
+
+def valor_si_no(v):
+    """'si', 'no', '' (vacío) o '?' (un valor que no se entiende) para la etiqueta de
+    un punto: acepta si/sí/yes/1/true/presencia…, no/0/false/ausencia…, y también
+    booleanos y números (1.0 / 0.0)."""
+    import numbers, unicodedata
+    if v is None or (isinstance(v, float) and v != v):
+        return ''
+    if isinstance(v, bool) or type(v).__name__ in ('bool_', 'bool'):   # también numpy
+        return 'si' if v else 'no'
+    if isinstance(v, numbers.Real):
+        v = float(v)
+        return '' if v != v else {1.0: 'si', 0.0: 'no'}.get(v, '?')
+    s = unicodedata.normalize('NFKD', str(v)).encode('ascii', 'ignore').decode().strip().lower()
+    if s == '' or s == 'nan':
+        return ''
+    if s in _TRUTH_POS or s in _POS_EXTRA:
+        return 'si'
+    if s in _TRUTH_NEG or s in _NEG_EXTRA:
+        return 'no'
+    try:
+        return {1.0: 'si', 0.0: 'no'}.get(float(s), '?')
+    except ValueError:
+        return '?'
+
+
+def _buscar_columna(rows, claves, acepta):
+    """La primera de `claves` (sin distinguir mayúsculas) que está en los puntos y que
+    `acepta` da por buena. Devuelve (nombre tal cual en el fichero, valores) o None."""
+    nombres = {}
+    for r in rows:
+        for k in r:
+            if isinstance(k, str):
+                nombres.setdefault(k.lower(), k)
+    for i, clave in enumerate(claves):
+        k = nombres.get(clave.lower())
+        if k is None:
+            continue
+        valores = [valor_si_no(r.get(k)) for r in rows]
+        if acepta(i, valores):
+            return k, valores
+    return None
+
+
+def leer_etiquetas(rows):
+    """Traduce a `Borreguil` (si/no) y `Duda` (si) la etiqueta de los puntos
+    candidatos, venga en la columna que venga (ver CLAVES_ETIQUETA/CLAVES_DUDA), y
+    dice qué ha leído. Modifica `rows`:
+      - `Borreguil` queda con 'si'/'no' en los puntos con un valor reconocido; los
+        vacíos o no reconocidos no se tocan (siguen sin etiqueta).
+      - Si la columna original solo se diferencia en mayúsculas (`borreguil`,
+        `duda`), se renombra; si tiene otro nombre (`presence`), se conserva.
+    Una columna que no sea `Borreguil` solo se usa si casi todos sus valores
+    (≥ 90 %) son de sí o no: así no se toma por etiqueta, p. ej., una `clase` con
+    tipos de vegetación.
+
+    Devuelve {'columna', 'n_si', 'n_no', 'n_sin', 'no_entendidos' (valor → nº),
+    'duda', 'n_duda', 'columnas' (las del fichero), 'descartadas' (columnas con
+    nombre de etiqueta pero valores que no son de sí o no)}."""
+    info = {'columna': None, 'n_si': 0, 'n_no': 0, 'n_sin': len(rows),
+            'no_entendidos': {}, 'duda': None, 'n_duda': 0, 'descartadas': [],
+            'columnas': sorted({k for r in rows for k in r if isinstance(k, str)}
+                               - {'lon', 'lat', 'ID', 'geometry'})}
+
+    def acepta_etiqueta(i, valores):
+        llenos = [v for v in valores if v]
+        if not llenos or all(v == '?' for v in llenos):
+            if llenos:
+                info['descartadas'].append(CLAVES_ETIQUETA[i])
+            return False
+        if i == 0:                                  # `Borreguil`: la de la app
+            return True
+        ok = sum(v != '?' for v in llenos) / len(llenos) >= _MIN_ENTENDIDOS
+        if not ok:
+            info['descartadas'].append(CLAVES_ETIQUETA[i])
+        return ok
+
+    hallada = _buscar_columna(rows, CLAVES_ETIQUETA, acepta_etiqueta)
+    if hallada:
+        k, valores = hallada
+        info['columna'] = k
+        renombrar = k != 'Borreguil' and k.lower() == 'borreguil'
+        raros = {}
+        for r, v in zip(rows, valores):
+            original = r.pop(k, None) if renombrar else r.get(k)
+            if v in ('si', 'no'):
+                r['Borreguil'] = v
+            elif renombrar:
+                r['Borreguil'] = original
+            if v == '?':
+                raros[_txt(original)] = raros.get(_txt(original), 0) + 1
+        info['n_si'] = sum(v == 'si' for v in valores)
+        info['n_no'] = sum(v == 'no' for v in valores)
+        info['n_sin'] = len(rows) - info['n_si'] - info['n_no']
+        info['no_entendidos'] = raros
+
+    def acepta_duda(i, valores):
+        return any(v in ('si', 'no') for v in valores)
+
+    hallada = _buscar_columna(rows, CLAVES_DUDA, acepta_duda)
+    if hallada:
+        k, valores = hallada
+        info['duda'] = k
+        renombrar = k != 'Duda' and k.lower() == 'duda'
+        for r, v in zip(rows, valores):
+            if renombrar:
+                r.pop(k, None)
+            if v == 'si':
+                r['Duda'] = 'si'
+            elif k != 'Duda':
+                r['Duda'] = ''
+        info['n_duda'] = sum(v == 'si' for v in valores)
+    return info
+
+
+def resumen_etiquetas(info):
+    """[(nivel, texto)] para contar lo que leer_etiquetas() ha leído; nivel es 'ok',
+    'info' (ha traducido otra columna) o 'aviso' (no hay etiqueta, o hay valores que
+    no entiende)."""
+    out = []
+    k = info['columna']
+    if k is None:
+        cols = ', '.join(f'`{c}`' for c in info['columnas'][:25]) or '(ninguna)'
+        if len(info['columnas']) > 25:
+            cols += f' y {len(info["columnas"]) - 25} más'
+        raras = (' Las columnas ' + ', '.join(f'`{c}`' for c in info['descartadas'])
+                 + ' tienen nombre de etiqueta, pero sus valores no son de sí o no.'
+                 if info['descartadas'] else '')
+        out.append(('aviso',
+                    'No encuentro ninguna columna que diga si cada punto es borreguil, '
+                    'así que ningún punto cuenta como etiquetado (ni para entrenar ni en '
+                    f'«Mapa Modelo RF»).{raras} Columnas del fichero: {cols}. Para que se '
+                    'usen tus etiquetas, pon una columna `Borreguil` (o `presence`, '
+                    '`presencia`, `label`, `clase`…) con si/no, yes/no, 1/0, true/false '
+                    'o presencia/ausencia. Si solo quieres que la app clasifique los '
+                    'puntos, puedes seguir.'))
+    else:
+        cuenta = f"{info['n_si']} sí · {info['n_no']} no"
+        if info['n_sin']:
+            cuenta += f" · {info['n_sin']} sin etiqueta"
+        if info['duda']:
+            cuenta += f" · {info['n_duda']} dudosos (columna `{info['duda']}`)"
+        if k == 'Borreguil' and info['duda'] in (None, 'Duda'):
+            out.append(('ok', f'Etiquetas de la columna `Borreguil`: {cuenta}.'))
+        else:
+            out.append(('info', f'He leído si cada punto es borreguil de la columna '
+                                f'`{k}` y lo he pasado a `Borreguil` (si/no): {cuenta}.'))
+        if info['no_entendidos']:
+            n = sum(info['no_entendidos'].values())
+            vals = ', '.join(f'«{v}» ({c})' for v, c in sorted(
+                info['no_entendidos'].items(), key=lambda x: -x[1])[:8])
+            out.append(('aviso', f'{n} puntos tienen en `{k}` un valor que no es de sí o '
+                                 f'no ({vals}): se quedan sin etiqueta.'))
+    return out
 
 
 def merge_truth_points(rows, truth_rows, match_m=20):
@@ -2780,6 +3011,8 @@ def main():
         print(f'Input: {args.input}')
         rows = read_points(args.input)
         print(f'  {len(rows)} puntos cargados')
+        for nivel, texto in resumen_etiquetas(leer_etiquetas(rows)):
+            print(f"  {'AVISO: ' if nivel == 'aviso' else ''}{texto.replace('`', '')}")
 
     # Merge ground truth (PRESENCE-ONLY: todos los puntos = borreguil)
     if args.truth:

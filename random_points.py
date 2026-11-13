@@ -11,6 +11,9 @@ Tres modos:
 
 Filtro opcional de elevación mínima/máxima usando Open-Topo-Data SRTM 30 m
 (API gratis, sin token, ~100 puntos por petición).
+
+Opcionalmente, los puntos quedan lejos de otros (los de campo): así caen en sitios
+que todavía no se han muestreado, para buscar allí ausencias que revisa una persona.
 """
 import time, math
 import numpy as np
@@ -93,13 +96,33 @@ def random_poisson_disc(geom, n, min_dist_m=100, seed=42):
     return pts
 
 
-def filter_by_elevation(pts, min_elev=None, max_elev=None):
+def lejos_de(pts, excluir, lejos_m):
+    """De unos puntos (lon, lat), los que quedan a `lejos_m` metros o más de todos los
+    de `excluir` (lon, lat). Las distancias se miden en la UTM del centro de los
+    puntos."""
+    pts = list(pts)
+    if not pts or not excluir or not lejos_m or lejos_m <= 0:
+        return pts
+    import pyproj
+    from scipy.spatial import cKDTree
+    lon_c = sum(p[0] for p in pts) / len(pts)
+    lat_c = sum(p[1] for p in pts) / len(pts)
+    epsg = (32600 if lat_c >= 0 else 32700) + int((lon_c + 180) // 6) + 1
+    tr = pyproj.Transformer.from_crs(4326, epsg, always_xy=True)
+    xe, ye = tr.transform([float(p[0]) for p in excluir], [float(p[1]) for p in excluir])
+    xp, yp = tr.transform([p[0] for p in pts], [p[1] for p in pts])
+    distancia, _ = cKDTree(np.column_stack([xe, ye])).query(np.column_stack([xp, yp]))
+    return [p for p, d in zip(pts, distancia) if d >= lejos_m]
+
+
+def filter_by_elevation(pts, min_elev=None, max_elev=None, siempre=False):
     """Filtra puntos por elevación SRTM.
 
     Devuelve (keep, keep_elevs, pool_elevs) donde `pool_elevs` son TODAS las
     elevaciones válidas del muestreo (para diagnosticar el rango altitudinal real
-    del área cuando ningún punto cumple el filtro)."""
-    if not (min_elev or max_elev):
+    del área cuando ningún punto cumple el filtro). Con `siempre`, consulta las
+    altitudes aunque no haya límites (el reparto por franjas de altitud las necesita)."""
+    if not (min_elev or max_elev or siempre):
         return pts, [None]*len(pts), []
     coords = [(y, x) for x, y in pts]   # (lat, lon)
     elevs = fetch_elevations(coords)
@@ -114,9 +137,12 @@ def filter_by_elevation(pts, min_elev=None, max_elev=None):
 
 
 def generate(geom, n, mode='uniform', min_elev=None, max_elev=None,
-             min_dist_m=100, seed=42):
+             min_dist_m=100, seed=42, excluir=None, lejos_m=0):
     """
     Genera n puntos aleatorios dentro del área de estudio.
+
+    excluir: puntos (lon, lat) de los que hay que alejarse (los de campo) y lejos_m,
+    a cuántos metros como mínimo. Sin ellos, igual que siempre.
 
     Devuelve (rows, stats):
       - rows: lista de dicts compatible con read_points del pipeline
@@ -129,23 +155,34 @@ def generate(geom, n, mode='uniform', min_elev=None, max_elev=None,
     """
     print(f'Generando {n} puntos aleatorios (modo={mode})…')
     stats = {'requested': n, 'kept': 0, 'reason': None,
-             'area_elev_min': None, 'area_elev_max': None}
+             'area_elev_min': None, 'area_elev_max': None, 'excluded_near': 0}
+    # Si hay que alejarse de unos puntos, se generan más para que, quitados los que
+    # caen cerca, sigan quedando bastantes.
+    lejos = bool(excluir) and bool(lejos_m) and lejos_m > 0
+    extra = 3 if lejos else 1
     if mode == 'uniform':
         # Para tener un pool donde filtrar por elevación
-        n_pool = n if not (min_elev or max_elev) else int(n * 3)
+        n_pool = (n if not (min_elev or max_elev) else int(n * 3)) * extra
         raw = random_uniform(geom, n_pool, seed=seed)
     elif mode == 'poisson_disc':
-        n_pool = n if not (min_elev or max_elev) else int(n * 2)
+        n_pool = (n if not (min_elev or max_elev) else int(n * 2)) * extra
         raw = random_poisson_disc(geom, n_pool, min_dist_m=min_dist_m, seed=seed)
     elif mode == 'stratified_elev':
         # primero genera muchos puntos uniformes, después estratifica por banda
-        raw = random_uniform(geom, n * 4, seed=seed)
+        raw = random_uniform(geom, n * 4 * extra, seed=seed)
     else:
         raise ValueError(f'Modo desconocido: {mode}')
+    if lejos:
+        antes = len(raw)
+        raw = lejos_de(raw, excluir, lejos_m)
+        stats['excluded_near'] = antes - len(raw)
+        print(f'  {antes - len(raw)} quitados por caer a menos de {lejos_m:.0f} m de los '
+              f'{len(excluir)} puntos de campo; quedan {len(raw)}')
 
     if min_elev or max_elev or mode == 'stratified_elev':
         print(f'  Consultando elevaciones (Open-Topo-Data SRTM 30 m)…')
-        kept, elevs, pool_elevs = filter_by_elevation(raw, min_elev=min_elev, max_elev=max_elev)
+        kept, elevs, pool_elevs = filter_by_elevation(raw, min_elev=min_elev, max_elev=max_elev,
+                                                      siempre=(mode == 'stratified_elev'))
         print(f'  {len(kept)}/{len(raw)} puntos cumplen criterio altitudinal')
 
         # Diagnóstico del rango altitudinal real del área (del muestreo)
@@ -163,7 +200,7 @@ def generate(geom, n, mode='uniform', min_elev=None, max_elev=None,
             print(f'  ⚠ 0 puntos: el área va de {amin:.0f} a {amax:.0f} m '
                   f'(min_elev={min_elev}, max_elev={max_elev})')
             return [], stats
-        if len(kept) == 0 and not pool_elevs and (min_elev or max_elev):
+        if len(kept) == 0 and not pool_elevs and (min_elev or max_elev or mode == 'stratified_elev'):
             # SRTM no devolvió altitudes (zona de agua, fuera de cobertura, o
             # fallo/timeout de la API de elevación).
             stats['reason'] = 'no_elevation_data'
