@@ -232,29 +232,63 @@ def _add_new_indices(img):
     return ee.Image.cat([wavi, albedo, ndmi, ndwi]).copyProperties(img, ['system:time_start'])
 
 
-def _period_new_stats(region, years):
+def _period_new_stats(region, years, por_anio=False):
     """Imagen con 16 bandas: {wavi,albedo,ndmi,ndwi}_{mean,min,max,sd} sobre
-    jun–sep de los años indicados, con máscara s2cloudless + nieve."""
+    jun–sep de los años indicados, con máscara s2cloudless + nieve.
+
+    Hay dos maneras de juntar los años:
+
+      · todas las imágenes de todos los años a la vez (por defecto). Es como se
+        entrenaron los modelos del detector, y el detector tiene que seguir así;
+      · `por_anio`: la estadística se calcula en CADA año y después se hace la media
+        entre los años que tienen dato. Es lo que usa el mapeo. Con todo junto, el
+        mínimo y el máximo son los de una sola imagen en nueve veranos (basta una
+        sombra de nube), y la variabilidad mezcla el cambio dentro del verano con las
+        diferencias entre años; así, una imagen mala pesa la parte de su año.
+    """
     import ee
-    col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-           .filterBounds(region)
-           .filter(ee.Filter.calendarRange(6, 9, 'month')))
-    yf = [ee.Filter.date(f'{y}-06-01', f'{y}-09-30') for y in years]
-    combo = yf[0]
-    for f in yf[1:]:
-        combo = ee.Filter.Or(combo, f)
-    col = (col.filter(combo)
-           .map(_s2cloudless_mask)
-           .map(_snow_mask)
-           .map(_add_new_indices))
+    base = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(region)
+            .filter(ee.Filter.calendarRange(6, 9, 'month')))
     red = (ee.Reducer.mean()
            .combine(ee.Reducer.minMax(), sharedInputs=True)
            .combine(ee.Reducer.stdDev(), sharedInputs=True))
-    stats = col.reduce(red)
-    # _stdDev → _sd para casar con FEATURES_RF
-    stats = stats.rename(stats.bandNames().map(
-        lambda nm: ee.String(nm).replace('_stdDev', '_sd')))
-    return stats
+
+    def indices(filtro):
+        return (base.filter(filtro)
+                .map(_s2cloudless_mask)
+                .map(_snow_mask)
+                .map(_add_new_indices))
+
+    veranos = [ee.Filter.date(f'{y}-06-01', f'{y}-09-30') for y in years]
+    if not por_anio:
+        combo = veranos[0]
+        for f in veranos[1:]:
+            combo = ee.Filter.Or(combo, f)
+        stats = indices(combo).reduce(red)
+        # _stdDev → _sd para casar con FEATURES_RF
+        return stats.rename(stats.bandNames().map(
+            lambda nm: ee.String(nm).replace('_stdDev', '_sd')))
+
+    nombres = [f'{k}_{s}' for k in NEW_INDS for s in ('mean', 'min', 'max', 'sd')]
+    # Una imagen sin dato en ningún píxel: con ella, un año sin escenas da igualmente
+    # sus 16 bandas (vacías) en vez de una imagen sin bandas, y no cuenta en la media.
+    # (Para juntarla con las demás, todas tienen que ser del mismo tipo de número.)
+    vacia = (ee.Image.constant([0] * len(NEW_INDS)).rename(NEW_INDS).toDouble()
+             .updateMask(0))
+    red_anual = red.combine(ee.Reducer.count(), sharedInputs=True)
+    anuales = []
+    for verano in veranos:
+        st = (indices(verano).map(lambda im: ee.Image(im).toDouble())
+              .merge(ee.ImageCollection([vacia])).reduce(red_anual))
+        partes = []
+        for k in NEW_INDS:
+            partes.append(st.select([f'{k}_mean', f'{k}_min', f'{k}_max']))
+            # con una sola imagen válida en el año no hay variabilidad que medir
+            partes.append(st.select(f'{k}_stdDev')
+                          .updateMask(st.select(f'{k}_count').gte(2)))
+        anuales.append(ee.Image.cat(partes).rename(nombres))
+    return ee.ImageCollection(anuales).mean()
 
 
 def _season_composite(region, years, season):
@@ -281,10 +315,12 @@ def _season_composite(region, years, season):
     return col.median()
 
 
-def _s2_stack(region, years):
+def _s2_stack(region, years, por_anio=False):
     """Las bandas de Sentinel-2 que usa la app: índices de inicio y fin de verano,
     la caída del NDVI y las estadísticas de jun–sep. Devuelve (pila, estadísticas).
-    Es la ÚNICA definición: la usan el muestreo de los puntos y el mapa."""
+    Es la ÚNICA definición: la usan el detector y el mapeo. Solo cambia cómo se
+    juntan los años en las estadísticas (`por_anio`, ver _period_new_stats): el
+    detector, todos a la vez; el mapeo, año a año."""
     import ee
     early = _indices_image(_season_composite(region, years, 'early'))
     late = _indices_image(_season_composite(region, years, 'late'))
@@ -292,7 +328,7 @@ def _s2_stack(region, years):
     late = late.rename([f'{k}_late' for k in INDS])
     drop = early.select('ndvi_early').subtract(late.select('ndvi_late')).rename('ndvi_drop')
     # Índices nuevos (mean/min/max/sd sobre jun–sep)
-    new_stats = _period_new_stats(region, years)
+    new_stats = _period_new_stats(region, years, por_anio)
     return ee.Image.cat([early, late, drop, new_stats]), new_stats
 
 
@@ -472,6 +508,13 @@ BANDAS_S2 = tuple([f'{k}_early' for k in INDS_MAPEO] + [f'{k}_late' for k in IND
                   + ['ndvi_drop']
                   + [f'{k}_{s}' for k in NEW_INDS for s in ('mean', 'min', 'max', 'sd')])
 BANDAS_PILA = BANDAS_S2 + TOPO_KEYS            # 34 bandas, en ORDEN FIJO
+# Cambia cuando cambia lo que VALE una banda (no su nombre): lo leído con otra
+# versión, sean muestras o bloques del mapa, deja de servir y hay que volver a leerlo.
+#   1  estadísticas de jun–sep con todas las imágenes de todos los años juntas
+#   2  estadísticas de jun–sep año a año y, después, la media entre años
+VERSION_PILA = 2
+ESTADISTICAS_PILA = ('jun–sep: cada estadística (media, mínimo, máximo, variabilidad) se '
+                     'calcula en cada año y después se hace la media entre años')
 
 
 def utm_de(puntos):
@@ -490,12 +533,13 @@ def rejilla(epsg):
 def pila_predictores(region, years, epsg):
     """ee.Image con las bandas de BANDAS_PILA.
 
-    Sentinel-2 llega en su rejilla (10 m; las bandas de 20 m repiten valor). La
-    topografía se calcula a 30 m y se lleva a 10 m por interpolación BILINEAL, que es
-    lo indicado para una variable continua (repetir el píxel de 30 m dibujaría
-    escalones)."""
+    Sentinel-2 llega en su rejilla (10 m; las bandas de 20 m repiten valor). Sus
+    estadísticas de jun–sep se calculan año a año y después se hace la media entre
+    años (ver _period_new_stats). La topografía se calcula a 30 m y se lleva a 10 m
+    por interpolación BILINEAL, que es lo indicado para una variable continua (repetir
+    el píxel de 30 m dibujaría escalones)."""
     import ee
-    s2, _ = _s2_stack(region, years)
+    s2, _ = _s2_stack(region, years, por_anio=True)
     topo = _topo_stack(epsg).resample('bilinear')
     return ee.Image.cat([s2, topo]).select(list(BANDAS_PILA))
 
@@ -584,6 +628,92 @@ def leer_predictores(puntos, years, epsg=None, progress=None):
     return valores, fallidos, info_pila(years, epsg)
 
 
+# ------------------------------------------------------------
+# Lectura por BLOQUES, para el mapa
+# ------------------------------------------------------------
+# Medido con Earth Engine real (34 variables, 2017-2025): un bloque de 256 × 256
+# píxeles tarda alrededor de un minuto, uno de 512 × 512 agota el tiempo que da
+# Earth Engine, y pedir varios a la vez no acelera (se frenan entre sí). Por eso se
+# lee de uno en uno y, si alguno no llega, se parte en cuatro.
+SIN_DATO_BLOQUE = -9999.0
+
+
+def pila_para_mapa(limites_lonlat, years, epsg, bandas):
+    """La pila, preparada para leerla por bloques sobre la rejilla del mapeo.
+
+    Solo las bandas pedidas y en ese orden; en float32, que es la precisión con la
+    que el Random Forest ve los datos tanto al entrenar como al predecir (no cambia
+    ninguna predicción); y con un valor centinela donde no hay dato, porque la
+    lectura por bloques no devuelve la máscara. `limites_lonlat` = (oeste, sur, este,
+    norte) solo acota qué escenas se buscan: el valor de un píxel no depende de él.
+    """
+    import ee
+    o, s, e, n = (float(v) for v in limites_lonlat)
+    margen = 0.01                               # ~1 km, como en leer_predictores
+    region = ee.Geometry.Rectangle([o - margen, s - margen, e + margen, n + margen])
+    pila = pila_predictores(region, tuple(int(y) for y in years), int(epsg))
+    return _para_bloques(pila.select(list(bandas)))
+
+
+def _para_bloques(img):
+    """La imagen en float32 y con el valor centinela donde no hay dato."""
+    return img.toFloat().unmask(SIN_DATO_BLOQUE, False)
+
+
+def leer_bloque(pila, epsg, x0, y0, ancho, alto, bandas, intentos=3, espera=4):
+    """Píxeles de una ventana de la rejilla del mapeo: esquina superior izquierda
+    (x0, y0) en UTM y `ancho` × `alto` píxeles de 10 m.
+
+    `pila` es la de pila_para_mapa y `bandas`, las suyas en el mismo orden. Devuelve
+    una matriz float32 (alto, ancho, nº de bandas) con NaN donde no hay dato. Si
+    Earth Engine no devuelve el bloque, lo parte en cuatro y lo intenta por partes;
+    si tampoco, lanza RuntimeError: no se devuelve nunca un bloque a medias.
+    """
+    import time
+
+    import ee
+    import numpy as np
+    bandas = list(bandas)
+    try:
+        ee.data.setDeadline(300_000)
+    except Exception:
+        pass
+
+    def pide(x, y, w, h):
+        arr = ee.data.computePixels({
+            'expression': pila, 'fileFormat': 'NUMPY_NDARRAY', 'bandIds': bandas,
+            'grid': {'dimensions': {'width': int(w), 'height': int(h)},
+                     'affineTransform': {'scaleX': ESCALA_M, 'shearX': 0, 'translateX': x,
+                                         'shearY': 0, 'scaleY': -ESCALA_M, 'translateY': y},
+                     'crsCode': f'EPSG:{int(epsg)}'}})
+        return np.stack([arr[b].astype('float32') for b in bandas], axis=-1)
+
+    def lee(x, y, w, h, partido=0):
+        ultimo = None
+        for i in range(intentos):
+            try:
+                return pide(x, y, w, h)
+            except Exception as e:                  # noqa: BLE001
+                ultimo = e
+                # Si el bloque le cuesta demasiado, repetirlo igual no lo arregla.
+                if any(t in str(e).lower() for t in ('timed out', 'too large', 'limit')):
+                    break
+                time.sleep(espera * (i + 1))
+        if partido < 3 and min(w, h) >= 32:
+            w1, h1 = w // 2, h // 2
+            out = np.empty((h, w, len(bandas)), dtype='float32')
+            for dx, dy, ww, hh in ((0, 0, w1, h1), (w1, 0, w - w1, h1),
+                                   (0, h1, w1, h - h1), (w1, h1, w - w1, h - h1)):
+                out[dy:dy + hh, dx:dx + ww] = lee(x + dx * ESCALA_M, y - dy * ESCALA_M,
+                                                  ww, hh, partido + 1)
+            return out
+        raise RuntimeError(f'Earth Engine no ha devuelto un bloque del mapa ({ultimo}).')
+
+    datos = lee(x0, y0, int(ancho), int(alto))
+    datos[datos == SIN_DATO_BLOQUE] = np.nan
+    return datos
+
+
 def info_pila(years, epsg):
     """De dónde salen los valores de la pila: lo necesario para repetir la lectura."""
     return {
@@ -591,6 +721,7 @@ def info_pila(years, epsg):
         'rejilla': 'UTM, bordes de píxel en múltiplos de 10 m (la de Sentinel-2)',
         'anios': [int(y) for y in years],
         'bandas': list(BANDAS_PILA),
+        'version': VERSION_PILA, 'estadisticas': ESTADISTICAS_PILA,
         'sentinel2': 'COPERNICUS/S2_SR_HARMONIZED',
         'elevaciones': DEM_ASSET,
         'remuestreo': 'Sentinel-2: vecino más próximo; topografía (30 m): bilineal',

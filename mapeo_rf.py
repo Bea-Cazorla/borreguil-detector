@@ -2,29 +2,41 @@
 mapeo_rf.py — Mapeo de borreguiles con Random Forest (por pasos).
 
 De los puntos cuyo TIPO ha revisado una persona a un mapa de tipos de borreguil.
-Se construye de forma incremental; este módulo contiene, por ahora, el bloque
-«Datos»:
+Se construye de forma incremental; este módulo contiene los datos y el modelo (el
+mapa en sí, píxel a píxel, está en mapeo_raster.py):
 
   · qué puntos de la sesión sirven como muestra de entrenamiento y por qué no
     sirven los demás (nunca se cambia ni se inventa la categoría de un punto);
   · cuántas muestras hay de cada categoría y con qué código entero se guardará
     cada una;
   · qué variables predictoras existen como mapa continuo (las únicas con las que
-    después se puede predecir sobre el territorio).
+    después se puede predecir sobre el territorio);
+  · la tabla de entrenamiento y su control de calidad;
+  · la validación por zonas, el modelo final y el peso de cada variable.
 
 Sin interfaz: todo son funciones puras sobre la lista de puntos, para poder
-probarlas solas (tests/test_mapeo_datos.py).
+probarlas solas (tests/test_mapeo_datos.py y tests/test_mapeo_modelo.py).
 
 Decisiones acordadas con la usuaria:
   · Las clases son los tres niveles del tipo (ambiente, humedad, pureza) y se
     entrena UN modelo por nivel, no uno con las 18 combinaciones.
-  · Hay además un nivel combinado, pedido por ella: la humedad con el ambiente
-    dentro (húmedo o seco y, en cada uno, arroyo, laguna o ladera): 6 categorías.
+  · Hay además un nivel combinado, pedido por ella: el ambiente con la humedad
+    dentro (arroyo, laguna o ladera y, en cada uno, húmedo o seco): 6 categorías.
+    En él el modelo solo aprende la HUMEDAD (y «no borreguil»). El ambiente no
+    sale del modelo: lo pone el mapa por cercanía a lagunas y cauces
+    (mapeo_ambiente.py), porque dice dónde está el píxel y eso no se ve en sus
+    variables. Lo pidió así al ver que el modelo daba por «laguna» borreguiles
+    que estaban a cientos de metros de cualquier laguna.
   · Solo cuentan los puntos con el tipo REVISADO por una persona: el tipo que
     propone la app sale de reglas sobre los propios predictores, y entrenar con él
     sería enseñarle al modelo la regla.
   · No se inventan ausencias. La clase «no borreguil» solo existe si hay puntos
     marcados así en campo (Borreguil = no).
+  · Hay además un nivel «borreguil» (sí o no), pedido por ella: aprende solo si hay
+    borreguil, con TODOS los puntos marcados en campo como borreguil o no, tengan o
+    no el tipo revisado. El tipo lo aprende aparte el modelo de un nivel del tipo,
+    solo con los borreguiles revisados, y el mapa junta los dos (en_dos_pasos): el
+    de sí o no decide si hay borreguil y el del tipo, cuál.
 """
 import itertools
 import math
@@ -33,15 +45,79 @@ import borreguil_pipeline as bp
 
 # Lo que se puede cartografiar: los tres niveles del tipo y, además, los niveles
 # COMBINADOS. Un nivel combinado no es un dato nuevo del punto: su categoría se
-# compone con las de los niveles de los que sale («húmedo · ladera»), que son las
-# que revisa la persona. El orden es fijo: de él salen los códigos.
+# compone con las de los niveles de los que sale («ladera · húmedo»), que son las
+# que revisa la persona. El orden es fijo: de él salen los códigos. El primer nivel
+# es el que manda (la RAMA: el ambiente) y el segundo va dentro de él (la humedad).
 SEP = ' · '
-COMBINADOS = {'humedad_ambiente': ('humedad', 'ambiente')}
-NIVELES = dict(bp.NIVELES_TIPO)            # {'ambiente': (...), 'humedad': (...), ...}
+COMBINADOS = {'ambiente_humedad': ('ambiente', 'humedad')}
+# El nivel de sí o no va el primero: es el primer paso del mapa.
+NIVEL_SI_NO = 'borreguil'
+NIVELES = {NIVEL_SI_NO: ('borreguil',), **bp.NIVELES_TIPO}
 for _nivel, _partes in COMBINADOS.items():
     NIVELES[_nivel] = tuple(SEP.join(c) for c in itertools.product(
         *(bp.NIVELES_TIPO[p] for p in _partes)))
 AUSENCIA = 'no borreguil'
+
+
+def rama_y_hoja(categoria):
+    """Una categoría de un nivel combinado, partida: («ladera», «húmedo»). En un nivel
+    sencillo (o «no borreguil») no hay rama: (None, la categoría)."""
+    rama, sep, hoja = str(categoria).partition(SEP)
+    return (rama, hoja) if sep else (None, str(categoria))
+
+
+def nivel_del_modelo(nivel):
+    """El nivel cuyas categorías aprende el modelo. En un nivel sencillo, él mismo. En
+    un nivel combinado, el de DENTRO (la humedad): el de fuera (el ambiente) no lo
+    aprende el modelo, lo pone el mapa por cercanía (mapeo_ambiente.py)."""
+    return COMBINADOS[nivel][-1] if nivel in COMBINADOS else nivel
+
+
+def nivel_por_cercania(nivel):
+    """En un nivel combinado, el nivel que el mapa pone por cercanía (el ambiente). None
+    en un nivel sencillo: ahí todo sale del modelo."""
+    return COMBINADOS[nivel][0] if nivel in COMBINADOS else None
+
+
+def componer(nivel, cod_rama, cod_hoja):
+    """Código de la categoría compuesta de un nivel combinado a partir del código de su
+    rama (el ambiente: 1 arroyo, 2 laguna, 3 ladera) y del de su hoja (la humedad que
+    da el modelo: 1 húmedo, 2 seco). Donde la hoja es 0 («no borreguil») el resultado
+    es 0. Vale con números sueltos o con matrices."""
+    import numpy as np
+    rama, hoja = COMBINADOS[nivel]
+    n_hojas = len(NIVELES[hoja])
+    cod_rama = np.asarray(cod_rama).astype('int64')
+    cod_hoja = np.asarray(cod_hoja).astype('int64')
+    if ((cod_hoja < 0) | (cod_hoja > n_hojas)).any() or (
+            ((cod_rama < 1) | (cod_rama > len(NIVELES[rama])))[cod_hoja > 0]).any():
+        raise ValueError(f'códigos fuera de las categorías de «{nivel}»')
+    return np.where(cod_hoja > 0, (cod_rama - 1) * n_hojas + cod_hoja, 0)
+
+
+def filas_de_leyenda(categorias):
+    """Las categorías de un modelo o de un mapa, ordenadas para una leyenda.
+
+    categorias: [{'categoria': …, …}] en orden de código. Devuelve una fila por cada
+    una, con lo que traía y además 'etiqueta' (lo que se escribe) y 'rama'. En un
+    nivel combinado, delante de las categorías de cada rama va una fila que solo trae
+    {'titulo': rama}, y la etiqueta de cada categoría es la de dentro:
+
+        arroyo                 ← {'titulo': 'arroyo'}
+          húmedo               ← {'etiqueta': 'húmedo', 'rama': 'arroyo', …}
+          seco
+        ladera
+          húmedo
+
+    En un nivel sencillo (y para «no borreguil») no hay títulos ni rama."""
+    filas, abierta = [], None
+    for c in categorias:
+        rama, hoja = rama_y_hoja(c['categoria'])
+        if rama and rama != abierta:
+            filas.append({'titulo': rama})
+        abierta = rama
+        filas.append({**c, 'etiqueta': hoja, 'rama': rama})
+    return filas
 
 # Por debajo de MIN_POR_CLASE no se puede entrenar ni validar una categoría (con
 # validación en 5 partes hace falta al menos una muestra por parte). Por debajo de
@@ -64,6 +140,7 @@ def codigos(nivel):
 MOTIVOS = {
     'tipo_sin_revisar': 'borreguil con el tipo sin revisar',
     'sin_etiqueta': 'ni borreguil revisado ni ausencia de campo',
+    'sin_si_no': 'nadie ha dicho si es borreguil (ni en campo ni revisando su tipo)',
     'dudoso': 'marcado como dudoso en campo',
     'incoherente': 'ausencia de campo que además tiene un tipo revisado',
     'categoria_no_valida': 'categoría que no existe en este nivel',
@@ -75,6 +152,8 @@ MOTIVOS = {
 MOTIVOS_EN = {
     'tipo_sin_revisar': 'borreguil whose type has not been reviewed',
     'sin_etiqueta': 'neither a reviewed borreguil nor a field absence',
+    'sin_si_no': 'nobody has said whether it is a borreguil (neither in the field nor '
+                 'by reviewing its type)',
     'dudoso': 'flagged as doubtful in the field',
     'incoherente': 'field absence that also has a reviewed type',
     'categoria_no_valida': 'category that does not exist at this level',
@@ -85,6 +164,7 @@ MOTIVOS_EN = {
 }
 ORIGEN_REVISADO = 'tipo revisado'
 ORIGEN_AUSENCIA = 'ausencia de campo'
+ORIGEN_CAMPO = 'borreguil de campo'
 
 
 def motivo(clave, en=False):
@@ -102,7 +182,7 @@ def _num(v):
 
 def categoria(r, nivel, sufijo=''):
     """Categoría de un punto en un nivel. En un nivel combinado, la de sus partes
-    unida («húmedo · ladera»), o vacía si le falta alguna. Con sufijo='_regla', lo
+    unida («ladera · húmedo»), o vacía si le falta alguna. Con sufijo='_regla', lo
     que propuso la app."""
     partes = COMBINADOS.get(nivel)
     if not partes:
@@ -122,6 +202,16 @@ def _clasifica(r, nivel, incluir_ausencias, es_borreguil):
         return None, None, 'incoherente'
     if bp._txt(r.get('Duda')).lower() == 'si':
         return None, None, 'dudoso'
+    if nivel == NIVEL_SI_NO:
+        # Solo si es borreguil o no: vale lo dicho en campo, o haber revisado su tipo
+        # (quien lo revisa lo da por borreguil). Lo que propone el detector, no.
+        if campo == 'si' or revisado:
+            return 'borreguil', ORIGEN_REVISADO if revisado else ORIGEN_CAMPO, None
+        if campo == 'no':
+            if incluir_ausencias:
+                return AUSENCIA, ORIGEN_AUSENCIA, None
+            return None, None, 'ausencia_no_incluida'
+        return None, None, 'sin_si_no'
     if revisado:
         valor = categoria(r, nivel)
         if valor in NIVELES[nivel]:
@@ -143,6 +233,8 @@ def muestras(rows, nivel, incluir_ausencias=True, es_borreguil=None):
       · un punto con el tipo REVISADO, con la categoría que dejó la persona;
       · una AUSENCIA de campo (Borreguil = no), como clase «no borreguil», si
         `incluir_ausencias`.
+    En el nivel de sí o no (NIVEL_SI_NO), un punto es «borreguil» si en campo se dijo
+    que lo es (Borreguil = si) o si se ha revisado su tipo, aunque el tipo no se use.
     No entra (y se dice por qué): tipo sin revisar, sin etiqueta, dudoso,
     incoherente, o repetido en el mismo píxel Sentinel-2 de 10 m (dos muestras en
     un píxel tendrían exactamente los mismos predictores: si coinciden en categoría
@@ -516,6 +608,96 @@ def desequilibrio(clases):
 
 
 # ============================================================
+# Variables repetidas: el VIF (opcional)
+# ------------------------------------------------------------
+# El VIF (factor de inflación de la varianza) de una variable es 1 / (1 − R²), con R²
+# lo que se explica de ella con todas las demás juntas (regresión lineal): 1 = nada,
+# 5 = el 80 %, 10 = el 90 %. Para quedarse con variables que no se repitan, se quita
+# la de VIF más alto, se vuelve a calcular y se sigue mientras alguna pase del umbral.
+# El Random Forest no lo necesita para acertar; sirve para tener un modelo más sencillo
+# y un peso de las variables que se lea mejor. Si acierta igual, lo dice la validación.
+# ============================================================
+VIF_UMBRAL = 10.0
+# La altitud no se quita nunca: lo pidió la usuaria («en cualquier sitio del mundo los
+# borreguiles son prados húmedos de alta montaña»). Sí cuenta en el VIF de las demás.
+VIF_FIJAS = ('elev_dem_m',)
+
+
+def vif(X):
+    """El VIF de cada columna de X (muestras × variables): infinito si las demás la
+    explican entera (es una suma o una resta de otras) y NaN si no varía."""
+    import numpy as np
+    X = np.asarray(X, dtype=float)
+    n, k = X.shape
+    sd = X.std(axis=0)
+    varia = sd > 1e-12 * np.maximum(1.0, np.abs(X).max(axis=0))
+    Z = np.where(varia, (X - X.mean(axis=0)) / np.where(varia, sd, 1.0), 0.0)
+    salida = np.full(k, np.nan)
+    for j in range(k):
+        if not varia[j]:
+            continue
+        otras = [i for i in range(k) if i != j and varia[i]]
+        if not otras:
+            salida[j] = 1.0
+            continue
+        A = np.column_stack([np.ones(n), Z[:, otras]])
+        coef = np.linalg.lstsq(A, Z[:, j], rcond=None)[0]
+        resto = Z[:, j] - A @ coef
+        r2 = 1.0 - float(resto @ resto) / float(Z[:, j] @ Z[:, j])
+        salida[j] = np.inf if r2 >= 1.0 - 1e-10 else 1.0 / (1.0 - r2)
+    return salida
+
+
+def elegir_por_vif(X, nombres, umbral=VIF_UMBRAL, fijas=VIF_FIJAS):
+    """Quita variables repetidas de una en una: en cada paso calcula el VIF de las que
+    quedan y quita la de VIF más alto si pasa del `umbral` (las que no varían, antes que
+    ninguna); para cuando todas quedan por debajo. Las de `fijas` no se quitan nunca,
+    pero cuentan al calcular el VIF de las demás. Si empatan dos, se quita la que va
+    más atrás en el catálogo: la caída del NDVI antes que los NDVI de los que sale.
+
+    Devuelve un dict: quedan (en su orden), quitadas [{variable, vif, paso}] en el
+    orden en que se quitaron (vif None = no variaba), vif {variable: VIF final de las
+    que quedan}, umbral, fijas y pocas_muestras (con menos del doble de muestras que
+    variables el VIF no es fiable).
+    """
+    import numpy as np
+    X = np.asarray(X, dtype=float)
+    nombres = list(nombres)
+    if X.ndim != 2 or X.shape[1] != len(nombres):
+        raise ValueError('la tabla y la lista de variables no casan')
+    if not np.isfinite(X).all():
+        raise ValueError('la tabla contiene valores no válidos (huecos o infinitos)')
+    umbral = float(umbral)
+    if not umbral > 1.0:
+        raise ValueError('el umbral del VIF tiene que ser mayor que 1')
+    fijas = [f for f in dict.fromkeys(fijas or ()) if f in nombres]
+    catalogo = {n: i for i, n in enumerate(nombres_predictores())}
+    orden = {n: catalogo.get(n, len(catalogo) + i) for i, n in enumerate(nombres)}
+    quedan, quitadas = list(range(len(nombres))), []
+    while True:
+        v = vif(X[:, quedan])
+        # primero las que no varían; después, la de VIF más alto; y en el empate, la
+        # que va más atrás en el catálogo
+        candidatas = [(bool(np.isnan(v[i])), np.inf if np.isnan(v[i]) else v[i],
+                       orden[nombres[c]], c)
+                      for i, c in enumerate(quedan) if nombres[c] not in fijas]
+        if not candidatas:
+            break
+        constante, peor, _, c = max(candidatas)
+        if not peor > umbral:
+            break
+        quitadas.append({'variable': nombres[c], 'vif': None if constante else float(peor),
+                         'paso': len(quitadas) + 1})
+        quedan.remove(c)
+    final = vif(X[:, quedan])
+    return {'quedan': [nombres[c] for c in quedan], 'quitadas': quitadas,
+            'vif': {nombres[c]: (None if np.isnan(x) else float(x))
+                    for c, x in zip(quedan, final)},
+            'umbral': umbral, 'fijas': fijas,
+            'pocas_muestras': X.shape[0] < 2 * X.shape[1]}
+
+
+# ============================================================
 # Random Forest multiclase: validación por zonas y modelo final
 # ------------------------------------------------------------
 # Son dos procesos separados:
@@ -540,6 +722,451 @@ RAZON_MAXIMA = 3.0              # submuestreo: la abundante, como mucho 3 × la 
 CELDA_GRADOS = 0.05             # ~5 km: lado de la celda cuando el punto no tiene cuenca
 PARTICIONES = 5
 MIN_ZONAS = 3                   # con menos zonas no se puede validar por zonas
+
+
+# Importancia de las variables por permutación: cuántas veces se desordena cada una
+# (más con pocas muestras, que es cuando más baila), cuántas filas se predicen como
+# mucho en total, cuántas se tienen a la vez en memoria y de cuántas es cada trozo de
+# los que se predicen a la vez.
+REPETICIONES_MIN, REPETICIONES_MAX = 5, 30
+FILAS_PERMUTADAS = 400_000
+LOTE_PERMUTACION = 400_000
+TROZO_PERMUTACION = 16_000
+
+
+def _macro_f1(y, pred, presentes):
+    """Media del F1 de las categorías `presentes`. `pred` puede traer muchas
+    predicciones a la vez (…, nº de muestras): devuelve una cifra por cada una. Da lo
+    mismo que f1_score(average='macro', labels=presentes, zero_division=0)."""
+    import numpy as np
+    f1s = []
+    for c in presentes:
+        es, dice = (y == c), (pred == c)
+        aciertos = (dice & es).sum(axis=-1)
+        total = es.sum() + dice.sum(axis=-1)
+        f1s.append(np.where(total > 0, 2 * aciertos / np.maximum(total, 1), 0.0))
+    return np.mean(f1s, axis=0)
+
+
+# ============================================================
+# ¿Borreguil o no? La regla de decisión
+# ------------------------------------------------------------
+# El modelo da, para cada caso, la probabilidad de cada categoría. La categoría se
+# decide en dos pasos:
+#   1. ¿es borreguil? Sí, si la probabilidad de serlo —la suma de la de sus tipos, que
+#      es lo mismo que 1 − la de «no borreguil»— llega a un UMBRAL;
+#   2. ¿de qué tipo? El más probable entre los tipos.
+# Quedarse sin más con la categoría más probable perjudica a los borreguiles: su
+# probabilidad se reparte entre los tipos mientras «no borreguil» conserva la suya
+# entera (con 0.40 de «no borreguil», 0.35 de «húmedo» y 0.25 de «seco» saldría «no
+# borreguil» habiendo 0.60 de que lo sea), y más cuantos más tipos haya.
+# El umbral se elige con la validación: se prueban muchos y se mira cuál separa mejor
+# los borreguiles de lo que no lo es.
+# ============================================================
+CODIGO_AUSENCIA = 0
+UMBRALES = tuple(round(0.025 * k, 3) for k in range(1, 40))     # 0.025, 0.050 … 0.975
+# Cómo se elige el umbral: el de mayor F1 de «borreguil», el de mayor TSS
+# (sensibilidad + especificidad − 1), o el que fije la persona. De entrada, el F1: el
+# borreguil es escaso, y con el TSS el umbral baja tanto que el mapa se llena de pasto
+# que no lo es (lo vio la usuaria en Sierra Nevada, por encima de 2000 m).
+CRITERIOS = ('f1', 'tss', 'manual')
+CRITERIO_DEFECTO = 'f1'
+
+
+def repartir(prob, clases):
+    """De la probabilidad de cada categoría a lo que hace falta para decidir.
+
+    prob: matriz (…, nº de categorías), con las columnas en el orden de `clases` (los
+    códigos del modelo). Devuelve (p_borr, tipo, p_tipo, p_no):
+
+      p_borr  probabilidad de ser borreguil, del tipo que sea: la suma de la de los
+              tipos (lo mismo que 1 − la de «no borreguil»)
+      tipo    código del tipo más probable (si empatan, el de código más bajo)
+      p_tipo  probabilidad de ese tipo
+      p_no    probabilidad de «no borreguil», o None si el modelo no tiene esa
+              categoría
+
+    Las cuentas se hacen en float32, que es como se guardan las probabilidades en el
+    mapa: lo que se decide aquí es exactamente lo que se decidiría leyendo el fichero.
+    """
+    import numpy as np
+    pr = np.asarray(prob, dtype=np.float32)
+    clases = [int(c) for c in clases]
+    if pr.shape[-1] != len(clases):
+        raise ValueError('hay que dar una probabilidad por categoría')
+    tipos = [j for j, c in enumerate(clases) if c != CODIGO_AUSENCIA]
+    p_no = pr[..., clases.index(CODIGO_AUSENCIA)] if CODIGO_AUSENCIA in clases else None
+    forma = pr.shape[:-1]
+    if not tipos:                        # un modelo que solo ha visto «no borreguil»
+        return (np.zeros(forma, np.float32), np.full(forma, -1, dtype=int),
+                np.zeros(forma, np.float32), p_no)
+    p_borr = np.zeros(forma, dtype=np.float32)
+    for j in tipos:                      # siempre en el mismo orden: la suma no baila
+        p_borr = p_borr + pr[..., j]
+    de_tipos = pr[..., tipos]
+    mejor = de_tipos.argmax(axis=-1)
+    tipo = np.asarray([clases[j] for j in tipos], dtype=int)[mejor]
+    p_tipo = np.take_along_axis(de_tipos, mejor[..., None], axis=-1)[..., 0]
+    return p_borr, tipo, p_tipo, p_no
+
+
+def decidir(prob, clases, umbral=None):
+    """La categoría de cada caso y con qué probabilidad.
+
+    Con `umbral`, en dos pasos: «no borreguil» si la probabilidad de ser borreguil no
+    llega al umbral; si llega, su tipo más probable. Si el modelo no tiene la
+    categoría «no borreguil», no hay nada que decidir en el primer paso: cada caso es
+    de su tipo más probable. Con `umbral=None` no se aplica la regla y se devuelve,
+    sin más, la categoría más probable de todas (si empatan, la de código más bajo).
+
+    Devuelve (categoria, p_categoria, p_borr): el código elegido, su probabilidad y
+    la probabilidad de ser borreguil de algún tipo.
+    """
+    import numpy as np
+    p_borr, tipo, p_tipo, p_no = repartir(prob, clases)
+    if p_no is None:
+        return tipo, p_tipo, p_borr
+    es = (p_tipo > p_no) if umbral is None else (p_borr >= np.float32(umbral))
+    return (np.where(es, tipo, CODIGO_AUSENCIA), np.where(es, p_tipo, p_no), p_borr)
+
+
+def _binarias(p_borr, es_borr, umbral):
+    """Aciertos y fallos de «¿borreguil o no?» con un umbral, y sus medidas. Si no se
+    puede calcular alguna (nada que dividir), vale 0."""
+    import numpy as np
+    dice = np.asarray(p_borr, dtype=np.float32) >= np.float32(umbral)
+    es_borr = np.asarray(es_borr, dtype=bool)
+    vp, fp = int(np.sum(dice & es_borr)), int(np.sum(dice & ~es_borr))
+    fn, vn = int(np.sum(~dice & es_borr)), int(np.sum(~dice & ~es_borr))
+    precision = vp / (vp + fp) if vp + fp else 0.0
+    sensibilidad = vp / (vp + fn) if vp + fn else 0.0
+    especificidad = vn / (vn + fp) if vn + fp else 0.0
+    f1 = (2 * precision * sensibilidad / (precision + sensibilidad)
+          if precision + sensibilidad else 0.0)
+    return {'umbral': float(umbral), 'vp': vp, 'fp': fp, 'fn': fn, 'vn': vn,
+            'sensibilidad': sensibilidad, 'especificidad': especificidad,
+            'precision': precision, 'f1': f1, 'tss': sensibilidad + especificidad - 1}
+
+
+def barrido_umbral(p_borr, es_borr, umbrales=UMBRALES):
+    """Qué pasaría con cada umbral: una fila por umbral, con los borreguiles que se
+    encuentran (vp) y los que se escapan (fn), lo que se toma por borreguil sin serlo
+    (fp) y lo que se descarta bien (vn), y las medidas que salen de ahí."""
+    return [_binarias(p_borr, es_borr, u) for u in umbrales]
+
+
+def elegir_umbral(barrido, criterio=CRITERIO_DEFECTO):
+    """La fila del barrido con el mejor `criterio` ('tss' o 'f1').
+
+    Con pocas muestras suelen empatar muchos umbrales seguidos (dan exactamente los
+    mismos aciertos). Se toma el del CENTRO del tramo más largo de empatados: es el
+    que más margen deja a los dos lados. Entre tramos igual de largos, el más cercano
+    a 0.5."""
+    valores = [b[criterio] for b in barrido]
+    mejor = max(valores)
+    tramos, actual = [], []
+    for i, v in enumerate(valores):
+        if v >= mejor - 1e-12:
+            actual.append(i)
+        elif actual:
+            tramos.append(actual)
+            actual = []
+    if actual:
+        tramos.append(actual)
+
+    def lejos(i):
+        return abs(barrido[i]['umbral'] - 0.5)
+
+    def centro(tramo):
+        return min((tramo[(len(tramo) - 1) // 2], tramo[len(tramo) // 2]),
+                   key=lambda i: (lejos(i), i))
+
+    return barrido[centro(min(tramos, key=lambda t: (-len(t), lejos(centro(t)))))]
+
+
+def aplicar_regla(mod, criterio=CRITERIO_DEFECTO, umbral=None):
+    """Fija cómo se decide «¿borreguil o no?» en un modelo y rehace con esa regla las
+    cifras de su validación y el peso de sus variables. No vuelve a entrenar nada: usa
+    las probabilidades que el modelo guardó al validar.
+
+    criterio: 'f1' (el umbral de mayor F1 en la validación), 'tss' (el de mayor TSS) o
+    'manual' (el de `umbral`, entre 0 y 1). Si el modelo no tiene la categoría «no
+    borreguil», no hay umbral: cada caso es de su tipo más probable.
+
+    Cambia `mod` y lo devuelve. La regla queda en mod['regla'].
+    """
+    import warnings
+
+    import numpy as np
+    from sklearn.metrics import (accuracy_score, balanced_accuracy_score,
+                                 confusion_matrix, f1_score,
+                                 precision_recall_fscore_support)
+    v, perm = mod['_validacion'], mod['_permutacion']
+    y, presentes = v['y'], v['presentes']
+    nombre = {int(c['codigo']): c['categoria'] for c in mod['categorias']}
+    if CODIGO_AUSENCIA in presentes:
+        if criterio not in CRITERIOS:
+            raise ValueError(f'criterio desconocido: {criterio!r} (use {", ".join(CRITERIOS)})')
+        es_borr = y != CODIGO_AUSENCIA
+        barrido = barrido_umbral(v['p_borr'], es_borr)
+        mejores = {c: elegir_umbral(barrido, c)['umbral'] for c in ('tss', 'f1')}
+        if criterio == 'manual':
+            try:
+                u = float(umbral)
+            except (TypeError, ValueError):
+                raise ValueError('con el criterio manual hay que dar el umbral') from None
+            if not 0 < u < 1:
+                raise ValueError('el umbral tiene que estar entre 0 y 1')
+        else:
+            u = mejores[criterio]
+        es = v['p_borr'] >= np.float32(u)
+        predicho = np.where(es, v['tipo'], CODIGO_AUSENCIA)
+        confianza = np.where(es, v['p_tipo'], v['p_no'])
+        desordenado = np.where(perm['p_borr'] >= np.float32(u), perm['tipo'],
+                               CODIGO_AUSENCIA)
+        regla = {'criterio': criterio, 'umbral': float(u),
+                 'mejor_tss': mejores['tss'], 'mejor_f1': mejores['f1'],
+                 'barrido': barrido, 'en_umbral': _binarias(v['p_borr'], es_borr, u)}
+    else:
+        predicho, confianza, desordenado = v['tipo'], v['p_tipo'], perm['tipo']
+        regla = {'criterio': None, 'umbral': None, 'barrido': []}
+
+    # ---- la validación, con esa regla
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', message='y_pred contains classes not in y_true')
+        for pl in mod['pliegues']:
+            de_la_parte = v['parte'] == pl['parte']
+            ya, pa = y[de_la_parte], predicho[de_la_parte]
+            pl['exactitud'] = float(accuracy_score(ya, pa))
+            pl['exactitud_equilibrada'] = float(balanced_accuracy_score(ya, pa))
+            pl['macro_f1'] = float(f1_score(ya, pa, average='macro',
+                                            labels=sorted(set(int(c) for c in ya)),
+                                            zero_division=0))
+        matriz = confusion_matrix(y, predicho, labels=presentes)
+        prec, rec, f1, sop = precision_recall_fscore_support(
+            y, predicho, labels=presentes, zero_division=0)
+        mod['exactitud'] = float(accuracy_score(y, predicho))
+        mod['exactitud_equilibrada'] = float(balanced_accuracy_score(y, predicho))
+        mod['macro_f1'] = float(f1_score(y, predicho, average='macro', labels=presentes,
+                                         zero_division=0))
+    mod['matriz'] = [[int(x) for x in fila] for fila in matriz]
+    mod['por_clase'] = [{'categoria': nombre[c], 'codigo': c, 'precision': float(prec[i]),
+                         'recall': float(rec[i]), 'f1': float(f1[i]),
+                         'n_validacion': int(sop[i])} for i, c in enumerate(presentes)]
+    mod['confusiones'] = sorted(
+        [(nombre[presentes[a]], nombre[presentes[b]], int(matriz[a, b]))
+         for a in range(len(presentes)) for b in range(len(presentes))
+         if a != b and matriz[a, b] > 0], key=lambda t: -t[2])
+    mod['predicciones'] = [{
+        'ID': f['ID'], 'indice': f['indice'], 'zona': f['zona'], 'parte': f['parte'],
+        'real': nombre[int(y[i])], 'predicha': nombre[int(predicho[i])],
+        'acierta': bool(y[i] == predicho[i]), 'confianza': float(confianza[i]),
+        'p_borreguil': float(v['p_borr'][i])} for i, f in enumerate(v['filas'])]
+
+    # ---- el peso de las variables, con esa regla
+    y_presentes = np.asarray(presentes)
+    base = float(_macro_f1(y, predicho, y_presentes))
+    caidas = base - _macro_f1(y, desordenado, y_presentes)          # (reps, conjuntos)
+    media, desv = caidas.mean(axis=0), caidas.std(axis=0, ddof=1)
+    impureza, lugar, variables_ = perm['impureza'], perm['lugar'], mod['predictores']
+    nv = len(variables_)
+    por_peso = sorted(range(nv), key=lambda j: (-media[j], -impureza[j], j))
+    puesto = {j: k for k, j in enumerate(por_peso, 1)}
+    puesto_interno = {j: k for k, j in enumerate(
+        sorted(range(nv), key=lambda j: (-impureza[j], j)), 1)}
+
+    def juntas(columnas, campo):
+        """El peso de cada conjunto de variables, del que más al que menos."""
+        return sorted(({campo: clave, 'n_variables': len(cols),
+                        'permutacion': float(media[lugar[tuple(cols)]]),
+                        'desviacion': float(desv[lugar[tuple(cols)]]),
+                        'impureza': float(sum(impureza[j] for j in cols))}
+                       for clave, cols in columnas.items()),
+                      key=lambda g: -g['permutacion'])
+
+    mod['importancia'] = {
+        'medida': 'macro_f1', 'base': base, 'repeticiones': int(perm['repeticiones']),
+        'variables': [{
+            'variable': variables_[j], 'familia': familia(variables_[j]),
+            'grupo': _GRUPO_DE.get(variables_[j], ''),
+            'permutacion': float(media[j]), 'desviacion': float(desv[j]),
+            'orden': puesto[j], 'impureza': float(impureza[j]),
+            'orden_impureza': puesto_interno[j]} for j in por_peso],
+        'familias': juntas(perm['de_familia'], 'familia'),
+        'grupos': juntas(perm['de_grupo'], 'grupo')}
+    mod['regla'] = regla
+    return mod
+
+
+# ============================================================
+# El mapa en dos pasos: sí o no, y después el tipo
+# ------------------------------------------------------------
+# El modelo de sí o no (nivel «borreguil») aprende de todos los puntos de los que se
+# sabe si son borreguil, y el de un nivel del tipo, solo de los borreguiles con el tipo
+# revisado y sin «no borreguil». Juntos se comportan como un único modelo con «no
+# borreguil» y los tipos, y así el mapa se hace igual que con uno solo:
+#   P(no borreguil) = 1 − p        P(tipo) = p × P(tipo si es borreguil)
+# con p la probabilidad de ser borreguil del modelo de sí o no. La suma de los tipos
+# es p: lo que decide el umbral es el modelo de sí o no, y el tipo, el otro.
+# ============================================================
+class DosPasos:
+    """Dos Random Forest que predicen como uno: el de sí o no y el del tipo. Cada uno
+    lee sus columnas de la misma tabla de variables (las de los dos, en el orden del
+    catálogo)."""
+
+    def __init__(self, si_no, tipo, cols_si_no, cols_tipo, n_variables):
+        import numpy as np
+        if CODIGO_AUSENCIA in [int(c) for c in tipo.classes_]:
+            raise ValueError('el modelo del tipo no puede tener «no borreguil»')
+        self.si_no, self.tipo = si_no, tipo
+        self.cols_si_no, self.cols_tipo = list(cols_si_no), list(cols_tipo)
+        self.n_features_in_ = int(n_variables)
+        self.classes_ = np.asarray([CODIGO_AUSENCIA] + [int(c) for c in tipo.classes_])
+        self._si = [int(c) for c in si_no.classes_].index(1)
+
+    def predict_proba(self, X):
+        import numpy as np
+        X = np.asarray(X)
+        p = self.si_no.predict_proba(X[:, self.cols_si_no])[:, self._si]
+        de_tipo = self.tipo.predict_proba(X[:, self.cols_tipo])
+        return np.column_stack([1 - p, p[:, None] * de_tipo])
+
+
+def en_dos_pasos(mod_si_no, mod_tipo):
+    """El modelo con el que se hace el mapa en dos pasos (ver DosPasos), con lo mismo
+    que trae un modelo de entrenar_y_validar para hacer el mapa: nivel, categorías,
+    predictores, modelo, regla (la del de sí o no, con su umbral), firma y lectura.
+
+    mod_si_no: el del nivel «borreguil», con «no borreguil» y su umbral.
+    mod_tipo: el de un nivel del tipo, entrenado sin «no borreguil».
+    Lanza ValueError si no casan (otro nivel, otra lectura de la pila…).
+    """
+    import hashlib
+    if mod_si_no.get('nivel') != NIVEL_SI_NO:
+        raise ValueError('el primer paso tiene que ser el modelo de sí o no')
+    if mod_tipo.get('nivel') == NIVEL_SI_NO:
+        raise ValueError('el segundo paso tiene que ser el modelo de un nivel del tipo')
+    umbral = (mod_si_no.get('regla') or {}).get('umbral')
+    if umbral is None:
+        raise ValueError('el modelo de sí o no no tiene umbral')
+    if any(int(c['codigo']) == CODIGO_AUSENCIA for c in mod_tipo['categorias']):
+        raise ValueError('el modelo del tipo se entrenó con «no borreguil»: el sí o no ya '
+                         'lo decide él solo')
+    lec_s, lec_t = mod_si_no.get('lectura'), mod_tipo.get('lectura')
+    if lec_s and lec_t and lec_s != lec_t:
+        raise ValueError('los dos modelos se entrenaron con lecturas distintas de la pila '
+                         '(otros años, otra rejilla u otra versión): vuelve a entrenar uno')
+    pred = ordenar_predictores(list(mod_si_no['predictores']) + list(mod_tipo['predictores']))
+    modelo = DosPasos(mod_si_no['modelo'], mod_tipo['modelo'],
+                      [pred.index(v) for v in mod_si_no['predictores']],
+                      [pred.index(v) for v in mod_tipo['predictores']], len(pred))
+    firma = hashlib.md5(f"{mod_si_no['firma']}|{mod_tipo['firma']}".encode()).hexdigest()
+    return {
+        'nivel': mod_tipo['nivel'], 'codigos': dict(mod_tipo['codigos']),
+        'categorias': ([{'categoria': AUSENCIA, 'codigo': CODIGO_AUSENCIA}]
+                       + [dict(c) for c in mod_tipo['categorias']]),
+        'predictores': pred, 'modelo': modelo, 'firma': firma,
+        'regla': {'criterio': mod_si_no['regla'].get('criterio'), 'umbral': float(umbral)},
+        'lectura': lec_t or lec_s,
+        'dos_pasos': {paso: {'nivel': m['nivel'], 'firma': m['firma'],
+                             'cuando': m.get('cuando'), 'muestras': m.get('n_muestras'),
+                             'predictores': list(m['predictores'])}
+                      for paso, m in (('si_no', mod_si_no), ('tipo', mod_tipo))},
+    }
+
+
+# ============================================================
+# Pureza dentro del píxel (por composición, solo con Sentinel-2)
+# ------------------------------------------------------------
+# Un píxel de 10 m puede ser borreguil entero o mezclarse con roca o con agua. Cuánto
+# verde hay dentro se estima con su NDVI de inicio de verano: vale lo de la roca si no
+# hay verde, lo de un borreguil puro si lo hay todo, y en proporción entre los dos.
+# (Comparado con la ortofoto de 0,25 m en una zona de prueba, el verde así estimado se
+# equivoca unos 6 puntos de media entre todos los píxeles y unos 12 dentro de los de
+# borreguil.) La pureza se asigna SOLO a los píxeles que el modelo da por borreguil:
+#   · puro        el verde llega al corte (por defecto, 75 %);
+#   · mixto-agua  no llega y el píxel es agua o toca un píxel de agua;
+#   · mixto-roca  no llega y no hay agua al lado.
+# Sentinel-2 no ve una orilla que ocupe una parte pequeña del píxel: por eso el agua
+# se deduce de los píxeles vecinos.
+# ============================================================
+VARIABLE_VERDE = 'ndvi_early'       # NDVI de inicio de verano: cuando más verde está
+VARIABLE_AGUA = 'ndwi_mean'         # NDWI medio de jun–sep: > 0 es agua
+NDWI_AGUA = 0.0
+# NDVI de un píxel sin verde (roca, suelo), NDVI de uno todo verde (se propone el de
+# las muestras de borreguil puro) y verde a partir del cual el píxel cuenta como puro.
+PUREZA_DEFECTO = {'sin_verde': 0.08, 'todo_verde': 0.60, 'puro_desde': 0.75}
+MIN_PUROS = 5                       # muestras puras para fiarse de su NDVI
+
+
+def params_pureza(params=None):
+    """Los tres valores de la pureza dentro del píxel, comprobados."""
+    q = dict(PUREZA_DEFECTO)
+    q.update({k: v for k, v in (params or {}).items() if k in PUREZA_DEFECTO})
+    try:
+        q = {k: float(v) for k, v in q.items()}
+    except (TypeError, ValueError):
+        raise ValueError('la pureza necesita tres números: sin_verde, todo_verde y '
+                         'puro_desde') from None
+    if not -0.5 <= q['sin_verde'] < q['todo_verde'] <= 1:
+        raise ValueError('el NDVI de «todo verde» tiene que ser mayor que el de «sin verde»')
+    if not 0 < q['puro_desde'] <= 1:
+        raise ValueError('el corte de «puro» tiene que estar entre 0 y 1')
+    return q
+
+
+def verde_estimado(ndvi, sin_verde, todo_verde):
+    """Fracción (de 0 a 1) del píxel cubierta de verde, estimada con su NDVI: 0 si vale
+    `sin_verde` o menos, 1 si vale `todo_verde` o más, y en proporción entre los dos.
+    Donde no hay dato, tampoco lo hay en el resultado. En float32, como se guarda."""
+    import numpy as np
+    v = np.asarray(ndvi, dtype=np.float32)
+    return np.clip((v - np.float32(sin_verde)) / np.float32(todo_verde - sin_verde),
+                   0, 1).astype(np.float32)
+
+
+def pureza_de(verde, toca_agua, puro_desde):
+    """El código de pureza de cada píxel de borreguil (los del nivel «pureza»: 1 puro,
+    2 mixto-agua, 3 mixto-roca), con su fracción de verde y si es agua o toca agua."""
+    import numpy as np
+    cod = codigos('pureza')
+    return np.where(np.asarray(verde, dtype=np.float32) >= np.float32(puro_desde),
+                    cod['puro'],
+                    np.where(toca_agua, cod['mixto-agua'], cod['mixto-roca']))
+
+
+def todo_verde_de(ndvi_puros):
+    """El NDVI de «todo verde» que proponen las muestras: la mediana del de las de
+    borreguil puro. Devuelve (valor, de_las_muestras): con menos de MIN_PUROS muestras
+    puras con dato no hay de qué fiarse y se propone el valor por defecto."""
+    import statistics
+    validos = [float(v) for v in ndvi_puros if v is not None and float(v) == float(v)]
+    if len(validos) < MIN_PUROS:
+        return PUREZA_DEFECTO['todo_verde'], False
+    return statistics.median(validos), True
+
+
+def comparar_pureza(muestras, params=None):
+    """Cómo quedarían, por su verde estimado, las muestras de borreguil cuya pureza ha
+    revisado una persona. Sirve para ajustar los valores con datos.
+
+    muestras: [{'pureza': 'puro' | 'mixto-agua' | 'mixto-roca', 'ndvi': número}].
+    En un punto suelto no se sabe si toca agua, así que se compara «puro» frente a
+    «mixto». Devuelve {'n', 'coinciden', 'tabla'}: en `tabla`, para cada pureza
+    revisada, cuántas salen puras y cuántas mixtas.
+    """
+    q = params_pureza(params)
+    tabla = {c: {'puro': 0, 'mixto': 0} for c in NIVELES['pureza']}
+    n = coinciden = 0
+    for m in muestras:
+        if m.get('pureza') not in tabla or m.get('ndvi') is None:
+            continue
+        sale = ('puro' if float(verde_estimado(m['ndvi'], q['sin_verde'], q['todo_verde']))
+                >= q['puro_desde'] else 'mixto')
+        tabla[m['pureza']][sale] += 1
+        n += 1
+        coinciden += (sale == 'puro') == (m['pureza'] == 'puro')
+    return {'n': n, 'coinciden': coinciden, 'tabla': tabla}
 
 
 def grupos_espaciales(tab, rows, celda=CELDA_GRADOS):
@@ -609,6 +1236,17 @@ def firma_tabla(tab):
     return h.hexdigest()
 
 
+def firma_muestras(res):
+    """Huella de las muestras de un nivel (cuáles se usan y con qué categoría), sin las
+    variables: dos modelos con la misma se entrenaron con las mismas muestras aunque
+    usaran variables distintas, y se pueden comparar."""
+    import hashlib
+    h = hashlib.md5()
+    for i, c in sorted((str(f['ID']), str(f['codigo'])) for f in res['tabla'] if f['usada']):
+        h.update(f'{i}|{c}\n'.encode())
+    return h.hexdigest()
+
+
 def entrenar_y_validar(tab, grupos, params=None, estrategia='pesos',
                        razon_maxima=RAZON_MAXIMA, particiones=PARTICIONES):
     """Valida un Random Forest multiclase por zonas y entrena el modelo final.
@@ -620,7 +1258,27 @@ def entrenar_y_validar(tab, grupos, params=None, estrategia='pesos',
     categorías, alguna por debajo del mínimo, tabla y zonas que no casan…).
     Devuelve un dict con la validación (matriz de confusión, métricas por categoría
     y globales, resultado de cada parte, predicción de cada muestra cuando le tocó
-    ser validada) y con el modelo final entrenado con todas las muestras.
+    ser validada), con el modelo final entrenado con todas las muestras y con la
+    importancia de cada variable (`importancia`).
+
+    La categoría de cada caso se decide con la regla de «¿borreguil o no?» (`regla`,
+    ver aplicar_regla): de entrada, con el umbral de mayor F1 en la validación.
+    El modelo guarda las probabilidades de la validación, así que la regla se puede
+    cambiar después sin volver a entrenar.
+
+    La importancia de cada variable:
+
+      permutacion  cuánto baja el F1 medio de la validación si esa variable se
+                   desordena entre las muestras con las que se valida (media de varias
+                   repeticiones; `desviacion` es lo que cambia de una a otra). Mide lo
+                   que el modelo PIERDE sin ella al predecir sitios que no ha visto.
+      impureza     la importancia interna del Random Forest final: cuánto ha usado la
+                   variable para separar las muestras al entrenar. Suma 1 entre todas.
+
+    Lo mismo se mide desordenando a la vez todas las variables de cada familia (el
+    mismo índice en distintos momentos: `familias`) y de cada grupo del catálogo (la
+    misma época u origen: `grupos`): dos variables muy parecidas se cubren la una a la
+    otra, y sueltas parecen pesar poco.
     """
     import numpy as np
     from sklearn.ensemble import RandomForestClassifier
@@ -659,6 +1317,17 @@ def entrenar_y_validar(tab, grupos, params=None, estrategia='pesos',
             class_weight='balanced' if con_pesos else None,
             random_state=semilla, n_jobs=-1)
 
+    def entrenado(pos):
+        """Un modelo entrenado con esas muestras. Se entrena con todos los
+        procesadores (con la semilla sale siempre el mismo bosque), pero para PREDECIR
+        se deja con uno solo: con varios, scikit-learn suma los árboles según van
+        acabando y el último decimal de la probabilidad cambia de una vez a otra, lo
+        justo para que un empate entre dos categorías caiga a un lado o a otro. Con
+        uno, el mismo modelo da siempre exactamente el mismo resultado."""
+        m = nuevo_modelo().fit(X[pos], y[pos])
+        m.n_jobs = 1
+        return m
+
     def para_entrenar(pos):
         """Las posiciones con las que de verdad se entrena (tras el recorte)."""
         pos = np.asarray(pos)
@@ -685,78 +1354,134 @@ def entrenar_y_validar(tab, grupos, params=None, estrategia='pesos',
         if tipo == 'espacial' and len(set(grupos[y == c])) == 1:
             avisos.append(('categoria_en_una_zona', nombre[c]))
 
-    import warnings
-    warnings.filterwarnings('ignore', message='y_pred contains classes not in y_true')
-    predicho = np.full(len(y), -1, dtype=int)
-    pmax = np.full(len(y), np.nan)
-    parte_de = np.full(len(y), -1, dtype=int)
+    # Lo que cada muestra recibe cuando le toca ser validada: no la categoría, sino
+    # las probabilidades de las que sale (ver repartir). La categoría se decide
+    # después, con la regla de «¿borreguil o no?» (aplicar_regla), y se puede cambiar
+    # de umbral sin volver a entrenar.
+    n = len(y)
+    v_pborr, v_ptipo, v_pno = (np.zeros(n, np.float32) for _ in range(3))
+    v_tipo = np.full(n, -1, dtype=int)
+    parte_de = np.full(n, -1, dtype=int)
     pliegues = []
+    # Para la importancia por permutación: qué se desordena cada vez. Primero cada
+    # variable por separado; después, juntas, las de cada familia (el mismo índice en
+    # distintos momentos) y las de cada grupo del catálogo (la misma época u origen).
+    nv = X.shape[1]
+
+    def agrupadas(clave_de):
+        columnas = {}
+        for j, variable in enumerate(tab['predictores']):
+            columnas.setdefault(clave_de(variable), []).append(j)
+        return columnas
+
+    de_familia = agrupadas(familia)
+    de_grupo = agrupadas(lambda variable: _GRUPO_DE.get(variable, ''))
+    conjuntos, lugar = [], {}             # sin repetir: un conjunto de una es esa variable
+    for cols in ([[j] for j in range(nv)] + list(de_familia.values())
+                 + list(de_grupo.values())):
+        if tuple(cols) not in lugar:
+            lugar[tuple(cols)] = len(conjuntos)
+            conjuntos.append(cols)
+    reps = max(REPETICIONES_MIN, min(REPETICIONES_MAX,
+                                     FILAS_PERMUTADAS // (len(conjuntos) * n)))
+    azar = np.random.default_rng(semilla)
+    d_pborr = np.zeros((reps, len(conjuntos), n), np.float32)
+    d_tipo = np.full((reps, len(conjuntos), n), -1, dtype=np.int16)
+
+    def lo_que_ve(m, filas):
+        """(probabilidad de borreguil, tipo más probable) que da `m` a cada fila. Las
+        filas se reparten en trozos que se predicen a la vez, pero cada trozo suma los
+        árboles en su orden (el modelo predice con un solo procesador): sale lo mismo
+        en cualquier ordenador."""
+        from joblib import Parallel, delayed
+        cortes = np.linspace(0, len(filas), max(1, len(filas) // TROZO_PERMUTACION) + 1,
+                             dtype=int)
+
+        def trozo(a, b):
+            return repartir(m.predict_proba(filas[a:b]), m.classes_)[:2]
+
+        partes = Parallel(n_jobs=-1, prefer='threads')(
+            delayed(trozo)(a, b) for a, b in zip(cortes[:-1], cortes[1:]))
+        return (np.concatenate([p_[0] for p_ in partes]),
+                np.concatenate([p_[1] for p_ in partes]))
+
+    def predecir_desordenado(m, valida):
+        """Lo que da `m` a las muestras de `valida` con cada conjunto de variables
+        desordenado entre ellas, `reps` veces."""
+        Xv = X[valida].astype(np.float32)        # como ve los datos el bosque por dentro
+        nc, nval = len(conjuntos), len(valida)
+        de_una_vez = max(1, LOTE_PERMUTACION // (nc * nval))    # repeticiones por tanda
+        for r0 in range(0, reps, de_una_vez):
+            tanda = range(r0, min(reps, r0 + de_una_vez))
+            filas = np.repeat(Xv[None, :, :], len(tanda) * nc, axis=0)
+            for k in range(len(tanda)):
+                for c, cols in enumerate(conjuntos):
+                    # el mismo desorden para todo el conjunto: dentro de un grupo, las
+                    # variables siguen yendo juntas
+                    filas[k * nc + c][:, cols] = Xv[azar.permutation(nval)][:, cols]
+            pb, tp = lo_que_ve(m, filas.reshape(-1, nv))
+            pb, tp = pb.reshape(len(tanda), nc, nval), tp.reshape(len(tanda), nc, nval)
+            for k, r in enumerate(tanda):
+                d_pborr[r][:, valida] = pb[k]
+                d_tipo[r][:, valida] = tp[k]
+
     for i, (entrena, valida) in enumerate(partes, 1):
         usadas = para_entrenar(entrena)
-        m = nuevo_modelo().fit(X[usadas], y[usadas])
-        prob = m.predict_proba(X[valida])
-        predicho[valida] = m.classes_[np.argmax(prob, axis=1)]
-        pmax[valida] = prob.max(axis=1)
+        m = entrenado(usadas)
+        pb, tp, pt, pn = repartir(m.predict_proba(X[valida]), m.classes_)
+        v_pborr[valida], v_tipo[valida], v_ptipo[valida] = pb, tp, pt
+        # un modelo que no ha visto ningún «no borreguil» no le da ninguna probabilidad
+        v_pno[valida] = 0.0 if pn is None else pn
         parte_de[valida] = i
+        predecir_desordenado(m, valida)
         vistas = set(int(c) for c in m.classes_)
         pliegues.append({
             'parte': i, 'n_entrena': int(len(usadas)), 'n_valida': int(len(valida)),
             'zonas_valida': sorted(set(grupos[valida])),
-            'exactitud': float(accuracy_score(y[valida], predicho[valida])),
-            'exactitud_equilibrada': float(balanced_accuracy_score(y[valida],
-                                                                   predicho[valida])),
-            'macro_f1': float(f1_score(y[valida], predicho[valida], average='macro',
-                                       labels=sorted(set(int(c) for c in y[valida])),
-                                       zero_division=0)),
             'categorias_sin_entrenar': [nombre[c] for c in presentes if c not in vistas],
         })
 
-    matriz = confusion_matrix(y, predicho, labels=presentes)
-    prec, rec, f1, sop = precision_recall_fscore_support(
-        y, predicho, labels=presentes, zero_division=0)
-    por_clase = [{'categoria': nombre[c], 'codigo': c, 'precision': float(prec[i]),
-                  'recall': float(rec[i]), 'f1': float(f1[i]), 'n_validacion': int(sop[i])}
-                 for i, c in enumerate(presentes)]
-    confusiones = sorted(
-        [(nombre[presentes[a]], nombre[presentes[b]], int(matriz[a, b]))
-         for a in range(len(presentes)) for b in range(len(presentes))
-         if a != b and matriz[a, b] > 0], key=lambda t: -t[2])
-    predicciones = [{
-        'ID': f['ID'], 'indice': f['indice'], 'zona': str(grupos[i]),
-        'parte': int(parte_de[i]), 'real': nombre[int(y[i])],
-        'predicha': nombre[int(predicho[i])], 'acierta': bool(y[i] == predicho[i]),
-        'confianza': float(pmax[i])} for i, f in enumerate(tab['filas'])]
-
     # ---- 2) modelo final, con todas las muestras
-    todas = para_entrenar(np.arange(len(y)))
-    modelo = nuevo_modelo().fit(X[todas], y[todas])
+    todas = para_entrenar(np.arange(n))
+    modelo = entrenado(todas)
 
     def cuenta(pos):
         return {nombre[c]: int(np.sum(y[pos] == c)) for c in presentes}
 
     from datetime import datetime
-    return {
+    mod = {
         'nivel': tab['nivel'], 'codigos': dict(tab['codigos']),
         'categorias': [{'categoria': nombre[c], 'codigo': c} for c in presentes],
         'predictores': list(tab['predictores']), 'params': p,
         'balance': {'estrategia': estrategia,
                     'razon_maxima': razon_maxima if con_recorte else None,
                     'class_weight': 'balanced' if con_pesos else None,
-                    'original': cuenta(np.arange(len(y))), 'final': cuenta(todas)},
+                    'original': cuenta(np.arange(n)), 'final': cuenta(todas)},
         'validacion': {'tipo': tipo, 'particiones': k, 'n_zonas': n_zonas,
                        'avisos': avisos},
         'pliegues': pliegues,
-        'matriz': [[int(v) for v in fila] for fila in matriz],
-        'por_clase': por_clase,
-        'exactitud': float(accuracy_score(y, predicho)),
-        'exactitud_equilibrada': float(balanced_accuracy_score(y, predicho)),
-        'macro_f1': float(f1_score(y, predicho, average='macro', labels=presentes,
-                                   zero_division=0)),
-        'confusiones': confusiones, 'predicciones': predicciones,
-        'modelo': modelo, 'n_muestras': int(len(y)), 'n_entrenadas': int(len(todas)),
+        # dónde está cada muestra y qué es: para compararlas después con el mapa
+        'muestras': [{'ID': f['ID'], 'lon': f['lon'], 'lat': f['lat'],
+                      'categoria': f['categoria'], 'codigo': f['codigo']}
+                     for f in tab['filas']],
+        'modelo': modelo, 'n_muestras': int(n), 'n_entrenadas': int(len(todas)),
         'firma': firma_tabla(tab),
         'cuando': datetime.now().isoformat(timespec='seconds'),
+        # Con esto se rehacen las cifras de la validación y el peso de las variables
+        # para cualquier umbral, sin volver a entrenar (aplicar_regla).
+        '_validacion': {
+            'y': y, 'presentes': presentes, 'parte': parte_de,
+            'p_borr': v_pborr, 'tipo': v_tipo, 'p_tipo': v_ptipo, 'p_no': v_pno,
+            'filas': [{'ID': f['ID'], 'indice': f['indice'], 'zona': str(grupos[i]),
+                       'parte': int(parte_de[i])} for i, f in enumerate(tab['filas'])]},
+        '_permutacion': {
+            'p_borr': d_pborr, 'tipo': d_tipo, 'repeticiones': int(reps),
+            'lugar': lugar, 'de_familia': de_familia, 'de_grupo': de_grupo,
+            'impureza': modelo.feature_importances_},
     }
+    # ---- 3) la regla de «¿borreguil o no?», las cifras de la validación y el peso
+    # de las variables. De entrada, el umbral de mayor F1 en la validación.
+    return aplicar_regla(mod, CRITERIO_DEFECTO)
 
 
 def mensaje_validacion(item, en=False, traduce=None):
@@ -857,6 +1582,34 @@ NO_DISPONIBLES = (
 )
 
 
+_GRUPO_DE = {p[0]: p[1] for p in PREDICTORES}        # variable → su grupo
+
+# Familias: variables que salen del mismo índice (el NDVI de inicio de verano, el de
+# fin y su caída) o de la topografía. Se parecen mucho entre sí, así que su peso se
+# mira también juntas. (clave: nombre en español, nombre en inglés)
+FAMILIAS = {
+    'ndvi': ('NDVI · vigor de la vegetación', 'NDVI · vegetation vigour'),
+    'ndwi': ('NDWI · agua en superficie', 'NDWI · surface water'),
+    'clre': ('Clorofila · borde del rojo', 'Chlorophyll · red edge'),
+    'ndmi': ('NDMI · humedad de la vegetación', 'NDMI · vegetation moisture'),
+    'evi': ('EVI · vigor corregido', 'EVI · corrected vigour'),
+    'nbr': ('NBR · infrarrojo de onda corta', 'NBR · short-wave infrared'),
+    'wavi': ('WAVI · vegetación sobre agua', 'WAVI · vegetation over water'),
+    'albedo': ('Albedo · brillo de la superficie', 'Albedo · surface brightness'),
+    'topo': ('Topografía', 'Topography'),
+}
+
+
+def familia(nombre):
+    """La familia de un predictor: el índice del que sale, o la topografía."""
+    return 'topo' if _GRUPO_DE.get(nombre) == G_TOPO else nombre.split('_')[0]
+
+
+def nombre_familia(clave, en=False):
+    es, eng = FAMILIAS.get(clave, (clave, clave))
+    return eng if en else es
+
+
 def nombre_grupo(grupo, en=False):
     return GRUPOS_EN.get(grupo, grupo) if en else grupo
 
@@ -867,6 +1620,30 @@ def descripcion(nombre, en=False):
         if n == nombre:
             return eng if en else es
     return ''
+
+
+def importancia_csv(mod, en=False):
+    """La importancia de las variables de un modelo, como texto CSV: una fila por
+    variable, de la que más pesa a la que menos."""
+    import csv
+    import io
+    campos = ['orden', 'variable', 'que_mide', 'familia', 'grupo',
+              'importancia_permutacion', 'desviacion', 'importancia_interna',
+              'orden_interno']
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=campos, lineterminator='\n')
+    w.writeheader()
+    for v in mod['importancia']['variables']:
+        w.writerow({
+            'orden': v['orden'], 'variable': v['variable'],
+            'que_mide': descripcion(v['variable'], en),
+            'familia': nombre_familia(v['familia'], en),
+            'grupo': nombre_grupo(v['grupo'], en),
+            'importancia_permutacion': f"{v['permutacion']:.6f}",
+            'desviacion': f"{v['desviacion']:.6f}",
+            'importancia_interna': f"{v['impureza']:.6f}",
+            'orden_interno': v['orden_impureza']})
+    return buf.getvalue()
 
 
 def nombres_predictores(grupos=None):
