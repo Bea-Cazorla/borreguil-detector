@@ -108,9 +108,53 @@ def selftest(res: Path) -> int:
         import borreguil_pipeline as bp
         bp._imports()
     comprobar('importar el pipeline y sus dependencias', _pipeline)
-    comprobar('módulos de la interfaz (point_profile, i18n, mapeo_rf)',
+    comprobar('módulos de la interfaz (point_profile, i18n, mapeo_rf, mapeo_raster, '
+              'mapeo_tif, mapeo_ambiente)',
               lambda: (__import__('point_profile'), __import__('i18n'),
-                       __import__('mapeo_rf')))
+                       __import__('mapeo_rf'), __import__('mapeo_raster'),
+                       __import__('mapeo_tif'), __import__('mapeo_ambiente')))
+
+    # El mapa de tipos usa partes de shapely, pyproj y Pillow que nada más toca, y
+    # escribe sus GeoTIFF con tifffile (sin rasterio: Windows lo bloquea en algunos
+    # equipos).
+    def _mapa_de_tipos():
+        import tempfile
+        import numpy as np
+        from shapely.geometry import box
+        import mapeo_raster as mra
+        import mapeo_tif as mt
+        rej = mra.rejilla((500000, 4100000, 500040, 4100040), 32630)
+        dentro = mra.dentro(box(500000, 4100000, 500020, 4100040), rej, (0, 0, 4, 4))
+        if int(dentro.sum()) != 8:
+            raise RuntimeError(f'la máscara de una zona sale mal ({int(dentro.sum())} de 8)')
+        mra.limites_lonlat(rej)
+        with tempfile.TemporaryDirectory() as tmp:
+            ruta = Path(tmp) / 'prueba.tif'
+            mt.escribir(ruta, rej, np.arange(16, dtype='uint8').reshape(4, 4), sin_dato=255)
+            with mt.abrir(ruta) as f:
+                if f.rej != rej or int(f.valor(3, 3)) != 15:
+                    raise RuntimeError('un GeoTIFF no se lee como se escribió')
+        if not mra.a_png(np.zeros((2, 2, 4), dtype='uint8')).startswith('data:image/png'):
+            raise RuntimeError('no se pudo crear una imagen PNG')
+    comprobar('piezas del mapa de tipos (rejilla, máscara, GeoTIFF, PNG)', _mapa_de_tipos)
+
+    # El ambiente por cercanía usa scipy.ndimage (distancias, manchas) y shapely (pintar
+    # los cauces en la rejilla).
+    def _ambiente_por_cercania():
+        import numpy as np
+        from shapely.geometry import LineString
+        import mapeo_ambiente as ma
+        ff, cc = np.mgrid[0:40, 0:31]
+        cauce = ma.cauces_del_relieve(3000.0 - 2.0 * ff + 3.0 * np.abs(cc - 15), 1.0)
+        if not cauce[30:, 15].all() or cauce[:, 5].any():
+            raise RuntimeError('los cauces del relieve salen mal')
+        rej = {'epsg': 32630, 'escala': 10, 'x0': 500000.0, 'y0': 4100400.0,
+               'ancho': 31, 'alto': 40}
+        linea = ma.rasterizar(LineString([(500005, 4100205), (500305, 4100205)]), rej)
+        if int(linea.sum()) != 31 or float(ma.distancia(linea)[10, 3]) != 90.0:
+            raise RuntimeError('la distancia a un cauce sale mal')
+    comprobar('piezas del ambiente por cercanía (relieve, cauces, distancias)',
+              _ambiente_por_cercania)
     comprobar('streamlit', lambda: __import__('streamlit'))
     comprobar('scipy.ndimage', lambda: __import__('scipy.ndimage', fromlist=['ndimage']))
     comprobar('sklearn', lambda: __import__('sklearn.ensemble', fromlist=['ensemble']))

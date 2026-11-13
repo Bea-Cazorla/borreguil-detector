@@ -9,7 +9,12 @@ scikit-image>=0.21
 geopandas>=0.13
 shapely>=2.0.7
 pyproj>=3.5
+# rasterio (GDAL) solo lo usa el detector al leer rásteres en local (Planetary
+# Computer, Sentinel-1). El mapa de tipos no: Windows lo bloquea en algunos equipos.
 rasterio>=1.3
+# Con él escribe y lee el mapa de tipos sus GeoTIFF. Es Python puro (probado con
+# 2026.6.1) y scikit-image ya lo trae.
+tifffile>=2022.8.12
 requests>=2.31
 pillow>=9.5
 openpyxl>=3.1

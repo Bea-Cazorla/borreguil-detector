@@ -70,7 +70,8 @@ for pkg in ('pyproj', 'geopandas', 'shapely', 'rasterio', 'fiona', 'pyogrio'):
     add_package(pkg)
 
 # --- Ciencia de datos -------------------------------------------------------
-for pkg in ('sklearn', 'scipy', 'skimage', 'joblib', 'numpy', 'pandas'):
+# (tifffile: con él escribe y lee el mapa sus GeoTIFF, sin rasterio)
+for pkg in ('sklearn', 'scipy', 'skimage', 'tifffile', 'joblib', 'numpy', 'pandas'):
     add_package(pkg)
 
 # --- Servicios remotos ------------------------------------------------------
@@ -102,7 +103,8 @@ hiddenimports += [
 # app.py como un script; launcher.py añade esta carpeta a sys.path para que los
 # `import borreguil_pipeline`, `import i18n`, etc. funcionen.
 for name in ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
-             'gee_backend.py', 'random_points.py', 'study_area.py', 'mapeo_rf.py'):
+             'gee_backend.py', 'random_points.py', 'study_area.py', 'mapeo_rf.py',
+             'mapeo_raster.py', 'mapeo_tif.py', 'mapeo_ambiente.py'):
     p = APP_DIR / name
     if p.exists():
         datas.append((str(p), '.'))
