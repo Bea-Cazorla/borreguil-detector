@@ -15,7 +15,7 @@ USO:
 La app permite a un experto de cualquier zona protegida:
 1. Subir un KML/Shapefile/GeoJSON con puntos candidatos
 2. Opcionalmente subir un fichero de verdad-terreno
-3. Lanzar el pipeline (descarga ESRI, OSM, DEM, Sentinel-2; clasifica con RF)
+3. Lanzar el pipeline (descarga ESRI, cauces de OSM, DEM, Sentinel-2; clasifica con RF)
 4. Inspeccionar resultados en un mapa interactivo Folium
 5. Descargar Excel + CSV + mapa HTML
 """
@@ -87,6 +87,62 @@ def model_path(name):
     """Ruta de un modelo por nombre: primero la carpeta del usuario, luego la de la app."""
     p = DATA_DIR / name
     return p if p.exists() else APP_DIR / name
+
+
+def modelo_sin_radar(ruta):
+    """Versión SIN radar de un modelo incluido en la app (carpeta sin_radar/), o None.
+
+    Con Planetary Computer (o «Saltar Sentinel-2») el radar no se lee. El modelo con
+    radar, si le falta, acierta bastante menos (AUC 0,793 frente a 0,847) que uno
+    entrenado desde el principio sin él (0,833). Solo los modelos que vienen con la app
+    tienen esta versión; los que guarda quien usa la app, no."""
+    if not ruta:
+        return None
+    p = Path(ruta)
+    try:
+        if p.resolve().parent != APP_DIR.resolve():
+            return None
+    except OSError:
+        return None
+    return bp.ruta_sin_radar(APP_DIR / p.name)
+
+
+def modelo_segun_radar(ruta, hay_radar):
+    """El modelo que se usa de verdad: el elegido o, si no se ha leído el radar, su
+    versión sin radar (si la tiene)."""
+    if hay_radar:
+        return ruta
+    q = modelo_sin_radar(ruta)
+    return str(q) if q is not None else ruta
+
+
+@st.cache_data(show_spinner=False)
+def _auc_modelo(ruta, mtime):
+    """AUC (validación por cuencas) guardado en un modelo; `mtime` renueva la caché."""
+    try:
+        v = bp.load_model_bundle(ruta).get('auc_groupkfold')
+        return float(v) if isinstance(v, (int, float)) else None
+    except Exception:
+        return None
+
+
+def _es_sin_radar(info):
+    """¿Ha dado la probabilidad la versión sin radar del modelo?"""
+    info = info or {}
+    return 'sin radar' in (str(info.get('training_zone', '')) + ' '
+                           + str(info.get('zona_partida', ''))).lower()
+
+
+@st.cache_resource(show_spinner=False)
+def tabla_entrenamiento():
+    """Los puntos con los que se entrenó el modelo de Sierra Nevada (796, con sus
+    variables), o None si la tabla no está. Sirven para verlos en el mapa y para
+    reentrenar el modelo sumando los puntos de quien usa la app. No se modifican."""
+    p = APP_DIR / bp.TABLA_ENTRENAMIENTO
+    try:
+        return bp.leer_tabla_entrenamiento(p) if p.exists() else None
+    except Exception:
+        return None
 
 
 def _es_modelo_real(p):
@@ -166,10 +222,61 @@ def get_secret(key, default=None):
     return os.environ.get(key, default)
 
 
+# ── Manual y sugerencias (24-11, como en MonitorEO) ────────────────────────────
+# La wiki del repositorio, en español e inglés, y sus plantillas de issues (error y
+# sugerencia, en .github/ISSUE_TEMPLATE). El formulario anónimo, para quien no tiene
+# cuenta de GitHub, está pendiente de decidir (el del equipo de MonitorEO, con esta app
+# como opción, o uno propio): mientras esté vacío no se enseña.
+REPO_URL = 'https://github.com/Bea-Cazorla/borreguil-detector'
+WIKI_URL = REPO_URL + '/wiki'
+FORMULARIO_URL = ''
+
+
+def version_app():
+    """La versión de CITATION.cff ('' si no se puede leer)."""
+    import re
+    try:
+        texto = (APP_DIR / 'CITATION.cff').read_text(encoding='utf-8')
+    except OSError:
+        return ''
+    m = re.search(r'^version:\s*"?([^"\s#]+)', texto, re.M)
+    return m.group(1) if m else ''
+
+
+def enlaces_sugerencias(version=None):
+    """{'issue': una issue nueva de GitHub (elegir error o sugerencia) con la versión
+    ya puesta, 'form': el formulario anónimo o '' si no hay, 'wiki': el manual}."""
+    import urllib.parse
+    version = version_app() if version is None else version
+    issue = REPO_URL + '/issues/new/choose'
+    if version:
+        issue += '?' + urllib.parse.urlencode({'version': version})
+    return {'issue': issue, 'form': FORMULARIO_URL, 'wiki': WIKI_URL}
+
+
+def mostrar_sugerencias():
+    """El manual y cómo sugerir un cambio o informar de un error."""
+    e = enlaces_sugerencias()
+    st.markdown(i18n.pick(
+        f'📖 [Manual (wiki), en español e inglés]({e["wiki"]})\n\n'
+        f'💬 **Sugerir un cambio o informar de un error**:\n'
+        f'- [En GitHub]({e["issue"]}): público, con una cuenta de GitHub; puedes pegar '
+        'pantallazos y seguir la respuesta.'
+        + (f'\n- [Formulario anónimo]({e["form"]}): sin cuenta, nombre ni correo.'
+           if e['form'] else ''),
+        f'📖 [Manual (wiki), in Spanish and English]({e["wiki"]})\n\n'
+        f'💬 **Suggest a change or report an error**:\n'
+        f'- [On GitHub]({e["issue"]}): public, with a GitHub account; you can paste '
+        'screenshots and follow the answer.'
+        + (f'\n- [Anonymous form]({e["form"]}): no account, no name and no email.'
+           if e['form'] else '')))
+    st.caption(i18n.pick(
+        'No pegues coordenadas de borreguiles: son un hábitat sensible.',
+        'Do not paste the coordinates of borreguiles: they are a sensitive habitat.'))
+
+
 def render_docs():
     """Pestaña de documentación y recomendaciones (cuerpo ancho, no el sidebar)."""
-    _has_key = bool(get_secret('PL_API_KEY', None) or os.environ.get('PL_API_KEY', ''))
-
     st.markdown('## 📖 Documentación y recomendaciones')
     st.markdown(
         'Esta herramienta identifica **borreguiles** (cervunales higroturbosos / '
@@ -180,34 +287,30 @@ def render_docs():
     # ---- 1. Estrategia de modelos -------------------------------------------
     st.markdown('### 🧭 ¿Qué modelo elegir?')
     st.markdown(
-        'Todos los modelos parten de las **mismas 50 variables base** (imagen aérea + '
-        'topografía + Sentinel-2 + Sentinel-1). Las variantes añaden una fuente de '
-        '**muy alta resolución** que sube el AUC. **La app extrae automáticamente la '
-        'fuente extra** que el modelo elegido necesite — tú solo eliges el modelo.')
+        'Todos los modelos parten de las **mismas variables base** (imagen aérea + '
+        'topografía + Sentinel-2 + Sentinel-1); de cada grupo de variables que dicen '
+        'lo mismo usan una sola (27 en el modelo base). Las variantes añaden una '
+        'fuente de **muy alta resolución** que sube el AUC. **La app extrae '
+        'automáticamente la fuente extra** que el modelo elegido necesite — tú solo '
+        'eliges el modelo.')
     st.table({
         'Tu zona': ['🇪🇸 Andalucía · Cataluña · Canarias',
-                    '🌍 Fuera de España / resto de CCAA',
-                    '🗺️ Cualquier zona, sin claves',
-                    '🎯 Andalucía/Cat./Canarias + clave Planet'],
-        'Modelo recomendado': ['rf_sierra_nevada_cir',
-                               'rf_sierra_nevada_planet',
-                               'rf_sierra_nevada',
-                               'rf_sierra_nevada_combo'],
-        'Variables': ['56', '60', '50', '66'],
-        'AUC honesto': ['0,914', '0,888', '0,868', '0,918'],
-        'Requisitos': ['Gratis (PNOA IR 0,25 m)',
-                       'Clave Planet (PL_API_KEY)',
-                       'Ninguno — universal',
-                       'Ambos (mejora marginal +0,004)'],
+                    '🌍 Cualquier otra zona'],
+        'Modelo recomendado': ['rf_sierra_nevada_cir', 'rf_sierra_nevada'],
+        'Variables': ['32', '27'],
+        'AUC honesto': ['0,945', '0,847'],
+        'Requisitos': ['Gratis (PNOA IR 0,25 m)', 'Ninguno — universal'],
     })
-    st.markdown(
-        '- **El mejor resultado en Sierra Nevada es el modelo `_cir`, y es gratis** '
-        '(0,914). Úsalo siempre que trabajes en Andalucía, Cataluña o Canarias.\n'
-        '- **Fuera de España** (o en CCAA sin ortofoto infrarroja) usa `_planet`: '
-        'cobertura mundial a 3 m, pero consume cuota de tu suscripción Planet.\n'
-        '- El modelo `_combo` (66) es el más alto en términos absolutos, pero la mejora '
-        'sobre `_cir` (+0,004) está dentro del ruido: **no compensa** la doble '
-        'dependencia salvo casos límite.')
+    st.markdown(i18n.pick(
+        '- **El mejor resultado es el del modelo `_cir`, y es gratis** (AUC 0,945). '
+        'Úsalo siempre que trabajes en Andalucía, Cataluña o Canarias.\n'
+        '- **En el resto de España y fuera** usa el modelo base, `rf_sierra_nevada` '
+        '(AUC 0,847).',
+        '- **The best result is that of the `_cir` model, and it is free** (AUC '
+        '0.945). Use it whenever you work in Andalusia, Catalonia or the Canary '
+        'Islands.\n'
+        '- **Elsewhere in Spain and abroad** use the base model, `rf_sierra_nevada` '
+        '(AUC 0.847).'))
 
     # ---- 2. Cobertura geográfica del CIR ------------------------------------
     st.markdown('### 🗺️ Cobertura de la ortofoto infrarroja (modelo `_cir`, gratis)')
@@ -220,7 +323,7 @@ def render_docs():
             '- **Canarias** → Teide, Garajonay, Caldera de Taburiente')
     with c2:
         st.warning(
-            '**❌ Sin WMS infrarrojo** (usa `_planet` o las 50 base)\n\n'
+            '**❌ Sin WMS infrarrojo** (usa el modelo base)\n\n'
             '- **Aragón** → Ordesa y Monte Perdido\n'
             '- **Cantabria / Castilla y León** → Picos de Europa\n'
             '- **Madrid / CyL** → Sierra de Guadarrama')
@@ -231,114 +334,575 @@ def render_docs():
         'variables IR son comparables pero no idénticas → para máxima precisión, entrena '
         'con verdad-terreno local.')
 
-    # ---- 3. Configurar la clave de Planet -----------------------------------
-    st.markdown('### 🔑 Configurar el acceso a Planet (PlanetScope 3 m)')
-    if _has_key:
-        st.success('✓ Clave Planet **detectada**. El modelo `_planet` (y `_combo`) '
-                   'extraerá PlanetScope automáticamente al ejecutar el pipeline.')
-    else:
-        st.info('Aún **no hay clave Planet** configurada. Sigue los pasos de abajo.')
-    st.markdown('**Uso local (tu ordenador):** crea el archivo '
-                '`borreguil_app/.streamlit/secrets.toml` con este contenido:')
-    st.code('PL_API_KEY = "TU_CLAVE_PLANET_AQUI"', language='toml')
-    st.markdown(
-        'Ese archivo **no se sube a git** (está en `.gitignore`), así que tu clave queda '
-        'privada. Reinicia la app y el acceso a Planet se activa solo.\n\n'
-        '**Deploy en Streamlit Cloud:** no subas el archivo. En el panel de tu app entra '
-        'en **Settings → Secrets** y pega ahí la misma línea `PL_API_KEY = "…"`.')
-    st.warning('⚠ La clave da acceso a tu cuenta Planet de pago (consume cuota de km²). '
-               'No la compartas en texto plano ni la subas al repositorio. Si crees que '
-               'se ha expuesto, rótala en planet.com.')
-
     # ---- 4. Fuentes de datos y variables ------------------------------------
     st.markdown('### 🛰️ Fuentes de datos y variables del modelo')
     st.table({
         'Fuente': ['Imagen aérea (ESRI / PNOA)', 'Copernicus DEM 30 m',
-                   'Sentinel-2 L2A (2017-2025)', 'Sentinel-1 RTC',
-                   'PNOA Falso Color IR 0,25 m', 'PlanetScope 8b SR 3 m'],
-        'Variables': ['12', '4', '29', '5', '6 (CIR)', '10 (Planet)'],
+                   'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
+                   'PNOA Falso Color IR 0,25 m'],
+        'Variables': ['8', '3', '11', '5', '5 (solo `_cir`)'],
         'Qué aporta': [
             'Textura, color, patrón y contexto alpino (% roca)',
-            'Pendiente, curvatura e índice de humedad topográfica (TWI)',
-            'NDVI/NDWI/Clre/NDMI… bi-temporales y estadísticos de verano',
-            'Humedad/estructura por radar (terrain-flattened, montaña)',
-            'Pseudo-NDVI a 25 cm: nitidez del borde de la mancha',
-            'NDVI/NDRE/textura a 3 m: borde abrupto que S2 promedia'],
+            'Altitud, pendiente y curvatura',
+            'NDVI/NDWI/NDMI… de inicio y fin de verano y estadísticos de verano',
+            'Humedad y estructura del suelo por radar, con el relieve corregido',
+            'Pseudo-NDVI a 25 cm: nitidez del borde de la mancha'],
     })
-    st.caption('Las dos últimas filas son las que usan los modelos `_cir` / `_planet`. '
-               'La variable más informativa de ambas es la **textura/contraste del NDVI a '
-               'alta resolución** — justo el borde nítido del borreguil contra el sustrato '
-               'pétreo, que Sentinel-2 (10 m) promedia y pierde.')
+    st.caption(i18n.pick(
+        'Las variables que usa el modelo: 27 en el base y 32 en el `_cir` (una por grupo '
+        'de las que dicen lo mismo). La última fila es la que añade el `_cir`: su variable '
+        'más informativa es el **contraste del NDVI a 25 cm**, justo el borde nítido del '
+        'borreguil contra el sustrato pétreo, que Sentinel-2 (10 m) promedia y pierde.',
+        'The variables the model uses: 27 in the base one and 32 in the `_cir` one (one '
+        'per group of those that say the same). The last row is what the `_cir` adds: its '
+        'most informative variable is the **NDVI contrast at 25 cm**, precisely the sharp '
+        'edge of the borreguil against the rocky substrate, which Sentinel-2 (10 m) '
+        'averages out and loses.'))
 
     # ---- 4b. Importancia de variables y lectura jerárquica ------------------
     st.markdown('### 🔑 Qué variables pesan más y cómo leer las gráficas')
-    st.markdown(
+    st.markdown(i18n.pick(
         'El modelo es un **Random Forest**: cada variable recibe una **importancia** '
-        '(0–100 %) según cuánto ayuda a separar *borreguil* de *no-borreguil*. En el panel '
-        '**📈 Perfil espectral** de cada punto (pestaña **Tabla**) verás este mismo ranking '
-        'arriba del todo: **léelo de arriba abajo** e interpreta primero las variables con más '
-        'peso. A la derecha de cada barra está el **rango típico de los borreguiles** (p25–p75): '
-        'si el valor del punto cae dentro de ese rango, se parece a un borreguil en esa variable.')
+        '(0–100 %) según cuánto ayuda a separar *borreguil* de *no-borreguil*. Muchas '
+        'variables son casi iguales (por ejemplo, 13 índices de verdor de Sentinel-2 con '
+        'correlación de 0,89 o más), así que el modelo usa **una sola de cada grupo**: '
+        'si usara todas, se repartiría el peso entre ellas y cada una parecería poco '
+        'importante. El acierto es el mismo.\n\n'
+        'Al seleccionar un punto (pestaña **Revisar puntos**), el panel **📈 Este punto frente a '
+        'los borreguiles verdaderos** muestra las variables que más pesan, **una por '
+        'grupo** de parecidas, y para cada una dónde cae el punto entre los borreguiles '
+        'con los que se entrenó el modelo: en la franja verde está la mitad central de '
+        'ellos.',
+        'The model is a **Random Forest**: each variable receives an **importance** '
+        '(0–100 %) according to how much it helps separate *borreguil* from '
+        '*non-borreguil*. Many variables are nearly identical (for example, 13 Sentinel-2 '
+        'greenness indices with a correlation of 0.89 or more), so the model uses **only '
+        'one from each group**: if it used them all, the weight would be shared among them '
+        'and each would look unimportant. The accuracy is the same.\n\n'
+        'When you select a point (**Review points** tab), the panel **📈 This point vs the real '
+        'borreguiles** shows the variables that weigh most, **one per group** of similar '
+        'ones, and for each one where the point falls among the borreguiles the model was '
+        'trained with: the green band holds the middle half of them.'))
     _mp = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada_cir.joblib'))
     _rs = load_ref_stats(_mp)
     _ic, _ = pp.chart_importance(_rs, topn=15) if _rs else (None, [])
     if _ic is not None:
         st.altair_chart(_ic, width='stretch')
-        st.caption(f'Ranking del modelo seleccionado (`{Path(_mp).name}`). Cambia según el modelo: '
-                   'en los `_cir` mandan la **textura/contraste del NDVI a 0,25 m** y la **altitud**; '
-                   'en el modelo base (50), la **altitud**, la **caída estacional de NDVI** y el '
-                   '**EVI de inicio de verano**. Altitud, pendiente, SAR y textura pesan pero no son '
-                   'índices espectrales, por eso no salen en los perfiles estacionales.')
+        st.caption(i18n.pick(
+            f'Ranking del modelo seleccionado (`{Path(_mp).name}`), variable a variable. '
+            'Cambia según el modelo: en los `_cir` manda el **contraste del NDVI a 0,25 m**; '
+            'en el modelo base, la **altitud**, la **caída estacional del NDVI**, la '
+            '**variación del NDWI** y el **NDVI de inicio de verano**. Cada modelo usa una '
+            'sola variable de cada grupo de las que dicen lo mismo, así que el peso no se '
+            'reparte entre repetidas.',
+            f'Ranking of the selected model (`{Path(_mp).name}`), variable by variable. It '
+            'changes with the model: in the `_cir` ones the **NDVI contrast at 0.25 m** '
+            'leads; in the base model, **elevation**, the **seasonal NDVI drop**, the '
+            '**NDWI variability** and **early-summer NDVI**. Each model uses a single '
+            'variable from each group of those that say the same, so the weight is not '
+            'shared among repeated ones.'))
     else:
         st.caption('Selecciona un modelo con `ref_stats` (reentrenado con `train_v5.py`) para ver el ranking.')
 
+    # ---- 4c. Cuántos puntos hacen falta (curva de Sierra Nevada, 24-11) ------
+    import mapeo_rf as mr      # aquí, como en «Mapa Modelo RF»: la app lo carga tarde
+    st.markdown(i18n.pick('### 📏 ¿Cuántos puntos necesito para el mapa?',
+                          '### 📏 How many points do I need for the map?'))
+    (_mn, _mb), (_rn, _rb) = mr.MINIMO_PUNTOS, mr.RECOMENDADO_PUNTOS
+    _todos = mr.CURVA_PUNTOS_SN[-1]
+    st.markdown(i18n.pick(
+        'El mapa de borreguil sí o no (**🌿 Mapa Modelo RF**) aprende de tus puntos '
+        'revisados, borreguiles y no borreguiles. Para saber cuántos hacen falta, se '
+        'repitió el procedimiento de la app con los 948 puntos revisados de Sierra Nevada '
+        '(315 borreguiles): se entrenó con 20, 30… hasta '
+        f'{_todos[0]} puntos elegidos al azar y se midió el acierto en zonas que el modelo '
+        'no había visto, 10 veces para cada número.\n\n'
+        f'- **Mínimo: unos {_mn} puntos revisados, con unos {_mb} borreguiles** (AUC '
+        f'{_num(mr.auc_esperado(_mn))}; con todos, {_num(_todos[2])}).\n'
+        f'- **Recomendado: unos {_rn}, con unos {_rb} borreguiles** (AUC '
+        f'{_num(mr.auc_esperado(_rn))}). Con más, el acierto apenas cambia.\n'
+        f'- **Con menos de {mr.POCOS_PUNTOS}**, el acierto baja y depende mucho de qué '
+        'puntos sean.\n\n'
+        'Es la referencia de Sierra Nevada: en una montaña más variada pueden hacer falta '
+        'más. Los puntos repartidos por toda la zona enseñan más que los concentrados en '
+        'pocos valles, y conviene una proporción parecida (aquí, 1 borreguil de cada 3). '
+        'En **🌿 Mapa Modelo RF → 1 · Datos** la app te dice dónde estás en esta curva.',
+        'The borreguil yes-or-no map (**🌿 RF model map**) learns from your reviewed '
+        'points, borreguiles and non-borreguiles. To find out how many are needed, the '
+        "app's procedure was repeated with the 948 reviewed points of Sierra Nevada (315 "
+        f'borreguiles): it was trained with 20, 30… up to {_todos[0]} points chosen at '
+        'random and its accuracy was measured in areas the model had not seen, 10 times '
+        'for each number.\n\n'
+        f'- **Minimum: about {_mn} reviewed points, with about {_mb} borreguiles** (AUC '
+        f'{_num(mr.auc_esperado(_mn))}; with all of them, {_num(_todos[2])}).\n'
+        f'- **Recommended: about {_rn}, with about {_rb} borreguiles** (AUC '
+        f'{_num(mr.auc_esperado(_rn))}). With more, the accuracy hardly changes.\n'
+        f'- **With fewer than {mr.POCOS_PUNTOS}**, the accuracy drops and depends a lot on '
+        'which points they are.\n\n'
+        'It is the Sierra Nevada reference: a more varied mountain may need more. Points '
+        'spread over the whole area teach more than points concentrated in a few valleys, '
+        'and a similar proportion helps (here, 1 borreguil in 3). Under **🌿 RF model map '
+        '→ 1 · Data** the app tells you where you are on this curve.'))
+    st.altair_chart(pp.chart_curva_puntos(
+        mr.CURVA_PUNTOS_SN, marcas=[(_mn, i18n.pick('Mínimo', 'Minimum')),
+                                    (_rn, i18n.pick('Recomendado', 'Recommended'))]),
+        width='stretch')
+    st.caption(i18n.pick(
+        'Línea: media de 10 repeticiones; franja: 8 de cada 10. Línea discontinua: con '
+        'todos los puntos. Mismo procedimiento que la app: VIF, Random Forest y '
+        'validación por zonas.',
+        'Line: mean of 10 repetitions; band: 8 out of 10. Dashed line: with all the '
+        "points. Same procedure as the app: VIF, Random Forest and spatial validation."))
+
     # ---- 5. Cómo usar la app ------------------------------------------------
     st.markdown('### ▶️ Flujo de trabajo')
-    st.markdown(
+    st.markdown(i18n.pick(
         '1. **Define el área** (vector, WDPA ID o nombre) o sube tus puntos candidatos.\n'
         '2. Elige el **modelo** según la tabla de arriba y la **fuente de imágenes** '
         '(PNOA en España, ESRI fuera).\n'
         '3. Pulsa **Ejecutar pipeline**. La app descarga cada fuente, extrae las '
-        'variables y predice.\n'
+        'variables y predice con el **modelo de partida**. Si tus puntos traen '
+        'etiquetas de campo, te dice cuántas acierta.\n'
         '4. Revisa el **mapa** y la **tabla** de resultados; ajusta el umbral; descarga '
         'Excel/CSV/GeoJSON.\n'
-        '5. *(Opcional)* marca borreguiles verificados en campo y **reentrena** en tu '
-        'zona (presence-only, mínimo ~30 positivos) para un modelo propio.')
+        '5. *(Opcional)* si tienes puntos de campo de tu zona, marca **«Sumar mis puntos a los del modelo y reentrenarlo»**: '
+        'la app vuelve a entrenar el modelo con sus 769 puntos de Sierra Nevada y los '
+        'tuyos juntos, y te dice cuánto acierta en tus puntos.',
+        '1. **Define the area** (vector, WDPA ID or name) or upload your candidate points.\n'
+        '2. Choose the **model** according to the table above and the **image source** '
+        '(PNOA in Spain, ESRI elsewhere).\n'
+        '3. Click **Run pipeline**. The app downloads each source, extracts the variables '
+        'and predicts with the **starting model**. If your points carry field labels, '
+        'it tells you how many it gets right.\n'
+        '4. Review the results **map** and **table**; adjust the threshold; download '
+        'Excel/CSV/GeoJSON.\n'
+        '5. *(Optional)* if you have field points from your area, tick **"Add my points to the model\'s and retrain it"**: '
+        'the app retrains the model with its 769 Sierra Nevada points and yours '
+        'together, and tells you how well it does on your points.'))
+
+    # ---- 6. Manual y sugerencias --------------------------------------------
+    st.markdown(i18n.pick('### 💬 Manual y sugerencias', '### 💬 Manual and suggestions'))
+    mostrar_sugerencias()
 
 
-def run_self_training_iteration(base_rows, promote_cutoff, mode, base_truth_ids,
-                                threshold, model_path):
-    """Una iteración de auto-entrenamiento (self-training / pseudo-labeling).
+# ---- Qué modelo ha dado la probabilidad y cuánto acierta con los puntos de campo ----
+def _zona_partida(info):
+    z = (info or {}).get('training_zone')
+    if not z or z == 'usuario':
+        z = (info or {}).get('zona_partida') or '?'
+    return str(z).split(' (')[0]
 
-    - Promueve a positivo cada punto con rf_proba >= promote_cutoff.
-    - mode='add'     → acumula: positivos = positivos previos ∪ promovidos.
-    - mode='replace' → refresca: positivos = verdad-terreno verificada ∪ promovidos
-      del modelo actual (no acumula pseudo-positivos antiguos).
-    Reentrena el RF (las features ya están), repredice y devuelve (rows2, info, stats).
-    """
-    rows2 = [dict(r) for r in base_rows]
 
-    # Etiquetas para el reentrenamiento. Las que puso una persona (ausencias de
-    # campo, puntos dudosos) se respetan y no se promueven.
-    sets = bp.self_training_labels(rows2, promote_cutoff, mode, base_truth_ids)
+def _titulo_modelo(info):
+    """Una línea: qué modelo ha dado la probabilidad de los puntos."""
+    if not info:
+        return i18n.pick('No se ha podido ejecutar el modelo.', 'The model could not be run.')
+    # Sin radar (Planetary Computer): se usa la versión del modelo entrenada sin él
+    sr = _es_sin_radar(info)
+    if info.get('sumado'):
+        z = _zona_partida(info)
+        return i18n.pick(
+            f'**Modelo usado: el de {z}' + (' (versión sin radar)' if sr else '')
+            + ' reentrenado sumando tus puntos**',
+            f'**Model used: the {z} model' + (' (version without radar)' if sr else '')
+            + ' retrained adding your points**')
+    if info.get('mode') == 'trained':
+        return i18n.pick('**Modelo usado: el entrenado con tus puntos**',
+                         '**Model used: the one trained with your points**')
+    z = _zona_partida(info)
+    return i18n.pick(
+        f'**Modelo usado: el de partida ({z}' + (', versión sin radar' if sr else '') + ')**'
+        + (', porque el radar no se ha leído' if sr else ''),
+        f'**Model used: the starting model ({z}' + (', version without radar' if sr else '')
+        + ')**' + (', because the radar was not read' if sr else ''))
 
-    info = bp.run_rf_and_decide(rows2, threshold=threshold, default_model_path=model_path)
 
-    # Distinguir en la decisión: verificado de campo vs pseudo-positivo automático
-    bp.self_training_decisions(rows2, sets)
+def _de(ok, n):
+    return '—' if not n else i18n.pick(f'{ok} de {n}', f'{ok} of {n}')
 
-    # Las decisiones han cambiado: se recalcula el tipo (lo revisado se conserva).
-    bp.apply_typology(rows2, pp.is_borreguil_decision)
 
-    stats = {
-        'n_promoted': len(sets['promoted']),
-        'n_prev_pos': len(sets['prev_pos']),
-        'n_new': len(sets['promoted'] - sets['prev_pos']),
-        # los dudosos no entrenan aunque estén etiquetados como borreguil
-        'n_train_pos': len(sets['new_pos'] - sets['dudosos']),
-        'n_base': len(sets['base']),
+def _nombre_columna(c):
+    """Cabecera de la Tabla de resultados en el idioma de la app. Las variables, con
+    el mismo nombre que en la ficha del punto."""
+    nombres = {
+        'cuenca_id': ('Cuenca', 'Basin'),
+        'source': ('Fuente', 'Source'),
+        'origin': ('Origen', 'Origin'),
+        'Borreguil': ('Borreguil (tu etiqueta)', 'Borreguil (your label)'),
+        'decision': ('Decisión', 'Decision'),
+        'rf_proba': ('Probabilidad', 'Probability'),
+        'ambiente': ('Ambiente', 'Environment'),
+        'humedad': ('Humedad', 'Moisture'),
+        'pureza': ('Pureza', 'Purity'),
+        'tipo_revisado': ('Tipo revisado', 'Type reviewed'),
+        'dist_cauce_m': ('Distancia al cauce (m)', 'Distance to stream (m)'),
     }
-    return rows2, info, stats
+    if c in nombres:
+        return i18n.pick(*nombres[c])
+    if c in ('ID', 'lat', 'lon'):
+        return c
+    return pp.etiqueta(c)
+
+
+def _texto_ids(ids, n_max=5):
+    """Los nombres de unos puntos, como mucho `n_max` (y «y N más»)."""
+    ids = [str(i) for i in ids]
+    txt = ', '.join(ids[:n_max])
+    if len(ids) > n_max:
+        txt += i18n.pick(f' y {len(ids) - n_max} más', f' and {len(ids) - n_max} more')
+    return txt
+
+
+def _msg_puntos(ids, es_1, es_n, en_1, en_n):
+    """Aviso tras verificar o quitar puntos: «SN_005 marcado como …» con uno, o «3
+    puntos marcados como …: SN_005, SN_006, SN_007» con varios."""
+    ids = list(ids)
+    if len(ids) == 1:
+        return i18n.pick(f'{ids[0]} {es_1}.', f'{ids[0]} {en_1}.')
+    return i18n.pick(f'{len(ids)} puntos {es_n}: {_texto_ids(ids)}.',
+                     f'{len(ids)} points {en_n}: {_texto_ids(ids)}.')
+
+
+def _num(v, nd=3, signo=False):
+    """Número para MOSTRARLO, con `nd` decimales: con coma decimal en español y con
+    punto en inglés ('—' si falta o no es un número). Sin separador de miles: en
+    español «20.910» se leería como veinte mil. Lo que se guarda y se descarga no
+    cambia. `signo`: con «+» delante de los positivos."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return '—'
+    if x != x:
+        return '—'
+    t = f'{x:+.{nd}f}' if signo else f'{x:.{nd}f}'
+    return t if i18n.get_lang() == 'en' else t.replace('.', ',')
+
+
+def _n3(v):
+    """Número con 3 decimales: con coma en español y con punto en inglés."""
+    return _num(v)
+
+
+def _con_coma(df, nd=3, decimales=None):
+    """La tabla para st.dataframe con sus columnas de decimales a `nd` cifras (o las
+    de `decimales`, {columna: cifras}) y, en español, con coma. Siguen siendo números
+    (se ordenan bien): solo cambia lo que se ve. Sus columnas no llevan `format` en
+    el column_config, que mandaría sobre esto."""
+    decimales = decimales or {}
+    flo = [c for c in df.columns if pd.api.types.is_float_dtype(df[c])]
+    if not flo or not len(df):
+        return df
+    return df.style.format(
+        {c: (lambda v, k=decimales.get(c, nd): _num(v, k)) for c in flo}, na_rep='—')
+
+
+def _var(n):
+    """Nombre legible de una variable (el de la Tabla y la ficha), no el del código."""
+    return pp.etiqueta(n)
+
+
+def _auc_txt(v):
+    if v is None:
+        return '—'
+    return _n3(v)
+
+
+def mostrar_modelo(info, threshold, casilla=None):
+    """Qué modelo se ha usado y por qué; cuánto acierta con los puntos de campo (y, si
+    se entrenó uno propio, los dos lado a lado); y con cuántas pseudo-ausencias se
+    entrenó el propio. `casilla`: «Sumar mis puntos…» marcada sin haber reentrenado
+    aún ('boton' si hay puntos con etiqueta para sumar, 'sin_puntos' si no)."""
+    if not info:
+        st.warning(_titulo_modelo(info))
+        return
+    pick = i18n.pick
+    modo, motivo, comp = info.get('mode'), info.get('motivo'), info.get('comparacion')
+    titulo, z = _titulo_modelo(info), _zona_partida(info)
+    sumado = bool(info.get('sumado'))
+    if sumado:
+        _n_t, _n_s = info.get('n_tabla', 0), info.get('n_pos', 0) + info.get('n_neg', 0)
+        _q = info.get('n_tabla_quitados', 0)
+        st.success(titulo + '. ' + pick(
+            f'Un solo modelo con todos los puntos: {_n_t} de {z} '
+            f'({info.get("n_tabla_si", 0)} borreguiles y {info.get("n_tabla_no", 0)} no) y '
+            f'{_n_s} tuyos ({info.get("n_pos", 0)} borreguiles y {info.get("n_neg", 0)} '
+            'ausencias).'
+            + (f' {_q} de los de {z} estaban en el mismo sitio que alguno tuyo: cuenta el '
+               'tuyo.' if _q else ''),
+            f'A single model with all the points: {_n_t} from {z} '
+            f'({info.get("n_tabla_si", 0)} borreguiles and {info.get("n_tabla_no", 0)} not) '
+            f'and {_n_s} of yours ({info.get("n_pos", 0)} borreguiles and '
+            f'{info.get("n_neg", 0)} absences).'
+            + (f' {_q} of the {z} ones were at the same place as one of yours: yours '
+               'counts.' if _q else '')))
+    elif modo == 'pretrained' and motivo == 'sin_puntos':
+        st.warning(titulo + '. ' + pick(
+            'Has marcado «Sumar mis puntos a los del modelo», pero ninguno de tus puntos '
+            'dice si es borreguil o no: se usa el modelo tal cual. Verifica puntos en la '
+            'pestaña Revisar puntos o añádelos pinchando en el mapa.',
+            'You ticked "Add my points to the model\'s", but none of your points says '
+            'whether it is a borreguil: the model is used as it is. Verify points in the '
+            'Review points tab or add them by clicking on the map.'))
+    elif modo == 'pretrained':
+        if motivo == 'comparado':
+            st.info(titulo + '. ' + pick(
+                'También se ha entrenado uno con tus puntos, pero acierta menos con tus '
+                'puntos de campo, así que se queda el de partida.',
+                'A model was also trained with your points, but it gets fewer of your field '
+                'points right, so the starting model is kept.'))
+        elif motivo == 'pocos_datos':
+            st.warning(titulo + '. ' + pick(
+                f'Has pedido entrenar también un modelo con tus puntos, pero hay pocos: '
+                f'{info.get("n_pos", 0)} borreguiles y {info.get("n_neg", 0)} negativos '
+                f'({info.get("n_neg_campo", 0)} ausencias de campo y '
+                f'{info.get("n_pseudo", 0)} pseudo-ausencias). Hacen falta al menos '
+                f'{bp.MIN_ENTRENAR} de cada; mejor 30 o más.',
+                f'You asked to also train a model with your points, but there are too few: '
+                f'{info.get("n_pos", 0)} borreguiles and {info.get("n_neg", 0)} negatives '
+                f'({info.get("n_neg_campo", 0)} field absences and '
+                f'{info.get("n_pseudo", 0)} pseudo-absences). At least {bp.MIN_ENTRENAR} '
+                'of each are needed; 30 or more is better.'))
+        elif motivo == 'sin_borreguiles':
+            st.warning(titulo + '. ' + pick(
+                'Has pedido entrenar también un modelo con tus puntos, pero no traen '
+                'ningún borreguil marcado.',
+                'You asked to also train a model with your points, but none of them is '
+                'marked as borreguil.'))
+        elif casilla == 'boton':
+            # La casilla está marcada pero el modelo aún no se ha reentrenado: el
+            # botón para hacerlo va justo debajo de este recuadro.
+            st.info(titulo + '. ' + pick(
+                'Has marcado «Sumar mis puntos a los del modelo y reentrenarlo»: pulsa el '
+                'botón de abajo para reentrenarlo ahora.',
+                'You ticked "Add my points to the model\'s and retrain it": press the '
+                'button below to retrain it now.'))
+        elif casilla == 'sin_puntos':
+            st.info(titulo + '. ' + pick(
+                'Has marcado «Sumar mis puntos a los del modelo y reentrenarlo», pero '
+                'ninguno de tus puntos dice todavía si es borreguil o no. Verifica puntos '
+                'en la pestaña Revisar puntos o añádelos pinchando en el mapa.',
+                'You ticked "Add my points to the model\'s and retrain it", but none of '
+                'your points says yet whether it is a borreguil. Verify points in the '
+                'Review points tab or add them by clicking on the map.'))
+        else:
+            st.info(titulo + '. ' + pick(
+                'Es lo que hace la app por defecto. Para que tus puntos con etiqueta se '
+                'sumen a los del modelo y reentrenarlo, marca «Sumar mis puntos a los del '
+                'modelo y reentrenarlo» en el panel.',
+                'This is what the app does by default. To add your labelled points to the '
+                'model\'s and retrain it, tick "Add my points to the model\'s and retrain '
+                'it" in the panel.'))
+    elif comp is None:
+        st.info(titulo + '.')
+    elif comp.get('motivo') == 'comparado':
+        st.success(titulo + '. ' + pick(
+            f'Acierta más con tus puntos de campo que el de partida ({z}).',
+            f'It gets more of your field points right than the starting model ({z}).'))
+    else:
+        razon = {
+            'pocos_de_campo': pick(
+                f'hacen falta al menos {bp.MIN_COMPARAR} borreguiles y {bp.MIN_COMPARAR} '
+                f'ausencias de campo, y hay {comp.get("n_si", 0)} y {comp.get("n_no", 0)}',
+                f'at least {bp.MIN_COMPARAR} field borreguiles and {bp.MIN_COMPARAR} field '
+                f'absences are needed, and there are {comp.get("n_si", 0)} and '
+                f'{comp.get("n_no", 0)}'),
+            'sin_partida': pick('no hay modelo de partida', 'there is no starting model'),
+        }.get(comp.get('motivo'), pick('la validación por zonas no ha funcionado',
+                                       'the spatial validation did not work'))
+        st.warning(titulo + '. ' + pick(
+            f'No se ha podido comparar con el de partida: {razon}. Su acierto no está '
+            'comprobado con datos de campo.',
+            f'It could not be compared with the starting model: {razon}. How well it '
+            'does has not been checked against field data.'))
+
+    ac = bp.aciertos_en_campo(info.get('evaluacion'), threshold)
+    if ac:
+        usado = 'propio' if modo == 'trained' else 'partida'
+        nombres = {'partida': pick(f'Modelo de partida ({z})', f'Starting model ({z})'),
+                   'propio': pick('Modelo con tus puntos (validación por zonas)',
+                                  'Model with your points (spatial validation)')}
+        if sumado:
+            nombres = {'partida': pick(f'Modelo de {z}, sin tus puntos',
+                                       f'{z} model, without your points'),
+                       'propio': pick('Sumando tus puntos (validación por zonas)',
+                                      'Adding your points (spatial validation)')}
+        tabla = ('| | ' + pick('Borreguiles de campo acertados', 'Field borreguiles right')
+                 + ' | ' + pick('Ausencias de campo acertadas', 'Field absences right')
+                 + ' | AUC |\n|---|---|---|---|\n')
+        for k in ('partida', 'propio'):
+            if k in ac:
+                a = ac[k]
+                marca = ' ✓' if (k == usado and len(ac) > 1) else ''
+                tabla += (f'| {nombres[k]}{marca} | {_de(a["ok_si"], a["n_si"])} | '
+                          f'{_de(a["ok_no"], a["n_no"])} | {_auc_txt(a["auc"])} |\n')
+        st.markdown(tabla)
+        _umbral_es = f'{threshold:.3f}'.replace('.', ',')
+        st.caption(pick(
+            f'Acertado: un borreguil de campo que el modelo da por probable o posible '
+            f'(umbral {_umbral_es}); una ausencia que no da por borreguil. AUC: 1 = '
+            'separa perfectamente borreguil de no borreguil; 0,5 = como tirar una moneda '
+            f'(se da con {bp.MIN_COMPARAR} borreguiles y {bp.MIN_COMPARAR} ausencias o '
+            'más). Si estos puntos se usaron para entrenar el modelo de partida, su '
+            'acierto sale más alto de lo real.',
+            f'Right: a field borreguil that the model calls probable or possible '
+            f'(threshold {_num(threshold)}); an absence that it does not call borreguil. '
+            'AUC: 1 = separates borreguil from non-borreguil perfectly; 0.5 = like '
+            f'tossing a coin (given with {bp.MIN_COMPARAR} borreguiles and '
+            f'{bp.MIN_COMPARAR} absences or more). If these points were used to train the '
+            'starting model, its accuracy comes out higher than it really is.'))
+        # El acierto según la certidumbre y el perfil de quien dio cada etiqueta
+        # (24-11): si el modelo falla sobre todo donde la revisión era dudosa, el fallo
+        # puede ser de la etiqueta y no del modelo.
+        _rev = bp.aciertos_por_revision(info.get('evaluacion'), threshold, usado)
+        if _rev:
+            _txt_val = {
+                'certidumbre': {'high': pick('Alta', 'High'), 'medium': pick('Media', 'Medium'),
+                                'low': pick('Baja', 'Low'), '': pick('Sin indicar', 'Not stated')},
+                'perfil': {'student': pick('Estudiante', 'Student'),
+                           'manager': pick('Gestor/a', 'Manager'),
+                           'researcher': pick('Investigador/a', 'Researcher'),
+                           '': pick('Sin indicar', 'Not stated')}}
+            _cab = {'certidumbre': pick('Certidumbre', 'Certainty'),
+                    'perfil': pick('Perfil de quien revisa', 'Reviewer profile')}
+            with st.expander(pick('Acierto según la certidumbre y el perfil de quien revisa',
+                                  'Accuracy by the certainty and profile of the reviewer')):
+                for clave, grupos in _rev.items():
+                    tb = (f'| {_cab[clave]} | '
+                          + pick('Borreguiles acertados', 'Borreguiles right') + ' | '
+                          + pick('Ausencias acertadas', 'Absences right')
+                          + ' |\n|---|---|---|\n')
+                    for v, a_ in grupos.items():
+                        tb += (f'| {_txt_val[clave][v]} | {_de(a_["ok_si"], a_["n_si"])} | '
+                               f'{_de(a_["ok_no"], a_["n_no"])} |\n')
+                    st.markdown(tb)
+                st.caption(pick(
+                    'Del modelo que se está usando. Si falla sobre todo en los puntos de '
+                    'certidumbre baja, puede que el error sea de la etiqueta y no del modelo.',
+                    'For the model in use. If it fails mostly on low-certainty points, the '
+                    'error may be in the label rather than in the model.'))
+        if sumado and 'propio' in ac:
+            st.caption(pick(
+                'Sumando tus puntos: cada grupo de tus puntos se predice con un modelo que '
+                f'no los ha visto, ni a los de {z} a menos de '
+                f'{bp.SEPARACION_CV_M} m de ellos, para no hacer trampa.',
+                'Adding your points: each group of your points is predicted with a model '
+                f'that has not seen them, nor the {z} points within '
+                f'{bp.SEPARACION_CV_M} m of them, so as not to cheat.'))
+        elif sumado:
+            st.caption(pick(
+                'Tus puntos están todos en la misma zona, así que no se puede medir sin '
+                'hacer trampa cuánto acierta el modelo sumándolos.',
+                'Your points are all in the same zone, so how well the model does when '
+                'adding them cannot be measured without cheating.'))
+    elif modo == 'pretrained':
+        st.caption(pick(
+            'Tus puntos no traen etiquetas de campo, así que no se puede medir cuánto '
+            'acierta en tu zona: revisa los puntos que propone (pestaña Revisar puntos).',
+            'Your points carry no field labels, so how well it does in your area cannot '
+            'be measured: review the points it proposes (Review points tab).'))
+
+    if info.get('n_pseudo'):
+        st.warning(pick(
+            f'Para entrenar el modelo con tus puntos se usaron {info.get("n_neg_campo", 0)} '
+            f'ausencias de campo y **{info["n_pseudo"]} pseudo-ausencias**: puntos sin '
+            f'etiqueta a más de {info.get("neg_buffer_m", 250)} m de un borreguil, que la '
+            'app da por no borreguil. Algunas pueden ser borreguiles que nadie ha '
+            'visitado. Cuantas más ausencias de campo (`presence` = 0) subas, más fiable '
+            'será.',
+            f'To train the model with your points, {info.get("n_neg_campo", 0)} field '
+            f'absences and **{info["n_pseudo"]} pseudo-absences** were used: unlabelled '
+            f'points more than {info.get("neg_buffer_m", 250)} m from a borreguil, which '
+            'the app takes as non-borreguil. Some may be borreguiles nobody has visited. '
+            'The more field absences (`presence` = 0) you upload, the more reliable it '
+            'will be.'))
+
+
+def leer_variables_puntos(nuevos, work, backend, years, img_src='esri', skip_imgs=False,
+                          skip_s2=False, con_cir=False, gee_project='',
+                          consola=None):
+    """Lee las variables del detector SOLO para los puntos `nuevos` (los añadidos
+    pinchando en el mapa), con las mismas fuentes que la ejecución. Con Earth Engine
+    tarda unos segundos, radar incluido; con Planetary Computer el radar no se lee (si
+    el análisis tampoco lo leyó, se usa la versión del modelo sin radar).
+    `consola`: dónde se ven en vivo los mensajes de la lectura (un st.status).
+    Devuelve la lista de fuentes que fallaron (vacía si todo fue bien)."""
+    fallos = []
+    work = Path(work)
+    bbox = bp.bbox_with_buffer(nuevos)
+    if backend == 'gee':
+        import gee_backend as geb
+        if not geb.is_initialized():
+            ok, msg = geb.initialize(gee_project or leer_ajuste('gee_project', '') or None)
+            if not ok:
+                fallos.append(f'Earth Engine ({msg})')
+                return fallos
+    with live_logs(consola if consola is not None else st.container()):
+        if not skip_imgs:
+            # Las imágenes se nombran por su posición en la lista: se descargan
+            # aparte y cada una pasa a llamarse como su punto.
+            tmp = work / 'imgs' / '_nuevos'
+            shutil.rmtree(tmp, ignore_errors=True)
+            tmp.mkdir(parents=True, exist_ok=True)
+            try:
+                (bp.fetch_pnoa_imgs if img_src == 'pnoa' else bp.fetch_esri_imgs)(nuevos, tmp)
+                bp.compute_img_features(nuevos, tmp)
+                for i, r in enumerate(nuevos):
+                    p = tmp / f'pt_{i:04d}.jpg'
+                    if p.exists():
+                        destino = work / 'imgs' / f"{r['ID']}.jpg"
+                        shutil.move(str(p), str(destino))
+                        r['_img'] = destino.name
+            except Exception as e:
+                fallos.append(i18n.pick(f'imagen aérea ({e})', f'aerial image ({e})'))
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+        # Distancia al río o arroyo más cercano (OpenStreetMap), para el ambiente
+        try:
+            _lin, _ = bp.cauces_osm(bbox, APP_DIR / bp.CAUCES_SN)
+            bp.attach_cauce_distance(nuevos, _lin)
+            if _lin is None:
+                fallos.append(i18n.pick('cauces de OpenStreetMap (sin conexión)',
+                                        'OpenStreetMap watercourses (no connection)'))
+        except Exception as e:
+            fallos.append(i18n.pick(f'cauces de OpenStreetMap ({e})',
+                                    f'OpenStreetMap watercourses ({e})'))
+        try:
+            if backend == 'gee':
+                geb.fetch_topo_gee(nuevos, bbox)
+            else:
+                bp.fetch_topo(nuevos, bbox, work)
+        except Exception as e:
+            fallos.append(i18n.pick(f'topografía ({e})', f'topography ({e})'))
+        if not skip_s2:
+            try:
+                if backend == 'gee':
+                    geb.fetch_s2_gee(nuevos, bbox, years=years)
+                else:
+                    bp.fetch_s2(nuevos, bbox, years=years)
+            except Exception as e:
+                fallos.append(f'Sentinel-2 ({e})')
+            if backend == 'gee':
+                try:
+                    geb.fetch_s1_gee(nuevos, bbox)
+                except Exception as e:
+                    fallos.append(f'Sentinel-1 ({e})')
+                try:                     # para la pureza, como en el mapa
+                    geb.fetch_pureza_gee(nuevos, years=years)
+                except Exception as e:
+                    fallos.append(i18n.pick(f'pureza, el píxel de 10 m ({e})',
+                                            f'purity, the 10 m pixel ({e})'))
+        if con_cir:
+            try:
+                bp.fetch_cir(nuevos, bbox)
+            except Exception as e:
+                fallos.append(f'CIR ({e})')
+    try:
+        _lag = APP_DIR / 'lagunas_sierra_nevada.kml'
+        if _lag.exists():
+            bp.attach_laguna_distance(nuevos, bp.read_points(str(_lag)))
+    except Exception:
+        pass
+    return fallos
 
 
 def _coverage(rows, feats):
@@ -360,16 +924,17 @@ def _coverage(rows, feats):
     return n
 
 
-def render_extraction_report(rows, skip_s2=False, skip_imgs=False):
+def render_extraction_report(rows, skip_s2=False, skip_imgs=False, skip_s1=False):
     """Informe SIEMPRE visible de qué fuentes se extrajeron y con qué cobertura.
     Resuelve el 'no sé qué ha funcionado': muestra puntos con dato por grupo y
     avisa con causa probable cuando una fuente crítica quedó vacía. Las fuentes
-    omitidas a propósito (casillas «Saltar…») se marcan como omitidas, sin alarma."""
+    omitidas a propósito (casillas «Saltar…», o el radar sin Earth Engine) se marcan
+    como omitidas, sin alarma."""
     N = len(rows)
     if not N:
         return
     img_feats = list(bp.FEATURES_RF[:12])
-    topo_feats = ['elev_dem_m', 'slope_deg', 'twi', 'curvature']
+    topo_feats = ['elev_dem_m', 'slope_deg', 'curvature']
     s1_feats = list(bp.S1_FEATS)
     s2_feats = [f for f in bp.FEATURES_RF
                 if f not in img_feats and f not in topo_feats and f not in s1_feats]
@@ -377,7 +942,7 @@ def render_extraction_report(rows, skip_s2=False, skip_imgs=False):
     groups = [('🖼️ Imagen aérea (textura/patrón)', img_feats, 'img', skip_imgs),
               ('⛰️ Topografía (DEM)', topo_feats, 'topo', False),
               ('🛰️ Sentinel-2 (NDVI, Clre…)', s2_feats, 's2', skip_s2),
-              ('📡 Sentinel-1 RTC (SAR)', s1_feats, 's1', skip_s2)]
+              ('📡 Sentinel-1 (radar)', s1_feats, 's1', skip_s2 or skip_s1)]
     sel_feats = st.session_state.get('sel_model_feats', [])
     if any(f.startswith('cir_') for f in sel_feats):
         groups.append(('🇪🇸 PNOA Falso Color IR (CIR)', list(bp.CIR_FEATS), 'cir', False))
@@ -388,8 +953,12 @@ def render_extraction_report(rows, skip_s2=False, skip_imgs=False):
     problems = []
     for name, feats, gid, skipped in groups:
         if skipped:
+            _por_que = ''
+            if gid == 's1' and not skip_s2:
+                _por_que = i18n.pick(' (solo con Earth Engine)', ' (Earth Engine only)')
             table.append({'Fuente': name, 'Puntos con dato': '—',
-                          '%': '—', 'Estado': '⚪ omitida'})
+                          '%': '—', 'Estado': i18n.pick('⚪ omitida', '⚪ skipped')
+                          + _por_que})
             continue
         cov = _coverage(rows, feats)
         pct = 100 * cov / N
@@ -427,30 +996,83 @@ def render_extraction_report(rows, skip_s2=False, skip_imgs=False):
                    'el nº de puntos, o cambia de backend (MPC ↔ GEE) en el panel lateral.')
 
 
+# Lo que admiten los recuadros de puntos: un Shapefile son varios ficheros, o un .zip
+FORMATOS_PUNTOS = list(bp.FORMATOS_PUNTOS)
+
+
+def _guardar_subida(ficheros):
+    """bp.guardar_subida con los avisos en el idioma de la app."""
+    return bp.guardar_subida(ficheros, en=i18n.get_lang() == 'en')
+
+
+class _Subido:
+    """Un fichero subido, reducido a su nombre y su contenido (para la caché)."""
+    def __init__(self, name, datos):
+        self.name, self._datos = name, datos
+
+    def getvalue(self):
+        return self._datos
+
+
+def _resumen_campo(info):
+    """[(nivel, texto)] de lo que bp.leer_puntos_de_campo() ha leído del fichero de
+    puntos de campo: como resumen_etiquetas(), pero sin columna de etiqueta cada punto
+    es un borreguil, y se avisa de los puntos que no se usan."""
+    if info.get('solo_presencias'):
+        return [('info', i18n.pick(
+            'El fichero de puntos de campo no trae ninguna columna que diga si hay '
+            'borreguil: cada punto se toma como borreguil. Si incluye ausencias, ponlas '
+            'en una columna `presence` (1 = borreguil, 0 = no).',
+            'The field-points file has no column saying whether there is borreguil: '
+            'every point is taken as a borreguil. If it includes absences, put them in a '
+            '`presence` column (1 = borreguil, 0 = no).'))]
+    out = bp.resumen_etiquetas(info)
+    if info.get('n_sin_usar'):
+        out.append(('aviso', i18n.pick(
+            f"{info['n_sin_usar']} puntos de campo no tienen una etiqueta que se entienda "
+            'y no se usan.',
+            f"{info['n_sin_usar']} field points have no label that can be understood and "
+            'are not used.')))
+    return out
+
+
+def _etiquetas_de_subida(ficheros, campo=False):
+    """Lo que leer_etiquetas() leería de unos puntos recién subidos (con `campo`, el
+    fichero de puntos de campo, leído con leer_puntos_de_campo()), para avisar antes
+    de ejecutar; si falta algo (un .shp sin su .dbf), el aviso de qué hacer. None si
+    no se puede leer aquí: al ejecutar ya se verá."""
+    if not ficheros:
+        return None
+    if not isinstance(ficheros, (list, tuple)):
+        ficheros = [ficheros]
+    return _etiquetas_de_partes(tuple((f.name, f.getvalue()) for f in ficheros), campo)
+
+
 @st.cache_data(show_spinner=False)
-def _etiquetas_de_subida(nombre, datos):
-    """Lo que leer_etiquetas() leería de un fichero de puntos candidatos recién
-    subido, para avisar antes de ejecutar. None si no se puede leer aquí (p. ej. un
-    .shp sin sus .dbf/.shx): al ejecutar ya se verá."""
-    d = tempfile.mkdtemp(prefix='candidatos_')
-    ruta = os.path.join(d, os.path.basename(nombre) or 'puntos.json')
+def _etiquetas_de_partes(partes, campo=False):
+    ruta = None
     try:
-        with open(ruta, 'wb') as f:
-            f.write(datos)
+        ruta = _guardar_subida([_Subido(n, d) for n, d in partes])
+        if campo:
+            return _resumen_campo(bp.leer_puntos_de_campo(bp.read_points(ruta)))
         return bp.resumen_etiquetas(bp.leer_etiquetas(bp.read_points(ruta)))
+    except ValueError as e:                  # falta algo, o el fichero no se entiende
+        return [('falta', str(e))]
     except Exception:
         return None
     finally:
-        shutil.rmtree(d, ignore_errors=True)
+        if ruta:
+            shutil.rmtree(os.path.dirname(ruta), ignore_errors=True)
 
 
 # ── Perfil espectral por punto vs. referencia de borreguiles ─────────────────
 # Las gráficas viven en point_profile.py (puro altair/numpy/pandas, testeable sin la app).
 @st.cache_data(show_spinner=False)
 def _ref_stats_from_csv():
-    """Fallback: cuantiles por clase desde classification_v5.csv si está local."""
-    return pp.ref_stats_from_csv([APP_DIR / 'classification_v5.csv',
-                                  APP_DIR.parent / 'classification_v5.csv'])
+    """Fallback: cuantiles por clase desde classification_v7.csv si está local (la v5
+    no sirve: su EVI va en otra escala)."""
+    return pp.ref_stats_from_csv([APP_DIR / 'classification_v7.csv',
+                                  APP_DIR.parent / 'classification_v7.csv'])
 
 
 @st.cache_data(show_spinner=False)
@@ -470,69 +1092,61 @@ def load_ref_stats(model_path):
 
 
 def render_point_profile(sel, ref_stats):
-    """Gráficas comparativas del punto seleccionado vs. el rango típico de borreguiles."""
+    """Dónde cae el punto entre los borreguiles verdaderos en las variables que más
+    pesan en el modelo (point_profile.chart_punto_vs_borreguiles)."""
     if not ref_stats or not ref_stats.get('features'):
-        st.info('El modelo seleccionado no trae valores de referencia (`ref_stats`). '
-                'Reentrena/guarda con `train_v5.py` para activar la comparación. '
-                'Se muestran solo los valores del punto.')
-        vals = {lab: sel.get(f) for f, lab in pp.KEY if pp.fnum(sel.get(f)) is not None}
-        if vals:
-            st.dataframe(pd.DataFrame([vals]), width='stretch', hide_index=True)
+        st.info(i18n.pick(
+            'El modelo elegido no trae los valores de los borreguiles verdaderos, así que '
+            'no se puede comparar el punto con ellos. Estos son sus valores en las '
+            'variables que más separan en Sierra Nevada.',
+            'The chosen model does not carry the values of the real borreguiles, so the '
+            'point cannot be compared with them. These are its values for the variables '
+            'that separate best in Sierra Nevada.'))
+        vals = {pp.etiqueta(k['feat']): _num(sel.get(k['feat']))
+                for k in pp.variables_clave(None)}
+        st.dataframe(pd.DataFrame([vals]), width='stretch', hide_index=True)
         return
-    feats = ref_stats['features']
-    nsi, nno = ref_stats.get('n_si', '?'), ref_stats.get('n_no', '?')
-    st.caption(f'Zona **verde** = rango habitual de los borreguiles de entrenamiento '
-               f'(p25–p75, mediana a trazos; n={nsi} borreguil / {nno} no-borreguil). '
-               f'Marcador **azul** = este punto (**naranja** si cae fuera del rango habitual).')
-
-    imp_chart, _ = pp.chart_importance(ref_stats, topn=12)
-    if imp_chart is not None:
-        st.markdown('**🔑 Variables más decisivas del modelo** (guía jerárquica) — de arriba '
-                    '(más peso) a abajo; a la derecha, el **rango típico de borreguil** (p25–p75).')
-        st.altair_chart(imp_chart, width='stretch')
-        st.caption('Lee los gráficos de abajo en este orden de importancia. Altitud, pendiente, '
-                   'SAR y textura de imagen pesan en el modelo pero no son índices espectrales, '
-                   'por eso no aparecen en los perfiles estacionales.')
-
-    st.markdown('**1 · Perfil estacional** — inicio→fin de verano frente a la banda de borreguiles (un panel por índice)')
-    c1 = pp.chart_seasonal(sel, feats)
-    if c1 is not None:
-        st.altair_chart(c1)
-    else:
-        st.caption('Sin datos estacionales para este punto.')
-
-    st.markdown('**2 · Posición vs. distribución de borreguiles** — percentil de cada índice (fin de verano)')
-    c2, _ = pp.chart_percentile(sel, feats)
-    if c2 is not None:
-        st.altair_chart(c2, width='stretch')
-    else:
-        st.caption('Sin índices clave disponibles para este punto.')
-
-    st.markdown('**3 · Variabilidad multianual** — media (●) y rango mín–máx (│) entre escenas vs. banda de borreguiles')
-    c3 = pp.chart_multiyear(sel, feats)
-    if c3 is not None:
-        st.altair_chart(c3)
-    else:
-        st.caption('Sin índices multianuales disponibles para este punto.')
+    ch, recs = pp.chart_punto_vs_borreguiles(sel, ref_stats, n=8)
+    if ch is None:
+        st.caption(i18n.pick('Sin variables con valores de referencia para este punto.',
+                             'No variables with reference values for this point.'))
+        return
+    nsi = ref_stats.get('n_si', '?')
+    st.caption(i18n.pick(
+        f'Cada punto de color es **el punto que estás mirando**, en una variable: dónde '
+        f'cae entre los **{nsi} borreguiles verdaderos** de los que aprendió el modelo, en '
+        'las variables que más pesan (de arriba abajo). 0 = más bajo que todos, 50 = como '
+        'el borreguil típico, 100 = más alto que todos. Debajo, los valores.',
+        f'Each coloured dot is **the point you are looking at**, in one variable: where it '
+        f'falls among the **{nsi} real borreguiles** the model learnt from, for the '
+        'variables that weigh most (top to bottom). 0 = lower than all, 50 = like the '
+        'typical borreguil, 100 = higher than all. Below, the values.'))
+    st.markdown(pp.leyenda_punto_vs_borreguiles(), unsafe_allow_html=True)
+    st.altair_chart(ch, width='stretch')
+    st.dataframe(pp.tabla_punto_vs_borreguiles(recs), hide_index=True, width='stretch')
 
 
-def _has_script_ctx():
-    """True si el hilo actual puede actualizar la UI de Streamlit (tiene contexto de
-    ScriptRunner). En Streamlit el SCRIPT corre en un hilo propio (NO el principal),
-    así que NO vale comprobar main_thread; hay que comprobar el contexto real. Los
-    hilos worker de un ThreadPool NO lo tienen → no deben tocar la UI."""
+def _ctx_actual():
+    """Contexto de Streamlit del hilo actual: el de la ejecución de la página que corre
+    en él, o None en un hilo auxiliar (los de un ThreadPool no lo tienen y no deben
+    tocar la página)."""
     try:
         from streamlit.runtime.scriptrunner import get_script_run_ctx
-        return get_script_run_ctx() is not None
+        # sin aviso: preguntarlo desde un hilo auxiliar es normal aquí
+        return get_script_run_ctx(suppress_warning=True)
     except Exception:
-        return True  # si no se puede determinar, intentarlo (se captura cualquier fallo)
+        return None
 
 
 class _StatusWriter(io.TextIOBase):
     """Redirige los print() del pipeline a una 'consola' en vivo (st.code) dentro del
-    st.status, mostrando las últimas líneas. Si no, el paso parece congelado."""
+    st.status, mostrando las últimas líneas. Si no, el paso parece congelado.
+    Solo toca la página desde la MISMA ejecución que la creó: si se para un análisis y
+    empieza otro, escribir aquí desde el nuevo apuntaría a un hueco de la página que ya
+    no existe, y la página se quedaba en blanco."""
     def __init__(self, container, max_lines=16):
         self.slot = container.empty()
+        self.ctx = _ctx_actual()
         self.lines = []
         self.buf = ''
         self.max_lines = max_lines
@@ -546,7 +1160,7 @@ class _StatusWriter(io.TextIOBase):
                 self.lines.append(line.rstrip())
                 self.lines = self.lines[-self.max_lines:]
                 updated = True
-        if updated and _has_script_ctx():
+        if updated and self.ctx is not None and _ctx_actual() is self.ctx:
             try:
                 self.slot.code('\n'.join(self.lines), language=None)
             except Exception:
@@ -557,21 +1171,79 @@ class _StatusWriter(io.TextIOBase):
         return None
 
 
+class _SalidaPorHilo(io.TextIOBase):
+    """sys.stdout / sys.stderr de todo el programa, que reparte lo que se escribe según
+    el hilo: cada análisis, en la consola del bloque live_logs abierto en SU hilo; los
+    hilos auxiliares (sin contexto de Streamlit), en la última consola abierta, que solo
+    acumula sus líneas; el resto, en la salida de siempre.
+    Antes, live_logs cambiaba sys.stdout para todo el programa y lo devolvía al acabar.
+    Si se paraba un análisis y empezaba otro mientras el primero seguía esperando a un
+    servidor, cada uno dejaba puesta al acabar la consola del otro: el análisis nuevo
+    escribía en huecos de la página del viejo y la página se quedaba en blanco."""
+    _es_salida_por_hilo = True
+
+    def __init__(self, original):
+        self.original = original
+        self.hilos = threading.local()
+        self.ultima = None
+
+    def _destino(self):
+        w = getattr(self.hilos, 'consola', None)
+        if w is None and _ctx_actual() is None:
+            w = self.ultima
+        return w if w is not None else self.original
+
+    def write(self, s):
+        return self._destino().write(s)
+
+    def flush(self):
+        try:
+            return self._destino().flush()
+        except Exception:
+            return None
+
+    @property
+    def encoding(self):
+        return getattr(self.original, 'encoding', 'utf-8')
+
+    def isatty(self):
+        try:
+            return self.original.isatty()
+        except Exception:
+            return False
+
+    def fileno(self):
+        return self.original.fileno()
+
+
+def _salidas():
+    """Pone (una vez) el reparto por hilos en sys.stdout y sys.stderr y los devuelve."""
+    for nombre in ('stdout', 'stderr'):
+        actual = getattr(sys, nombre)
+        if not getattr(actual, '_es_salida_por_hilo', False):
+            setattr(sys, nombre, _SalidaPorHilo(actual))
+    return sys.stdout, sys.stderr
+
+
 from contextlib import contextmanager
 
 @contextmanager
 def live_logs(container):
-    """Context manager: dentro del bloque, los print() del pipeline se ven en vivo
-    en una consola del st.status. Restaura stdout siempre. Tolera escritura
-    concurrente desde hilos worker (esos no tienen contexto → solo bufferizan)."""
+    """Context manager: dentro del bloque, los print() del pipeline (los de este hilo y
+    los de sus hilos auxiliares) se ven en vivo en una consola del st.status."""
     w = _StatusWriter(container)
-    old_out, old_err = sys.stdout, sys.stderr
-    sys.stdout = w
-    sys.stderr = w
+    salidas = _salidas()
+    antes = [getattr(x.hilos, 'consola', None) for x in salidas]
+    for x in salidas:
+        x.hilos.consola = w
+        x.ultima = w
     try:
         yield w
     finally:
-        sys.stdout, sys.stderr = old_out, old_err
+        for x, previa in zip(salidas, antes):
+            x.hilos.consola = previa
+            if x.ultima is w:
+                x.ultima = previa
 
 
 # ============================================================
@@ -592,15 +1264,19 @@ i18n.set_lang('en' if _lang_choice == 'English' else 'es')
 i18n.install(st)   # traduce todos los st.* a partir de aquí (fallback a ES)
 
 st.title('🌿 Borreguil / Wet Meadow Pipeline')
-st.markdown('Identificación automática de borreguiles en zonas de montaña — '
-            'ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. '
-            '[Documentación metodológica](Metodologia_borreguiles.docx)')
+st.markdown(i18n.pick(
+    'Identificación automática de borreguiles en zonas de montaña con imagen aérea, '
+    'relieve (Copernicus DEM), Sentinel-2, radar Sentinel-1 y Random Forest. '
+    '[Documentación metodológica](Metodologia_borreguiles.docx)',
+    'Automatic detection of borreguiles (high-mountain wet meadows) with aerial '
+    'imagery, terrain (Copernicus DEM), Sentinel-2, Sentinel-1 radar and Random '
+    'Forest. [Methodology documentation](Metodologia_borreguiles.docx)'))
 
 # ============================================================
 # SIDEBAR – inputs y opciones
 # ============================================================
 with st.sidebar:
-    st.header('Inputs')
+    st.header(i18n.pick('Datos de entrada', 'Inputs'))
 
     input_mode = st.radio('Origen de los puntos', [
         '📁  Subir archivo (KML/Shp/GeoJSON)',
@@ -611,31 +1287,61 @@ with st.sidebar:
     gen_min_elev = None; gen_max_elev = None; gen_seed = 42; gen_min_dist = 50
     gen_lejos = 0
     if input_mode.startswith('📁'):
-        f_input = st.file_uploader('Puntos candidatos',
-                                      type=['kml','geojson','shp','json'])
+        # Varios ficheros a la vez: un Shapefile son varios (.shp, .dbf, .shx, .prj)
+        f_input = st.file_uploader(
+            i18n.pick('Tus puntos', 'Your points'), type=FORMATOS_PUNTOS,
+            accept_multiple_files=True, key='subir_puntos',
+            help=i18n.pick(
+                'KML, GeoJSON o CSV (con columnas `lon` y `lat`). Si es un Shapefile, '
+                'selecciona a la vez todos sus ficheros (.shp, .dbf, .shx y .prj) o '
+                'súbelo en un .zip.',
+                'KML, GeoJSON or CSV (with `lon` and `lat` columns). If it is a '
+                'Shapefile, select all its files at once (.shp, .dbf, .shx and .prj) or '
+                'upload it as a .zip.')) or None
+        st.caption(i18n.pick(
+            'Los sitios en los que la app mira si hay borreguil. Mira los requisitos en '
+            'la plantilla de la pantalla de inicio.',
+            'The places where the app checks whether there is borreguil. See the '
+            'requirements in the template on the start screen.'))
         if f_input is not None:
-            for _niv_et, _txt_et in (_etiquetas_de_subida(f_input.name, f_input.getvalue())
-                                     or []):
-                {'ok': st.caption, 'info': st.info, 'aviso': st.warning}[_niv_et](
+            for _niv_et, _txt_et in (_etiquetas_de_subida(f_input) or []):
+                {'ok': st.caption, 'info': st.info, 'aviso': st.warning,
+                 'falta': st.warning}[_niv_et](
                     ('✓ ' if _niv_et == 'ok' else '') + _txt_et)
     else:
         st.caption('Requiere definir el área de estudio (panel siguiente).')
         gen_n = st.slider('Nº puntos a generar', 30, 1000, 200, 10)
-        gen_mode = st.selectbox('Estrategia', [
-            'stratified_elev',
-            'uniform',
-            'poisson_disc',
-        ], index=0, help=(
-            'stratified_elev: reparto equilibrado por bandas de altitud. '
-            'uniform: aleatorio puro. '
-            'poisson_disc: separación mínima entre puntos.'))
+        # Los valores internos no cambian (van a random_points); solo cómo se leen
+        _nombre_estrategia = {
+            'stratified_elev': i18n.pick('Repartidos por altitud', 'Spread across elevation'),
+            'uniform': i18n.pick('Al azar', 'At random'),
+            'poisson_disc': i18n.pick('Al azar, separados una distancia mínima',
+                                      'At random, a minimum distance apart'),
+        }
+        gen_mode = st.selectbox(
+            i18n.pick('Estrategia', 'Strategy'), list(_nombre_estrategia), index=0,
+            format_func=_nombre_estrategia.get,
+            help=i18n.pick(
+                '**Repartidos por altitud**: el rango de altitud del área se divide en 5 '
+                'franjas iguales y se toma el mismo número de puntos en cada una, para '
+                'cubrir todo el gradiente. **Al azar**: sin ninguna regla. **Al azar, '
+                'separados una distancia mínima**: ningún par de puntos queda más cerca '
+                'de la distancia que elijas, para que no salgan puntos pegados.',
+                '**Spread across elevation**: the elevation range of the area is split '
+                'into 5 equal bands and the same number of points is taken in each, to '
+                'cover the whole gradient. **At random**: no rule. **At random, a '
+                'minimum distance apart**: no pair of points is closer than the distance '
+                'you choose, so that no points end up side by side.'))
         if gen_mode == 'poisson_disc':
             gen_min_dist = st.number_input(
-                'Distancia mínima entre puntos (m)', min_value=10, max_value=500,
-                value=50, step=10,
-                help='Solo en poisson_disc: ningún par de puntos quedará más cerca '
-                     'de esta distancia. Los puntos se ajustan además al centro del '
-                     'píxel Sentinel-2 (10 m).')
+                i18n.pick('Distancia mínima entre puntos (m)',
+                          'Minimum distance between points (m)'),
+                min_value=10, max_value=500, value=50, step=10,
+                help=i18n.pick(
+                    'Ningún par de puntos quedará más cerca de esta distancia. Los puntos '
+                    'se ajustan además al centro del píxel Sentinel-2 (10 m).',
+                    'No pair of points will be closer than this distance. Points are '
+                    'also snapped to the centre of the Sentinel-2 pixel (10 m).'))
         col1, col2 = st.columns(2)
         with col1:
             gen_min_elev_str = st.text_input('Elev. mín (m)', value='2000',
@@ -656,42 +1362,102 @@ with st.sidebar:
                  '**Recomendado: 0** para probar el modelo por toda el área; **300 m** '
                  'para buscar ausencias fuera de tus puntos.')
 
-    f_truth = st.file_uploader('Opcional: verdad-terreno (presencias y/o ausencias)',
-                                  type=['kml','geojson','shp','json'])
+    f_truth = st.file_uploader(
+        i18n.pick('Opcional: puntos de campo para comprobar el modelo',
+                  'Optional: field points to check the model'),
+        type=FORMATOS_PUNTOS, accept_multiple_files=True, key='subir_campo',
+        help=i18n.pick(
+            'KML, GeoJSON o CSV (con columnas `lon` y `lat`). Si es un Shapefile, '
+            'selecciona a la vez todos sus ficheros (.shp, .dbf, .shx y .prj) o súbelo '
+            'en un .zip.',
+            'KML, GeoJSON or CSV (with `lon` and `lat` columns). If it is a Shapefile, '
+            'select all its files at once (.shp, .dbf, .shx and .prj) or upload it as '
+            'a .zip.')) or None
+    st.caption(i18n.pick(
+        'Sitios donde ya sabes si hay borreguil, **en un fichero aparte**. Sirven para '
+        'medir cuánto acierta el modelo y, si quieres, para reentrenarlo. Si esa '
+        'información ya va en «Tus puntos» (columna `presence`: 1 = borreguil, 0 = no), '
+        'no subas nada aquí.',
+        'Places where you already know whether there is borreguil, **in a separate '
+        'file**. They are used to measure how well the model does and, if you want, to '
+        'retrain it. If that information is already in "Your points" (`presence` '
+        'column: 1 = borreguil, 0 = no), do not upload anything here.'))
+    if f_truth is not None:
+        # Qué columna ha leído y cuántos sí y no (24-11), o lo que falta (un .shp sin .dbf…)
+        for _niv_et, _txt_et in (_etiquetas_de_subida(f_truth, campo=True) or []):
+            {'ok': st.caption, 'info': st.info, 'aviso': st.warning,
+             'falta': st.warning}[_niv_et](('✓ ' if _niv_et == 'ok' else '') + _txt_et)
     truth_train_only = st.checkbox(
-        'Usar verdad-terreno solo para entrenar (no mostrarla en el mapa)',
+        i18n.pick('Usar los puntos de campo solo para medir y entrenar (no mostrarlos en '
+                  'el mapa)',
+                  'Use the field points only to measure and train (do not show them on '
+                  'the map)'),
         value=False, disabled=(f_truth is None),
-        help='El modelo aprende de tus puntos de campo, pero estos NO se añaden al '
-             'mapa, la tabla ni las descargas: solo verás tus puntos candidatos. '
-             'Útil cuando subes muchos borreguiles verificados y no quieres que '
-             'saturen el resultado. Los candidatos que coincidan (<20 m) con un punto '
-             'de campo sí se marcan como verificados y se muestran.')
-    with st.expander('ℹ ¿Cómo estructurar la verdad-terreno?'):
-        st.markdown(
-            '**Solo presencias** (lo más simple): un KML/GeoJSON/Shapefile con puntos '
-            'de borreguiles confirmados, **sin ningún atributo**. Todos se toman como '
-            'borreguil; las ausencias se generan solas (pseudo-ausencias lejanas).\n\n'
-            '**Presencias + ausencias** (recomendado si las tienes): añade un **atributo '
-            'de clase** a cada punto. La app reconoce, sin distinguir mayúsculas:\n'
-            '- Atributo llamado `Borreguil`, `presencia`, `clase`, `tipo` o `label`.\n'
-            '- Valor de **presencia**: `si` · `yes` · `1` · `presencia` · `borreguil`.\n'
-            '- Valor de **ausencia**: `no` · `0` · `ausencia` · `no_borreguil`.\n\n'
-            'En los **puntos candidatos** también vale: la etiqueta puede venir en '
-            '`Borreguil`, `presence`, `presencia`, `label`, `clase`… (si/no, yes/no, '
-            '1/0, true/false) y los dudosos en `Duda`, `dudoso` o `doubtful`. Al '
-            'subirlos, la app te dice qué columna ha leído o te avisa si no encuentra '
-            'ninguna.\n\n'
-            'Ejemplo GeoJSON (un punto presencia y uno ausencia):')
-        st.code('''{ "type": "FeatureCollection", "features": [
-  { "type":"Feature",
-    "properties": { "Borreguil": "si" },
-    "geometry": { "type":"Point", "coordinates": [-3.222, 37.114] } },
-  { "type":"Feature",
-    "properties": { "Borreguil": "no" },
-    "geometry": { "type":"Point", "coordinates": [-3.210, 37.108] } }
-]}''', language='json')
-        st.caption('En KML, añade un `<SimpleData name="Borreguil">no</SimpleData>` por '
-                   'Placemark. Un punto sin atributo de clase se toma como presencia.')
+        help=i18n.pick(
+            'Tus puntos de campo sirven para medir cuánto acierta el modelo (y, si marcas '
+            '«Sumar mis puntos a los del modelo y reentrenarlo», para entrenarlo), pero NO se '
+            'añaden al mapa, la tabla ni las descargas: solo verás tus puntos. '
+            'Útil cuando subes muchos borreguiles verificados y no quieres que saturen el '
+            'resultado. Los candidatos que coincidan (<20 m) con un punto de campo sí se '
+            'marcan como verificados y se muestran.',
+            'Your field points are used to measure how well the model does (and, if you '
+            'tick "Add my points to the model\'s and retrain it", to train it), but they are NOT '
+            'added to the map, table or downloads: you will only see your candidate '
+            'points. Useful when you upload many verified borreguiles and do not want '
+            'them to swamp the result. Candidates that match (<20 m) a field point are '
+            'marked as verified and shown.'))
+    # Reescrito con la autora el 24-11: primero la plantilla; los puntos sin columnas,
+    # al final y con sus límites.
+    with st.expander(i18n.pick('ℹ ¿Cómo preparar tus puntos de campo?',
+                               'ℹ How to prepare your field points?')):
+        st.markdown(i18n.pick(
+            'Usa la **plantilla de datos de campo** (se descarga en la pantalla de '
+            'inicio). Una fila por punto; solo son obligatorios el punto y `presence`:\n'
+            '- `presence`: `1` borreguil · `0` no borreguil. `doubtful`: `1` si no sabes '
+            'decirlo (no cuenta).\n'
+            '- **Tipo**, opcional y solo si `presence` = 1; cada nivel cuenta por '
+            'separado: `environment` (`stream` · `lake` · `slope`), `moisture` (`wet` · '
+            '`dry`), `purity` (`pure` · `mixed-water` · `mixed-rock`). También vale en '
+            'español.\n'
+            '- Recomendado: `method` (`field` · `orthophoto`) y `date` (AAAA-MM-DD). '
+            'Opcional: `observer`, `expertise` (`student` · `manager` · `researcher`), '
+            '`certainty` (`high` · `medium` · `low`) y `notes`.\n'
+            '- CSV con columnas `lon` y `lat` (grados, WGS84), o GeoJSON, Shapefile o KML '
+            'con esos nombres.\n\n'
+            '**Incluye ausencias.** Los sitios donde has comprobado que no hay borreguil '
+            '(`presence` = 0) valen tanto como los borreguiles. Sin ellos no se mide bien '
+            'cuánto acierta el modelo ni se puede hacer el mapa de borreguil sí o no: la '
+            'app no se inventa ausencias.\n\n'
+            '**Otros nombres.** Si tu fichero trae la etiqueta con otro nombre '
+            '(`Borreguil`, `presencia`, `label`, `clase`…) y valores sí/no, 1/0, yes/no o '
+            'true/false, la app la reconoce y, al subirlo, te dice qué columna ha leído.\n\n'
+            '**Sin ninguna columna** (solo en «puntos de campo»): cada punto se toma como '
+            'borreguil. Sirve para ver cuántos borreguiles acierta el modelo, pero no '
+            'aporta ausencias.',
+            'Use the **field data template** (downloadable on the start screen). One row '
+            'per point; only the point and `presence` are required:\n'
+            '- `presence`: `1` borreguil · `0` not a borreguil. `doubtful`: `1` if you '
+            'cannot tell (it does not count).\n'
+            '- **Type**, optional and only if `presence` = 1; each level counts '
+            'separately: `environment` (`stream` · `lake` · `slope`), `moisture` (`wet` · '
+            '`dry`), `purity` (`pure` · `mixed-water` · `mixed-rock`). Spanish values also '
+            'work.\n'
+            '- Recommended: `method` (`field` · `orthophoto`) and `date` (YYYY-MM-DD). '
+            'Optional: `observer`, `expertise` (`student` · `manager` · `researcher`), '
+            '`certainty` (`high` · `medium` · `low`) and `notes`.\n'
+            '- CSV with `lon` and `lat` columns (degrees, WGS84), or GeoJSON, Shapefile or '
+            'KML with those names.\n\n'
+            '**Include absences.** The places where you have checked there is no '
+            'borreguil (`presence` = 0) are worth as much as the borreguiles. Without '
+            'them, how well the model does cannot be measured properly and the borreguil '
+            'yes-or-no map cannot be made: the app never invents absences.\n\n'
+            '**Other names.** If your file carries the label under another name '
+            '(`Borreguil`, `presencia`, `label`, `clase`…) with yes/no, 1/0, sí/no or '
+            'true/false values, the app recognises it and, when you upload it, tells you '
+            'which column it has read.\n\n'
+            '**No column at all** (only in "field points"): every point is taken as a '
+            'borreguil. It shows how many borreguiles the model gets right, but it brings '
+            'no absences.'))
 
     st.divider()
     st.header('Área de estudio')
@@ -735,9 +1501,16 @@ with st.sidebar:
         '🛰  Microsoft Planetary Computer (sin cuenta)',
     ], index=0, label_visibility='collapsed')
     backend = 'gee' if backend_label.startswith('🌍') else 'mpc'
-    st.caption('GEE calcula los índices en el servidor (mucho más rápido, sobre todo '
-               'con el modelo de 45 variables). Si GEE no está disponible, la app usa '
-               'MPC automáticamente.')
+    st.caption(i18n.pick(
+        'Earth Engine calcula las variables en sus servidores, en segundos. Planetary '
+        'Computer no necesita cuenta, pero es más lento y no lee el radar (Sentinel-1): '
+        'con él, la app usa una versión del modelo entrenada sin radar, que acierta algo '
+        'menos. Si Earth Engine no está disponible, la app usa Planetary Computer.',
+        'Earth Engine computes the variables on its servers, in seconds. Planetary '
+        'Computer needs no account, but it is slower and does not read the radar '
+        '(Sentinel-1): with it, the app uses a version of the model trained without '
+        'radar, which is somewhat less accurate. If Earth Engine is not available, the '
+        'app uses Planetary Computer.'))
 
     gee_project = ''
     if backend == 'gee':
@@ -766,8 +1539,8 @@ with st.sidebar:
                         guardar_ajuste('gee_project', gee_project.strip())
                 except Exception as e:
                     st.error(str(e))
-        st.caption('El cómputo S2 + topografía se hace en los servidores de Google '
-                    '(rápido, sin descargas). No se usa MPC.')
+        st.caption('Sentinel-2, el radar (Sentinel-1) y el relieve se calculan en los '
+                    'servidores de Google (rápido, sin descargas).')
 
     st.divider()
     st.header('Modelo de partida')
@@ -780,24 +1553,47 @@ with st.sidebar:
     if _models:
         sel_model_name = st.selectbox(
             'Modelo base Random Forest', _models, index=0,
-            help='Modelos .joblib de la carpeta de la app. Se usa para predecir '
-                 'cuando no hay suficiente verdad-terreno local. Tras entrenar en '
-                 'tu zona puedes guardarlo aquí (panel de resultados) para reutilizarlo.')
+            help=i18n.pick(
+                'Modelos .joblib de la carpeta de la app. Es el que da la probabilidad '
+                'de cada punto, aunque tus puntos traigan etiquetas de campo (con ellas '
+                'la app mide cuánto acierta). Para entrenar además uno con tus puntos, '
+                'marca la casilla de abajo. Un modelo entrenado en tu zona se puede '
+                'guardar aquí (panel de resultados) para reutilizarlo.',
+                '.joblib models from the app folder. It is the one that gives each '
+                'point its probability, even if your points carry field labels (with '
+                'them the app measures how many it gets right). To also train one with '
+                'your points, tick the box below. A model trained on your area can be '
+                'saved here (results panel) to reuse it.'))
         start_model_path = str(model_path(sel_model_name))
         _sel_feats = []
         try:
             _mb = bp.load_model_bundle(start_model_path)
             _sel_feats = _mb.get('features', [])
+            _auc_m = _mb.get('auc_groupkfold')
             st.caption(f"Zona: {_mb.get('training_zone','?')} · "
                        f"n={_mb.get('training_n','?')} · "
-                       f"AUC={_mb.get('auc_groupkfold','?')}")
+                       f"AUC={_num(_auc_m)}" if isinstance(_auc_m, (int, float))
+                       else f"Zona: {_mb.get('training_zone','?')} · "
+                            f"n={_mb.get('training_n','?')} · AUC=?")
+            # Planetary Computer no lee el radar: se usará la versión sin radar
+            _sr = modelo_sin_radar(start_model_path) if backend != 'gee' else None
+            if _sr is not None:
+                _auc_sr = _auc_modelo(str(_sr), _sr.stat().st_mtime)
+                _txt_sr = '' if _auc_sr is None else f' (AUC {_n3(_auc_sr)})'
+                st.info(i18n.pick(
+                    '📡 Con Planetary Computer no se lee el radar, así que la app usará '
+                    f'la versión de este modelo entrenada sin radar{_txt_sr}. Acierta más '
+                    'que este modelo cuando le falta el radar.',
+                    '📡 Planetary Computer does not read the radar, so the app will use '
+                    f'the version of this model trained without radar{_txt_sr}. It does '
+                    'better than this model when the radar is missing.'))
             # Badge contextual: qué fuente extra usará y si está disponible
             _needs_cir = any(f.startswith('cir_') for f in _sel_feats)
             _needs_ps  = any(f.startswith('ps_')  for f in _sel_feats)
             if _needs_cir:
                 st.success('🇪🇸 Usa **PNOA Falso Color IR 0,25 m** (gratis). Cobertura WMS '
                            'IR en Andalucía, Cataluña y Canarias; se extrae '
-                           'automáticamente (en otras zonas usa las 50 base).')
+                           'automáticamente (en otras zonas, mejor el modelo base).')
             if _needs_ps:
                 _k = get_secret('PL_API_KEY', None) or os.environ.get('PL_API_KEY', '')
                 if _k:
@@ -808,8 +1604,25 @@ with st.sidebar:
                                '`PL_API_KEY`. Sin ella, esas variables van vacías '
                                '(predicción degradada). Configúrala o elige otro modelo.')
             if not _needs_cir and not _needs_ps:
-                st.caption('Modelo universal (50 variables): no requiere fuentes extra '
-                           'ni claves.')
+                st.caption(i18n.pick(
+                    f'Modelo de {_mb.get("training_zone", "?").split(" (")[0]} '
+                    f'({len(_sel_feats)} variables): no requiere fuentes extra ni claves.',
+                    f'Model of {_mb.get("training_zone", "?").split(" (")[0]} '
+                    f'({len(_sel_feats)} variables): needs no extra sources or keys.'))
+            st.warning(i18n.pick(
+                'Este modelo se entrenó **solo con puntos de Sierra Nevada**. En otra zona, '
+                'úsalo para **proponer** puntos y revísalos (pestaña Revisar puntos) antes de fiarte '
+                'del resultado. Si tus puntos traen etiquetas de campo, la app te dirá '
+                'cuántas acierta.',
+                'This model was trained **only with points from Sierra Nevada**. In '
+                'another area, use it to **propose** points and review them (Review points tab) '
+                'before trusting the result. If your points carry field labels, the app '
+                'will tell you how many it gets right.')
+                if 'sierra nevada' in str(_mb.get('training_zone', '')).lower() else
+                i18n.pick(f"Entrenado en: {_mb.get('training_zone', '?')}. En otra zona, "
+                          'revisa los puntos antes de fiarte del resultado.',
+                          f"Trained in: {_mb.get('training_zone', '?')}. In another area, "
+                          'review the points before trusting the result.'))
         except Exception as _e:
             st.caption(f'(no se pudieron leer metadatos: {_e})')
         st.session_state.sel_model_feats = _sel_feats
@@ -818,6 +1631,27 @@ with st.sidebar:
         st.session_state.sel_model_feats = []
         st.caption('No hay modelos .joblib en la carpeta.')
     st.session_state.start_model_path = start_model_path
+    # Por defecto se usa SIEMPRE el modelo de partida, aunque los puntos traigan
+    # etiquetas de campo (con ellas se mide cuánto acierta). Entrenar uno propio es
+    # una decisión de quien usa la app, no algo que pase solo al subir 15 borreguiles.
+    st.checkbox(
+        i18n.pick('Sumar mis puntos a los del modelo y reentrenarlo', "Add my points to the model's and retrain it"),
+        value=False, key='entrenar_propio',
+        help=i18n.pick(
+            'Sin marcar, la app usa el modelo de arriba tal cual y, si tus puntos traen '
+            'etiquetas de campo, te dice cuántas acierta. Marcada, vuelve a entrenarlo '
+            'con los 769 puntos de Sierra Nevada con los que se hizo MÁS todos tus puntos '
+            'con etiqueta: los de campo, los que verificas en «Revisar puntos» y los que añades '
+            'pinchando en el mapa. Es un solo modelo con todos los puntos, y la app te dice '
+            'cuánto acierta en los tuyos (validación por zonas). Se aplica al ejecutar y al '
+            'verificar o añadir puntos; no hace falta volver a ejecutar.',
+            'Unticked, the app uses the model above as it is and, if your points carry '
+            'field labels, tells you how many it gets right. Ticked, it retrains it with '
+            'the 769 Sierra Nevada points it was made with PLUS all your labelled points: '
+            'field points, the ones you verify in «Review points» and the ones you add by '
+            'clicking on the map. It is a single model with all the points, and the app '
+            'tells you how well it does on yours (spatial validation). It applies when '
+            'running and when verifying or adding points; there is no need to run again.'))
 
     st.divider()
     st.header('Opciones')
@@ -856,21 +1690,36 @@ with st.sidebar:
     img_src = 'pnoa' if 'PNOA' in img_src_label else 'esri'
     fast_mode = st.checkbox(
         '⚡ Modo rápido (vista previa)', value=False,
-        help='Salta las descargas lentas que se hacen punto a punto en tu PC: '
-             'imágenes ESRI/PNOA, Sentinel-1 (SAR) y CIR/Planet. Con backend GEE, '
-             'el resto (topografía y Sentinel-2) se calcula en la nube en segundos. '
-             'Da resultados APROXIMADOS (sin texturas ni SAR): ideal para iterar '
-             'rápido y luego afinar desmarcando esta casilla.')
+        help='Salta las descargas lentas que se hacen punto a punto en tu ordenador: '
+             'las imágenes aéreas (y sus texturas) y CIR/Planet. Con Earth Engine, el '
+             'resto (relieve, Sentinel-2 y radar) se calcula en la nube en segundos. '
+             'Da resultados APROXIMADOS (sin texturas): sirve para probar rápido y '
+             'después afinar desmarcando esta casilla.')
     if fast_mode:
-        st.caption('⚡ Vista previa: sin imágenes, sin Sentinel-1 ni CIR/Planet. '
+        st.caption('⚡ Vista previa: sin imágenes aéreas ni CIR/Planet. '
                    'Resultados aproximados.')
     skip_imgs = st.checkbox('Saltar imágenes (más rápido, sin texturas)',
                             value=False, disabled=fast_mode) or fast_mode
+    # Sin scikit-image (p. ej. su DLL bloqueada por Windows) no hay texturas aunque
+    # se descarguen las imágenes.
+    _sin_texturas = isinstance(bp.graycomatrix, bp._SkimageNoDisponible)
+    _modelo_con_img = any(f in st.session_state.get('sel_model_feats', [])
+                          for f in bp.FEATURES_RF[:12])
+    if _modelo_con_img and (skip_imgs or _sin_texturas):
+        st.warning(i18n.pick(
+            ('Este ordenador no puede calcular las texturas de la imagen (Windows bloquea '
+             'la librería scikit-image). ' if _sin_texturas and not skip_imgs else
+             'Sin imágenes no hay texturas. ')
+            + 'El modelo de partida se entrenó con ellas: aquí se rellenan con un valor '
+              'típico de Sierra Nevada y su probabilidad es **menos fiable**. Úsala para '
+              'proponer puntos y revísalos.',
+            ('This computer cannot compute the image textures (Windows blocks the '
+             'scikit-image library). ' if _sin_texturas and not skip_imgs else
+             'Without images there are no textures. ')
+            + 'The starting model was trained with them: here they are filled with a '
+              'typical Sierra Nevada value and its probability is **less reliable**. Use '
+              'it to propose points and review them.'))
     skip_s2   = st.checkbox('Saltar Sentinel-2 (más rápido, sin NDVI)', value=False)
-    skip_s1   = fast_mode  # Sentinel-1 se baja de MPC punto a punto (lento aunque uses GEE)
-    use_osm   = st.checkbox('Usar OSM (hidrografía/infraestructuras) — Overpass puede fallar',
-                             value=False)
-    no_osm = not use_osm
 
     _pl_key = get_secret('PL_API_KEY', None) or os.environ.get('PL_API_KEY', '')
     use_planet = st.checkbox(
@@ -889,6 +1738,15 @@ with st.sidebar:
     can_run = (f_input is not None) or (input_mode.startswith('🎲') and gen_n > 0
                                           and (f_area or wdpa_id or pa_name))
     run_btn = st.button('▶ Ejecutar pipeline', type='primary', disabled=not can_run)
+
+    st.divider()
+    with st.popover(i18n.pick('💬 Sugerir un cambio o informar de un error',
+                              '💬 Suggest a change or report an error'),
+                    width='stretch'):
+        mostrar_sugerencias()
+    _v = version_app()
+    if _v:
+        st.caption(i18n.pick(f'Versión {_v}', f'Version {_v}'))
 
 # ============================================================
 # HELP / WELCOME
@@ -933,42 +1791,109 @@ def parar_ejecucion():
 with tab_docs:
     render_docs()
 
-with tab_analisis:
-    if 'rows' not in st.session_state and not run_btn:
-        st.info('👈 Configura los inputs en el panel lateral y pulsa **Ejecutar pipeline**. '
-                'Puedes subir tus puntos o generarlos aleatoriamente dentro del área.')
+# El botón «Probar con 20 puntos de ejemplo» de la pantalla de inicio deja aquí su
+# petición (on_click corre antes que el guion): así esta pasada ya no dibuja la
+# pantalla de inicio y lanza el análisis como «Ejecutar pipeline», con los puntos de
+# la plantilla, sin área y con lo elegido en el panel lateral.
+EJEMPLO_PUNTOS = APP_DIR / 'plantilla' / 'example_sierra_nevada.csv'
+PLANTILLA_EXCEL = APP_DIR / 'plantilla' / 'field_points_template.xlsx'
+con_ejemplo = bool(st.session_state.pop('_pedir_ejemplo', False)) and EJEMPLO_PUNTOS.exists()
 
+
+def _pedir_ejemplo():
+    st.session_state['_pedir_ejemplo'] = True
+
+
+with tab_analisis:
+    if 'rows' not in st.session_state and not run_btn and not con_ejemplo:
+        # Pantalla de inicio (revisada con la autora el 24-11-2026): qué hace la app, qué hay
+        # que hacer y qué se obtiene, y un ejemplo que se prueba con un clic.
+        st.markdown(i18n.pick('### Encuentra borreguiles en tu zona y haz su mapa',
+                              '### Find borreguiles in your area and map them'))
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.markdown('### 📍 Sin verdad-terreno')
-            st.markdown(
-                '- Se usa el modelo **preentrenado en Sierra Nevada**\n'
-                '- AUC GroupKFold: **0,86**\n'
-                '- Funciona en zonas comparables; precaución en climas distintos'
-            )
+            st.markdown(i18n.pick('#### 1 · Tus puntos', '#### 1 · Your points'))
+            st.markdown(i18n.pick(
+                'Son los sitios en los que la app mira si hay borreguil.\n\n'
+                '**¿No tienes puntos? No te preocupes:** la app los genera al azar en tu '
+                'zona. En el panel lateral 👈, elige «🎲 Generar aleatoriamente en el área» '
+                'e indica el área.\n\n'
+                '**¿Tienes puntos?** Súbelos en el panel lateral (KML, GeoJSON, Shapefile o '
+                'CSV). Mira los requisitos en la plantilla de abajo.',
+                'They are the places where the app checks whether there is borreguil.\n\n'
+                "**No points? Don't worry:** the app generates them at random in your "
+                'area. In the side panel 👈, choose «🎲 Generate randomly within the area» and '
+                'give the area.\n\n'
+                '**Have points?** Upload them in the side panel (KML, GeoJSON, Shapefile or '
+                'CSV). See the requirements in the template below.'))
         with col2:
-            st.markdown('### 🎯 Con verdad-terreno')
-            st.markdown(
-                '- **Presencias** (borreguiles) y, opcional, **ausencias**\n'
-                '- Sin ausencias: se generan pseudo-ausencias solas\n'
-                '- Atributo de clase `Borreguil`=si/no (ver panel lateral)\n'
-                '- Mínimo: 30 positivos · Recomendado: 80-150'
-            )
+            st.markdown(i18n.pick('#### 2 · Analiza', '#### 2 · Analyse'))
+            st.markdown(i18n.pick(
+                # Texto de la autora (24-11-2026), acortado a petición suya
+                'Pulsa **▶ Ejecutar pipeline**, abajo del todo en el panel lateral. En cada '
+                'punto, la app calcula variables de Sentinel-1, Sentinel-2, topografía y '
+                'textura de la imagen aérea, y un Random Forest entrenado en Sierra Nevada '
+                'estima la probabilidad de que sea borreguil. Con 20 puntos tarda alrededor '
+                'de un minuto.\n\n'
+                'Con una cuenta de **Google Earth Engine** es más rápido y lee el radar '
+                '(AUC 0,847). Sin cuenta, la app usa **Planetary Computer**: más lento y '
+                'sin radar (AUC 0,833).',
+                'Press **▶ Run pipeline**, at the very bottom of the side panel. At each '
+                'point, the app computes variables from Sentinel-1, Sentinel-2, terrain and '
+                'aerial-image texture, and a Random Forest trained in Sierra Nevada '
+                'estimates the probability that it is borreguil. With 20 points it takes '
+                'about a minute.\n\n'
+                'With a **Google Earth Engine** account it is faster and reads the radar '
+                '(AUC 0.847). Without an account, the app uses **Planetary Computer**: '
+                'slower and without radar (AUC 0.833).'))
         with col3:
-            st.markdown('### 🛰 Backend')
-            st.markdown(
-                '- **MPC**: sin cuenta, descarga rásters (más lento)\n'
-                '- **GEE**: requiere cuenta, cómputo en la nube (rápido)\n'
-                '- Sentinel-2 por defecto **2017-2025**'
-            )
-
-        st.divider()
-        st.markdown('### Verdad-terreno: solo coordenadas (presence-only)')
-        st.markdown('El KML de borreguiles verificados **no necesita ningún atributo**: '
-                    'cada punto se asume borreguil. La clase negativa se genera sola.')
-        st.code('''<Placemark>
-  <Point><coordinates>-3.22206,37.11353</coordinates></Point>
-</Placemark>''', language='xml')
+            st.markdown(i18n.pick('#### 3 · Qué obtienes', '#### 3 · What you get'))
+            st.markdown(i18n.pick(
+                '- Para cada punto, si es borreguil, con qué probabilidad y de qué tipo '
+                '(ambiente, humedad y pureza)\n'
+                # Texto de la autora (24-11-2026)
+                '- Puedes revisarlos para validarlos, añadir puntos y reentrenar el modelo '
+                'de detección de puntos\n'
+                '- En la pestaña **🌿 Mapa Modelo RF**, con los puntos revisados, mapeas el '
+                'borreguil de tu zona de estudio',
+                '- For each point, whether it is borreguil, with what probability and of '
+                'what type (environment, moisture and purity)\n'
+                '- You can review them to validate them, add points and retrain the point '
+                'detection model\n'
+                '- In the **🌿 RF model map** tab, with the reviewed points, you map the '
+                'borreguil of your study area'))
+        b_ej, b_pl = st.columns(2)
+        if EJEMPLO_PUNTOS.exists():
+            b_ej.button(i18n.pick('▶ Probar con 20 puntos de ejemplo de Sierra Nevada',
+                                  '▶ Try with 20 example points from Sierra Nevada'),
+                        key='probar_ejemplo', on_click=_pedir_ejemplo,
+                        help=i18n.pick(
+                            'Analiza los 20 puntos de la plantilla de datos de campo (12 '
+                            'borreguiles y 8 sitios sin borreguil) con la fuente de datos y '
+                            'el modelo elegidos en el panel lateral. No hace falta subir nada.',
+                            'Analyses the 20 points of the field data template (12 '
+                            'borreguiles and 8 places with no borreguil) with the data '
+                            'source and the model chosen in the side panel. Nothing to '
+                            'upload.'))
+        if PLANTILLA_EXCEL.exists():
+            b_pl.download_button(
+                i18n.pick('⬇ Descargar la plantilla de datos de campo (Excel)',
+                          '⬇ Download the field data template (Excel)'),
+                PLANTILLA_EXCEL.read_bytes(), file_name=PLANTILLA_EXCEL.name,
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                key='bajar_plantilla',
+                help=i18n.pick(
+                    'Una fila por punto: sus coordenadas (lon y lat, en grados), `presence` '
+                    '(1 borreguil, 0 no) y, si quieres, el tipo. La segunda hoja explica '
+                    'cada columna. Rellénala y guárdala como CSV para subirla.',
+                    'One row per point: its coordinates (lon and lat, in degrees), '
+                    '`presence` (1 borreguil, 0 not) and, if you want, the type. The second '
+                    'sheet explains each column. Fill it in and save it as CSV to upload it.'))
+        st.caption(i18n.pick(
+            'AUC con validación cruzada por cuencas. El modelo se entrenó solo en Sierra '
+            'Nevada: en otras montañas, revisa los resultados antes de fiarte de ellos.',
+            'AUC with cross-validation by catchment. The model was trained only in Sierra '
+            'Nevada: in other mountains, review the results before relying on them.'))
 
     # ============================================================
     # PIPELINE EXECUTION
@@ -1004,19 +1929,32 @@ with tab_analisis:
                     return s
         return saved[0]
 
-    if run_btn and can_run:
+    if (run_btn and can_run) or con_ejemplo:
         # Workspace
         work = Path(tempfile.mkdtemp(prefix='borreguil_'))
         st.session_state.work = work
 
-        input_path = (save_uploaded(f_input, '.kml' if f_input.name.endswith('.kml') else '.json')
-                       if f_input else None)
-        truth_path = save_uploaded(f_truth, '.kml' if f_truth and f_truth.name.endswith('.kml') else '.json')
-        area_path  = save_uploaded_area(f_area) if f_area else None
+        if con_ejemplo:
+            # El ejemplo: los puntos de la plantilla (llevan su etiqueta de campo), sin
+            # verdad-terreno aparte ni área, aunque el panel lateral tenga algo puesto.
+            st.info(i18n.pick(
+                'Analizando los **20 puntos de ejemplo** de Sierra Nevada (12 borreguiles '
+                'y 8 sitios sin borreguil)…',
+                'Analysing the **20 example points** from Sierra Nevada (12 borreguiles '
+                'and 8 places with no borreguil)…'))
+            input_path, truth_path, area_path = str(EJEMPLO_PUNTOS), None, None
+        else:
+            try:                       # con su nombre: un Shapefile son varios ficheros
+                input_path = _guardar_subida(f_input)
+                truth_path = _guardar_subida(f_truth)
+            except ValueError as e:
+                st.error(str(e))
+                parar_ejecucion()
+            area_path  = save_uploaded_area(f_area) if f_area else None
 
         # Resolve study area FIRST (may be needed for generation)
         study_geom = None; study_info = None
-        if area_path or wdpa_id or pa_name:
+        if not con_ejemplo and (area_path or wdpa_id or pa_name):
             with st.status('Resolviendo área de estudio…', expanded=True) as status:
                 try:
                     import study_area as sa
@@ -1041,7 +1979,7 @@ with tab_analisis:
                         st.write(f"**Origen**: {study_info['source']}")
                         if study_info.get('name'):
                             st.write(f"**Nombre**: {study_info['name']}")
-                        st.write(f"**Área aprox**: {study_info['area_km2']:.1f} km²")
+                        st.write(f"**Área aprox**: {_num(study_info['area_km2'])} km²")
                         status.update(label='✓ Área de estudio resuelta', state='complete')
                     else:
                         if wdpa_id:
@@ -1061,7 +1999,7 @@ with tab_analisis:
                     status.update(label='⚠ Error', state='error')
 
         # Load or generate points
-        if input_mode.startswith('🎲'):
+        if input_mode.startswith('🎲') and not con_ejemplo:
             if not study_geom:
                 st.error('Para generar puntos hace falta un área de estudio válida.')
                 parar_ejecucion()
@@ -1132,18 +2070,25 @@ with tab_analisis:
                     {'ok': st.write, 'info': st.info, 'aviso': st.warning}[_niv_et](_txt_et)
                 status.update(label='✓ Lectura completada', state='complete')
 
-        # Merge ground truth: presencias y (opcionalmente) ausencias explícitas
+        # Puntos de campo: se leen igual que «Tus puntos» (24-11) y se dice qué se ha
+        # leído; antes, una ausencia escrita 0.0 o en una columna `Presence` se tomaba
+        # por borreguil sin avisar.
         if truth_path:
             tr = bp.read_points(truth_path)
-            n_match, n_add, n_pos, n_neg = bp.merge_truth_points(rows, tr)
-            if n_neg > 0:
-                st.write(f'**Verdad-terreno (presencia/ausencia)**: {n_pos} borreguiles + '
-                          f'{n_neg} no-borreguiles ({n_match} coinciden, {n_add} añadidos). '
-                          f'Total: {len(rows)} puntos.')
-            else:
-                st.write(f'**Verdad-terreno (presence-only)**: {n_pos} borreguiles '
-                          f'({n_match} coinciden, {n_add} añadidos). Total: {len(rows)} '
-                          'puntos. Las ausencias se generarán como pseudo-ausencias.')
+            _leido = {}
+            n_match, n_add, n_pos, n_neg = bp.merge_truth_points(rows, tr, info=_leido)
+            for _niv_et, _txt_et in (_resumen_campo(_leido) if _leido else []):
+                {'ok': st.write, 'info': st.info, 'aviso': st.warning}[_niv_et](_txt_et)
+            _dud = _leido.get('n_duda') or 0
+            st.write(i18n.pick(
+                f'**Puntos de campo**: {n_pos} borreguiles y {n_neg} no borreguiles'
+                + (f', {_dud} de ellos dudosos (no cuentan)' if _dud else '')
+                + f' ({n_match} coinciden con tus puntos, {n_add} añadidos). '
+                f'Total: {len(rows)} puntos.',
+                f'**Field points**: {n_pos} borreguiles and {n_neg} non-borreguiles'
+                + (f', {_dud} of them doubtful (they do not count)' if _dud else '')
+                + f' ({n_match} match your points, {n_add} added). '
+                f'Total: {len(rows)} points.'))
 
         if study_geom:
             import study_area as sa
@@ -1207,14 +2152,34 @@ with tab_analisis:
                     status.update(label=f'⚠ Imágenes fallaron ({e}), continuando sin texturas',
                                   state='error')
 
-        # OSM (omitido por defecto)
-        if not no_osm:
-            with st.status('Descargando OSM (hidrografía + infraestructuras)…', expanded=False) as status:
-                try:
-                    bp.fetch_osm(rows, bbox)
-                    status.update(label='✓ OSM completado', state='complete')
-                except Exception as e:
-                    status.update(label=f'⚠ OSM falló (se continúa sin OSM): {e}', state='error')
+        # Ríos y arroyos de OpenStreetMap, para el ambiente «arroyo» (los de Sierra
+        # Nevada van con la app; en otras zonas se descargan)
+        with st.status(i18n.pick('Cauces (OpenStreetMap)…', 'Watercourses (OpenStreetMap)…'),
+                       expanded=False) as status:
+            try:
+                _lin, _orig = bp.cauces_osm(bbox, APP_DIR / bp.CAUCES_SN)
+                _n_c = bp.attach_cauce_distance(rows, _lin)
+                if _lin is None:
+                    status.update(label=i18n.pick(
+                        '⚠ No se han podido leer los ríos y arroyos de OpenStreetMap (sin '
+                        'conexión con Overpass): «arroyo» se decide solo por la pendiente.',
+                        '⚠ The OpenStreetMap rivers and streams could not be read (no '
+                        'connection to Overpass): "stream" is decided by the slope only.'),
+                        state='error')
+                else:
+                    status.update(label=i18n.pick(
+                        f'✓ Cauces: {_n_c} ríos y arroyos de OpenStreetMap'
+                        + (' (incluidos en la app)' if _orig == 'capa' else ''),
+                        f'✓ Watercourses: {_n_c} OpenStreetMap rivers and streams'
+                        + (' (included in the app)' if _orig == 'capa' else '')),
+                        state='complete')
+            except Exception as e:
+                bp.attach_cauce_distance(rows, None)
+                status.update(label=i18n.pick(
+                    f'⚠ Los cauces de OpenStreetMap han fallado ({e}): «arroyo» se decide '
+                    'solo por la pendiente.',
+                    f'⚠ The OpenStreetMap watercourses failed ({e}): "stream" is decided '
+                    'by the slope only.'), state='error')
 
         # DEM / topografía
         set_prog(0.20, 'Topografía (DEM)…')
@@ -1260,18 +2225,45 @@ with tab_analisis:
                     status.update(label=f'⚠ Sentinel-2 falló: {e}', state='error')
                     st.error(f'**Sentinel-2 falló:** {e}')
 
-        # Sentinel-1 RTC (siempre vía MPC, independiente del backend S2: el modelo se
-        # entrenó con esta fuente terrain-flattened). Falla con elegancia → features NaN.
-        # En modo rápido se salta: es una de las descargas punto-a-punto más lentas.
-        if not skip_s2 and not skip_s1:
-            set_prog(0.70, 'Sentinel-1 RTC (SAR)…')
-            with st.status('Sentinel-1 RTC (humedad SAR, MPC)…', expanded=False) as status:
+        # La pureza de cada punto se propone como en el mapa: con el NDVI de inicio de
+        # verano de SU píxel de 10 m y si ese píxel o uno de sus vecinos es agua. Solo
+        # con Earth Engine; sin ello, los puntos se quedan sin propuesta de pureza.
+        if not skip_s2 and active_backend == 'gee':
+            set_prog(0.69, i18n.pick('Pureza: el píxel de 10 m de cada punto…',
+                                     'Purity: the 10 m pixel of each point…'))
+            with st.status(i18n.pick('Pureza: el píxel de 10 m de cada punto (Earth Engine)…',
+                                     'Purity: the 10 m pixel of each point (Earth Engine)…'),
+                           expanded=False) as status:
+                try:
+                    import gee_backend as geb
+                    _n_pz = geb.fetch_pureza_gee(rows, years=bp.parse_years(years_str))
+                    status.update(label=i18n.pick(
+                        f'✓ Pureza: {_n_pz}/{len(rows)} puntos con el NDVI de su píxel',
+                        f'✓ Purity: {_n_pz}/{len(rows)} points with the NDVI of their pixel'),
+                        state='complete')
+                except Exception as e:
+                    status.update(label=i18n.pick(
+                        f'⚠ Pureza: no se pudo leer el píxel ({e}); los puntos se quedan '
+                        'sin propuesta de pureza',
+                        f'⚠ Purity: the pixel could not be read ({e}); the points get no '
+                        'purity proposal'), state='error')
+
+        # Sentinel-1 (radar): solo con Earth Engine, en segundos (los modelos de partida
+        # se entrenaron con esos valores). Con Planetary Computer no se lee y se usa la
+        # versión del modelo sin radar (ver modelo_segun_radar). Si falla, igual.
+        skip_s1 = skip_s2 or active_backend != 'gee'
+        if not skip_s1:
+            set_prog(0.70, 'Sentinel-1 (radar)…')
+            with st.status('Sentinel-1 (radar, Earth Engine)…', expanded=False) as status:
                 try:
                     with live_logs(status):
-                        bp.fetch_s1(rows, bbox)
-                    status.update(label='✓ Sentinel-1 RTC', state='complete')
+                        import gee_backend as geb
+                        geb.fetch_s1_gee(rows, bbox)
+                    cov = _coverage(rows, bp.S1_FEATS)
+                    status.update(label=f'✓ Sentinel-1: {cov}/{len(rows)} puntos',
+                                  state='complete')
                 except Exception as e:
-                    status.update(label=f'⚠ Sentinel-1 falló (se continúa sin SAR): {e}',
+                    status.update(label=f'⚠ Sentinel-1 falló (se continúa sin radar): {e}',
                                   state='error')
 
         # Detectar qué fuentes extra necesita el modelo de partida elegido
@@ -1291,7 +2283,7 @@ with tab_analisis:
                                       state='complete')
                     else:
                         status.update(label='⚠ Sin ortofoto IR WMS para esta zona '
-                                      '(Andalucía/Cataluña/Canarias); se usan las 50 base',
+                                      '(Andalucía/Cataluña/Canarias): mejor el modelo base',
                                       state='error')
                 except Exception as e:
                     status.update(label=f'⚠ CIR falló (se continúa sin IR): {e}',
@@ -1314,31 +2306,49 @@ with tab_analisis:
 
         # Informe de extracción (SIEMPRE visible): qué fuentes funcionaron y cobertura
         set_prog(0.92, 'Clasificando (Random Forest)…')
-        render_extraction_report(rows, skip_s2=skip_s2, skip_imgs=skip_imgs)
+        render_extraction_report(rows, skip_s2=skip_s2, skip_imgs=skip_imgs,
+                                 skip_s1=skip_s1)
 
         # RF
         with st.status('Random Forest…', expanded=True) as status:
-            _smp = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib'))
-            proba, info = bp.train_rf(rows, default_model_path=_smp)
+            # Sin radar (Planetary Computer, o falló): la versión del modelo sin radar
+            st.session_state.radar_leido = bp.hay_radar(rows)
+            _smp = modelo_segun_radar(
+                st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib')),
+                st.session_state.radar_leido)
+            proba, info = bp.train_rf(rows, default_model_path=_smp,
+                                      propio=bool(st.session_state.get('entrenar_propio')),
+                                      entrenamiento=tabla_entrenamiento())
             if proba is not None:
                 for i, r in enumerate(rows):
                     r['rf_proba'] = float(proba[i])
                 if info:
+                    st.markdown(_titulo_modelo(info))
                     if info.get('mode') == 'pretrained':
-                        st.write(f'**Modo: modelo preentrenado en {info["training_zone"]}**')
                         st.write(f'Entrenamiento original: n = {info["training_n"]} · '
                                   f'AUC GroupKFold = {info["auc_groupkfold"]}')
-                        st.info('Para mejor precisión en tu zona, sube borreguiles verificados '
-                                'en campo (presence-only) y vuelve a ejecutar.')
                     elif info.get('mode') == 'trained':
-                        st.write('**Modo: entrenado con tu verdad-terreno (presence-only)**')
-                        st.write(f'{info["n_pos"]} positivos · {info["n_neg"]} pseudo-ausencias')
                         auc = info.get('auc', float('nan'))
-                        if auc == auc:  # not NaN
-                            st.write(f'AUC honesto ({info.get("cv","")}): **{auc:.3f}**')
-                        if info["n_pos"] < 30:
+                        if auc == auc and info.get('sumado'):
+                            st.write(i18n.pick(
+                                f'AUC en tus puntos con validación por zonas '
+                                f'({info.get("cv", "")}): **{_num(auc)}**',
+                                f'AUC on your points with spatial validation '
+                                f'({info.get("cv", "")}): **{_num(auc)}**'))
+                        elif auc == auc:  # not NaN
+                            st.write(i18n.pick(
+                                f'AUC con validación por zonas ({info.get("cv", "")}), contra '
+                                f'ausencias y pseudo-ausencias: **{_num(auc)}**',
+                                f'AUC with spatial validation ({info.get("cv", "")}), against '
+                                f'absences and pseudo-absences: **{_num(auc)}**'))
+                        if not info.get('sumado') and info["n_pos"] < 30:
                             st.warning('⚠ Pocos positivos (< 30). Recomendado: 30–150 para '
                                         'un modelo fiable en tu zona.')
+                    st.caption(i18n.pick(
+                        'Por qué este modelo y cuánto acierta con tus puntos de campo: '
+                        'en «Modelo usado», debajo de los resultados.',
+                        'Why this model and how well it does on your field points: in '
+                        '"Model used", below the results.'))
                 status.update(label='✓ RF completado', state='complete')
             else:
                 for r in rows: r['rf_proba'] = float('nan')
@@ -1350,18 +2360,27 @@ with tab_analisis:
         _probas = [r.get('rf_proba') for r in rows]
         if thr_mode.startswith('Automático · Otsu'):
             threshold = bp.auto_threshold(_probas)
-            st.info(f'⚙ Umbral automático (Otsu): **{threshold:.2f}** '
-                    '(corte que mejor separa los dos grupos de probabilidad).')
+            st.info(i18n.pick(
+                f'⚙ Umbral automático (Otsu): **{_n3(threshold)}** '
+                '(corte que mejor separa los dos grupos de probabilidad).',
+                f'⚙ Automatic threshold (Otsu): **{_n3(threshold)}** '
+                '(the cut that best separates the two groups of probability).'))
         elif thr_mode.startswith('Automático · verdad'):
             _t = bp.auto_threshold_truth(rows)
             if _t is not None:
                 threshold = _t
-                st.info(f'⚙ Umbral por verdad-terreno: **{threshold:.2f}** '
-                        '(óptimo según tus puntos de campo).')
+                st.info(i18n.pick(
+                    f'⚙ Umbral por verdad-terreno: **{_n3(threshold)}** '
+                    '(óptimo según tus puntos de campo).',
+                    f'⚙ Ground-truth threshold: **{_n3(threshold)}** '
+                    '(the best one for your field points).'))
             else:
                 threshold = bp.auto_threshold(_probas)
-                st.warning('No hay suficiente verdad-terreno etiquetada para fijar el '
-                           f'umbral; se usa Otsu: **{threshold:.2f}**.')
+                st.warning(i18n.pick(
+                    'No hay suficiente verdad-terreno etiquetada para fijar el '
+                    f'umbral; se usa Otsu: **{_n3(threshold)}**.',
+                    'There is not enough labelled ground truth to set the '
+                    f'threshold; Otsu is used: **{_n3(threshold)}**.'))
         st.session_state.eff_threshold = threshold
 
         # Decision
@@ -1418,7 +2437,7 @@ with tab_analisis:
                 _json.dump({'type':'Feature','properties':study_info or {},
                               'geometry': mapping(study_geom)}, fh)
 
-        # --- Estado para la evaluación recursiva (auto-entrenamiento) ---
+        # --- Estado de la sesión: lo verificado y cada vez que se recalcula ---
         # IDs de los borreguiles VERIFICADOS en campo (inmutables; siempre positivos).
         st.session_state.base_truth_ids = {
             r.get('ID') for r in rows if str(r.get('Borreguil','')).lower() == 'si'
@@ -1442,7 +2461,11 @@ with tab_analisis:
         st.session_state.model_bundle = (info or {}).get('model_bundle')
         st.session_state.rows = rows
         st.session_state.info = info
-        st.success(f'Pipeline terminado. Workspace: {work}')
+        st.success(i18n.pick(
+            'Análisis terminado: los resultados están abajo y los ficheros, en la '
+            'pestaña Descargas.',
+            'Analysis finished: the results are below and the files, in the Downloads '
+            'tab.'))
 
     # ============================================================
     # RESULTS DISPLAY
@@ -1454,7 +2477,10 @@ with tab_analisis:
         sg = st.session_state.get('study_geom')
         # Umbral efectivo (el automático calculado en la ejecución manda sobre el slider)
         threshold = st.session_state.get('eff_threshold', threshold)
-        MODEL_PATH = st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib'))
+        # El modelo elegido o, si en el análisis no se leyó el radar, su versión sin radar
+        MODEL_PATH = modelo_segun_radar(
+            st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib')),
+            st.session_state.get('radar_leido', True))
 
         # La selección de la tabla va por POSICIÓN. Cuando cambia la lista de puntos
         # (ejecución nueva, o se quita alguno) las posiciones se corren y la selección
@@ -1479,221 +2505,89 @@ with tab_analisis:
         cols = st.columns(min(6, len(counts)+1), vertical_alignment='bottom')
         cols[0].metric('Total', len(rows))
         for i, (k, v) in enumerate(counts.most_common(5)):
-            cols[i+1].metric(i18n.tv(k), v)
+            # Rótulo como texto normal («No borreguil verificado»), no en mayúsculas
+            cols[i+1].metric(i18n.tv_decision(k), v)
 
         # ----------------------------------------------------------------
-        # EVALUACIÓN RECURSIVA (auto-entrenamiento / self-training)
+        # Modelo usado y recálculo tras verificar, añadir o quitar puntos
         # ----------------------------------------------------------------
         iter_n = st.session_state.get('iter_n', 1)
         hist = st.session_state.get('iter_history', [])
         base_truth_ids = st.session_state.get('base_truth_ids', set())
+        # La casilla del panel: sumar los puntos de la sesión a los del modelo.
+        _propio = bool(st.session_state.get('entrenar_propio'))
 
-        with st.expander('🔁 Evaluación recursiva (auto-entrenamiento)', expanded=True):
-            st.markdown(
-                'En cada iteración, los puntos de **posible borreguil** (probabilidad ≥ '
-                'umbral de promoción) se convierten en verdad-terreno y se **recalibra** '
-                'el Random Forest para volver a predecir sobre el resto. Útil para '
-                'descubrir borreguiles no inventariados de forma progresiva.')
+        def _recalcular_y_guardar(rows2, new_base, modo, n_new):
+            """Tras verificar, añadir o quitar puntos, o al cambiar la casilla de sumar:
+            probabilidad y decisión de todos los puntos, descargas guardadas y estado de
+            la sesión al día. Devuelve la información del modelo usado."""
+            info2 = bp.run_rf_and_decide(rows2, threshold=threshold,
+                                         default_model_path=MODEL_PATH, propio=_propio,
+                                         entrenamiento=tabla_entrenamiento())
+            for r in rows2:
+                if (r.get('ID') in new_base
+                        and bp._txt(r.get('Duda')).lower() != 'si'):
+                    r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
+            bp.apply_typology(rows2, pp.is_borreguil_decision)
+            bp.save_csv(rows2, work / 'classification.csv')
+            bp.save_points_geojson(rows2, work / 'puntos.geojson')
+            bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
+            bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
+            st.session_state.rows = rows2
+            st.session_state.base_truth_ids = new_base
+            st.session_state.iter_n = iter_n + 1
+            st.session_state.model_bundle = (info2 or {}).get('model_bundle')
+            st.session_state.iter_history = hist + [{
+                'iter': iter_n + 1, 'mode': modo, 'cutoff': None, 'info': info2,
+                'counts': dict(Counter(r['decision'] for r in rows2)),
+                'n_train_pos': sum(1 for r in rows2
+                                   if bp._txt(r.get('Borreguil')).lower() == 'si'
+                                   and bp._txt(r.get('Duda')).lower() != 'si'),
+                'n_new': n_new,
+            }]
+            return info2
 
-            # Historial de iteraciones
-            if hist:
-                hrows = []
-                for h in hist:
-                    info_h = h.get('info') or {}
-                    auc = info_h.get('auc')
-                    auc_txt = f"{auc:.3f}" if isinstance(auc, float) and auc == auc else '—'
-                    cc = h.get('counts', {})
-                    n_borr = sum(v for k, v in cc.items()
-                                  if 'BORREGUIL' in k.upper() and 'NO ' not in k.upper())
-                    hrows.append({
-                        'Iteración': h['iter'],
-                        'Modo': h['mode'],
-                        'Umbral promoción': ('—' if h['cutoff'] is None else f"{h['cutoff']:.2f}"),
-                        'Positivos entren.': h.get('n_train_pos', '—'),
-                        'Nuevos hallados': ('—' if h.get('n_new') is None else h['n_new']),
-                        'AUC (CV)': auc_txt,
-                        'Σ Borreguil (mapa)': n_borr,
-                    })
-                st.dataframe(pd.DataFrame(hrows), hide_index=True, width='stretch')
-
-                last = hist[-1]
-                if last.get('n_new') == 0:
-                    st.success('✓ **Convergencia**: la última iteración no encontró nuevos '
-                               'borreguiles. Puedes detener el proceso.')
-
-            # Controles para la siguiente iteración
-            n_pos_now = sum(1 for r in rows if str(r.get('Borreguil','')).lower() == 'si')
-            st.markdown(f'**Iteración actual: {iter_n}**  ·  positivos en el modelo actual: '
-                        f'{n_pos_now}  ·  verdad-terreno verificada (fija): {len(base_truth_ids)}')
-
-            c1, c2 = st.columns(2)
-            with c1:
-                promote_cutoff = st.slider('Umbral de promoción a borreguil (probabilidad RF)',
-                                            0.50, 0.95, 0.70, 0.05,
-                                            help='Sólo se promueven puntos muy probables, '
-                                                 'para limitar la propagación de errores.')
-            with c2:
-                mode_label = st.radio('¿Cómo usar los posibles borreguiles?', [
-                    'Añadir (acumular a la verdad-terreno)',
-                    'Reemplazar (refrescar desde el modelo actual)',
-                ], help='Añadir: el conjunto de positivos crece en cada iteración.\n'
-                        'Reemplazar: se recalculan los pseudo-positivos cada vez desde el '
-                        'último modelo, manteniendo siempre tus puntos verificados.')
-            mode = 'add' if mode_label.startswith('Añadir') else 'replace'
-
-            # ¿Cuántos se promoverían?
-            prev_pos = {r.get('ID') for r in rows if str(r.get('Borreguil','')).lower() == 'si'}
-            # Mismo criterio que la iteración: no cuentan las ausencias de campo ni
-            # los puntos dudosos, que no se promueven.
-            promotable = [r for r in rows if bp.promovible(r, promote_cutoff)]
-            n_new_would = len([r for r in promotable if r.get('ID') not in prev_pos])
-            st.caption(f'Con umbral {promote_cutoff:.2f}: {len(promotable)} puntos ≥ umbral '
-                       f'({n_new_would} nuevos respecto a los positivos actuales).')
-
-            if st.button(f'▶ Ejecutar iteración {iter_n + 1}', type='primary'):
-                with st.spinner('Reentrenando Random Forest…'):
-                    rows2, info2, stats = run_self_training_iteration(
-                        rows, promote_cutoff, mode, base_truth_ids,
-                        threshold=threshold, model_path=MODEL_PATH)
-                    # Re-guardar salidas
-                    bp.save_csv(rows2, work / 'classification.csv')
-                    bp.save_points_geojson(rows2, work / 'puntos.geojson')
-                    bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
-                    bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
-                    # Actualizar estado + historial
-                    st.session_state.rows = rows2
-                    st.session_state.iter_n = iter_n + 1
-                    st.session_state.model_bundle = (info2 or {}).get('model_bundle')
-                    st.session_state.iter_history = hist + [{
-                        'iter': iter_n + 1,
-                        'mode': mode,
-                        'cutoff': promote_cutoff,
-                        'info': info2,
-                        'counts': dict(Counter(r['decision'] for r in rows2)),
-                        'n_train_pos': stats['n_train_pos'],
-                        'n_new': stats['n_new'],
-                    }]
-                    st.session_state.sel_point = None
-                st.success(f'Iteración {iter_n + 1} completada: {stats["n_new"]} nuevos '
-                           f'posibles borreguiles ({stats["n_train_pos"]} positivos en total).')
-                st.rerun()
-
-            # --- Guardar el modelo entrenado ---
-            bundle = st.session_state.get('model_bundle')
-            last_mode = (st.session_state.get('info') or {}).get('mode')
-            hist_last_info = (hist[-1].get('info') if hist else None) or {}
-            is_trained = (last_mode == 'trained' or hist_last_info.get('mode') == 'trained')
-            st.divider()
-            st.markdown('### 💾 Guardar el modelo entrenado')
-            # Mensaje de guardado PERSISTENTE: sobrevive al st.rerun (si no, el éxito se
-            # perdía al reejecutarse la app y parecía que no se había guardado).
-            _saved_msg = st.session_state.pop('_model_saved_msg', None)
-            if _saved_msg:
-                st.success(_saved_msg)
-            if not bundle:
-                st.caption('Aún no hay un modelo en memoria. Ejecuta el pipeline; para un '
-                           'modelo propio de tu zona, sube borreguiles verificados o marca '
-                           'filas en la tabla como borreguil y reentrena.')
-            else:
-                if not is_trained:
-                    st.info('El modelo en memoria es **preentrenado** (no se ha reentrenado '
-                            'con tu verdad-terreno). Puedes guardarlo igualmente con otro '
-                            'nombre, aunque para tu zona conviene marcar borreguiles '
-                            'verificados y reentrenar antes de guardar.')
-                # Pre-rellenar con el nombre del área de estudio
-                _si = st.session_state.get('study_info') or {}
-                area_default = (_si.get('name') or _si.get('query') or '').strip()
-                # Quitar sufijos largos tipo ", Comarca de…, Andalucía, España"
-                if ',' in area_default:
-                    area_default = area_default.split(',')[0].strip()
-
-                area_name = st.text_input(
-                    'Nombre del área protegida (será el nombre del fichero)',
-                    value=area_default or 'Mi zona de montaña',
-                    help='Usa el nombre oficial del espacio protegido. '
-                         'Se guarda como rf_<nombre>.joblib en la carpeta de la app.')
-
-                fname = area_to_filename(area_name)
-                out_path = DATA_DIR / f'{fname}.joblib'
-                already_exists = out_path.exists()
-
-                st.caption(f'Se guardará como: **{fname}.joblib**'
-                            + (' (sobreescribirá el existente)' if already_exists else ''))
-
-                # Preparar bundle con el nombre de zona correcto
-                import io as _io, joblib as _jl
-                b_save = dict(bundle); b_save['training_zone'] = area_name
-                buf = _io.BytesIO()
-                try:
-                    _jl.dump(b_save, buf); buf.seek(0)
-                    buf_bytes = buf.getvalue()
-                except Exception as _je:
-                    buf_bytes = None
-                    st.error(f'Error serializando modelo: {_je}')
-
-                cS1, cS2 = st.columns(2)
-                with cS1:
-                    # Guardar en carpeta local → aparece en selector y se puede git-push
-                    if st.button('💾 Guardar en la carpeta (local + git)', type='primary'):
-                        try:
-                            bp.save_model_bundle(b_save, out_path)
-                            # Confirmación PERSISTENTE (se muestra tras el rerun) + verificación
-                            if out_path.exists() and out_path.stat().st_size > 0:
-                                st.session_state['_model_saved_msg'] = (
-                                    f'✓ Modelo guardado: **{out_path.name}** '
-                                    f'({out_path.stat().st_size//1024} KB) en `{DATA_DIR}`. '
-                                    'Ya aparece en el desplegable «Modelo de partida».')
-                                st.rerun()
-                            else:
-                                st.error('El fichero no se creó. Usa **⬇ Descargar .joblib**.')
-                        except Exception as e:
-                            st.error(
-                                f'No se pudo guardar en la carpeta: `{e}`.\n\n'
-                                '• Si usas la app **online** (Streamlit Cloud), la carpeta no '
-                                'es escribible → usa **⬇ Descargar .joblib** y súbelo al repo.\n'
-                                '• En local, revisa permisos de escritura en la carpeta de la app.')
-
-                with cS2:
-                    # Descarga directa: SIEMPRE funciona (local y deploy online efímero)
-                    if buf_bytes:
-                        st.download_button(
-                            '⬇ Descargar .joblib',
-                            data=buf_bytes,
-                            file_name=f'{fname}.joblib',
-                            mime='application/octet-stream',
-                            key='dl_model',
-                            help='Alternativa robusta al guardado en carpeta: descarga el '
-                                 'fichero y cópialo a borreguil_app/ (o súbelo al repo).')
-
-                # Instrucciones para publicar el modelo en el repositorio.
-                # NOTA: no se usa st.expander aquí porque este bloque ya está dentro
-                # del expander "🔁 Evaluación recursiva" y Streamlit no permite anidar
-                # expanders. Se usa una casilla para mostrar/ocultar (sin restricción).
-                if st.checkbox('📤 Cómo publicar el modelo para todos los usuarios online',
-                               key='show_publish_help'):
-                    st.markdown(f"""
-**Opción A — Ejecución local (más sencilla):**
-1. Pulsa "💾 Guardar en la carpeta" → se crea `borreguil_app/{fname}.joblib`.
-2. En la terminal:
-```bash
-cd ruta/a/tu/repositorio
-git add borreguil_app/{fname}.joblib
-git commit -m "Añadir modelo RF: {area_name}"
-git push
-```
-3. Streamlit Cloud redesplegará la app automáticamente. El modelo aparecerá
-   en el desplegable "Modelo de partida" para todos los usuarios.
-
-**Opción B — App online (carpeta efímera):**
-1. Pulsa "⬇ Descargar .joblib".
-2. Copia el fichero descargado a `borreguil_app/` en tu copia local del
-   repositorio.
-3. Sigue los pasos 2-3 de la opción A.
-
-> Los modelos son ficheros de ~3-4 MB. Para muchos modelos considera
-> usar [Git LFS](https://git-lfs.github.com/).
-""")
-
+        # Qué modelo ha dado la probabilidad (el de la última vez que se ejecutó o se
+        # reentrenó) y cuánto acierta con los puntos de campo.
+        _info_modelo = (hist[-1].get('info') if hist else None) or st.session_state.get('info')
+        _sumado = bool((_info_modelo or {}).get('sumado'))
+        with st.expander(i18n.pick('🧭 Modelo usado y acierto con tus puntos de campo',
+                                   '🧭 Model used and accuracy on your field points'),
+                         expanded=True):
+            _msg_modelo = st.session_state.pop('_msg_modelo', None)
+            if _msg_modelo:
+                st.success(_msg_modelo)
+            # La casilla «Sumar mis puntos…» se puede marcar o desmarcar con los
+            # resultados ya en pantalla: antes no pasaba nada hasta verificar otro
+            # punto. Ahora se ofrece aplicarlo en el momento.
+            _n_etq = sum(1 for r in rows
+                         if bp._txt(r.get('Borreguil')).lower() in ('si', 'no')
+                         and bp._txt(r.get('Duda')).lower() != 'si')
+            _pendiente = bool(_info_modelo) and _propio != _sumado
+            mostrar_modelo(_info_modelo, threshold,
+                           casilla=(('boton' if _n_etq else 'sin_puntos')
+                                    if _pendiente and _propio else None))
+            if _pendiente and (_n_etq or not _propio):
+                if st.button(
+                        i18n.pick(f'🔁 Reentrenar ahora sumando mis {_n_etq} puntos',
+                                  f'🔁 Retrain now adding my {_n_etq} points') if _propio
+                        else i18n.pick('↩ Volver al modelo de partida, sin mis puntos',
+                                       '↩ Back to the starting model, without my points'),
+                        type='primary', key='aplicar_casilla'):
+                    with st.spinner(i18n.pick('Reentrenando…', 'Retraining…') if _propio
+                                    else i18n.pick('Calculando…', 'Computing…')):
+                        _inf = _recalcular_y_guardar(
+                            [dict(r) for r in rows], set(base_truth_ids),
+                            'sumar tus puntos' if _propio else 'modelo de partida', 0)
+                    st.session_state['_msg_modelo'] = (
+                        i18n.pick('Modelo reentrenado sumando tus puntos.',
+                                  'Model retrained adding your points.')
+                        if (_inf or {}).get('sumado') else
+                        i18n.pick('Probabilidades calculadas de nuevo con el modelo de '
+                                  'partida, sin tus puntos.',
+                                  'Probabilities computed again with the starting model, '
+                                  'without your points.'))
+                    st.rerun()
 
         # ----------------------------------------------------------------
         # Helpers de mapa
@@ -1702,30 +2596,34 @@ git push
             # hueco=True: el punto resaltado se dibuja sin relleno, para que el
             # marcador no tape justo el terreno que hay que mirar.
             _rotulos = i18n.pick(
-                {'tipo': 'Tipo', 'revisado': 'revisado', 'patron': 'Patrón',
-                 'altitud': 'Altitud'},
-                {'tipo': 'Type', 'revisado': 'reviewed', 'patron': 'Pattern',
-                 'altitud': 'Elevation'})
+                {'tipo': 'Tipo', 'revisado': 'revisado', 'altitud': 'Altitud',
+                 'pendiente': 'Pendiente'},
+                {'tipo': 'Type', 'revisado': 'reviewed', 'altitud': 'Elevation',
+                 'pendiente': 'Slope'})
             for r in pts:
                 color = bp.decision_color(r.get('decision', 'SIN PREDICCIÓN'))
-                # Números con 4 decimales y nombres largos partidos en líneas.
+                # Números con 3 decimales y nombres largos partidos en líneas.
                 popup = bp.popup_html(r, i18n.tv, _rotulos)
                 is_sel = (highlight_id is not None and r.get('ID') == highlight_id)
                 if is_sel:
                     folium.CircleMarker([r['lat'], r['lon']], radius=radius+8,
                                         color='#FF1744', weight=4, fill=False).add_to(fmap)
                 _relleno = not (hueco and is_sel)
-                folium.CircleMarker([r['lat'], r['lon']], radius=radius,
-                                    color=color, fill=True, fill_color=color,
+                # Los añadidos pinchando en el mapa llevan borde blanco
+                _del_mapa = r.get('source') == 'mapa'
+                folium.CircleMarker([r['lat'], r['lon']],
+                                    radius=radius + 2 if _del_mapa else radius,
+                                    color='#FFFFFF' if _del_mapa else color,
+                                    weight=3,
+                                    fill=True, fill_color=color,
                                     fill_opacity=0.85 if _relleno else 0.0,
                                     popup=folium.Popup(popup, max_width=300)).add_to(fmap)
 
         # Leyenda de colores de los puntos (decisión del Random Forest).
         _LEGEND_ITEMS = [
-            ('BORREGUIL VERIFICADO', 'Verificado (campo)'),
+            ('BORREGUIL VERIFICADO', 'Verificado'),
             ('BORREGUIL PROBABLE', 'Probable'),
             ('POSIBLE BORREGUIL', 'Posible'),
-            ('BORREGUIL (auto)', 'Auto (iteración)'),
             ('DUDOSO', 'Dudoso'),
             ('INCIERTO', 'Incierto'),
             ('NO BORREGUIL', 'No borreguil'),
@@ -1747,6 +2645,12 @@ git push
                           f'width:12px;height:12px;border-radius:50%;background:{col};'
                           f'margin-right:6px;vertical-align:middle;border:1px solid #555;">'
                           f'</span>{lab}</div>')
+            if rows is not None and any(r.get('source') == 'mapa' for r in rows):
+                filas += ('<div style="margin:2px 0;"><span style="display:inline-block;'
+                          'width:12px;height:12px;border-radius:50%;background:#777;'
+                          'margin-right:6px;vertical-align:middle;border:3px solid #FFF;'
+                          'box-shadow:0 0 0 1px #555;"></span>'
+                          + i18n.pick('Añadido en el mapa', 'Added on the map') + '</div>')
             html = (
                 '<div style="position:fixed;bottom:24px;left:12px;z-index:9999;'
                 'background:rgba(255,255,255,0.92);padding:8px 10px;border-radius:6px;'
@@ -1759,8 +2663,10 @@ git push
         def _base_map(center, zoom, ortofoto=False):
             # max_zoom alto para acercar bastante a los puntos (over-zoom de las
             # ortofotos); Google Satélite tiene resolución nativa mayor que ESRI.
+            # tiles=None: las capas de fondo se añaden aquí abajo. Sin él, folium ponía
+            # además su OpenStreetMap y salía dos veces en la lista de capas.
             fm = folium.Map(location=center, zoom_start=zoom, max_zoom=22,
-                            control_scale=True, **({'tiles': None} if ortofoto else {}))
+                            control_scale=True, tiles=None)
             capas = [
                 dict(tiles='https://services.arcgisonline.com/ArcGIS/rest/services/'
                            'World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -1786,8 +2692,10 @@ git push
                 # la capa visible (la última capa base que se añade) y las otras
                 # quedan disponibles en el control de capas.
                 capas = capas[1:] + capas[:1]
-                for _c in capas[:-1]:
-                    _c['show'] = False
+            # Se ve la última capa de fondo (en el mapa de resultados, OpenStreetMap);
+            # las demás quedan en el control de capas.
+            for _c in capas[:-1]:
+                _c['show'] = False
             for _c in capas:
                 folium.TileLayer(**_c).add_to(fm)
             if ortofoto:
@@ -1829,7 +2737,7 @@ git push
                            f'{len(pts)} puntos (para no saturar el mapa).')
 
         # Leer la selección de la tabla desde el estado del widget (evita el desfase
-        # de un rerun en el mapa principal de la pestaña Mapa). Streamlit devuelve la
+        # de un rerun en el mapa principal de la pestaña Mapa de los puntos). Streamlit devuelve la
         # selección ORDENADA POR ÍNDICE (no por orden de clic); para enfocar el ÚLTIMO
         # punto seleccionado detectamos cuál se acaba de añadir comparando con la
         # selección previa guardada en sesión.
@@ -1872,28 +2780,316 @@ git push
             st.session_state.sel_point = None
         sel = st.session_state.get('sel_point')
 
+        # --- Puntos añadidos pinchando en el mapa ---------------------------------
+        # Quién revisa, su perfil y su certidumbre (24-11, idea de la autora): se
+        # apuntan en cada punto que se verifica o se añade en el mapa y van en las
+        # descargas con las columnas de la plantilla (observer, expertise, certainty).
+        _PERFIL_TXT = {'student': i18n.pick('Estudiante', 'Student'),
+                       'manager': i18n.pick('Gestor/a', 'Manager'),
+                       'researcher': i18n.pick('Investigador/a', 'Researcher')}
+        _CERT_TXT = {'high': i18n.pick('Alta', 'High'),
+                     'medium': i18n.pick('Media', 'Medium'),
+                     'low': i18n.pick('Baja', 'Low')}
+        _CERT_AYUDA = i18n.pick(
+            'Lo segura que es la respuesta. **Alta**: no hay duda. **Media**: hay alguna '
+            'duda. **Baja**: es lo más probable, pero hay bastante duda. Si no sabes decir '
+            'si es borreguil, no lo verifiques. Si no eliges ninguna, se queda sin indicar.',
+            'How sure the answer is. **High**: no doubt. **Medium**: some doubt. **Low**: '
+            'it is the most likely answer, but there is quite a lot of doubt. If you cannot '
+            'tell whether it is a borreguil, do not verify it. If you choose none, it is '
+            'left unstated.')
+
+        def _quien():
+            """(nombre, perfil) de quien revisa, tal como está en la sesión."""
+            return (st.session_state.get('revisor_nombre') or '',
+                    st.session_state.get('revisor_perfil') or '')
+
+        _RESP_MAPA = {'si': i18n.pick('hay borreguil', 'there is a borreguil'),
+                      'no': i18n.pick('no hay borreguil', 'there is no borreguil'),
+                      'duda': i18n.pick('no está seguro', 'not sure')}
+        _OPINION = {'si': i18n.pick('borreguil', 'borreguil'),
+                    'no': i18n.pick('no borreguil', 'not a borreguil')}
+
+        def _anadir_del_mapa(resp, lat, lng):
+            _nom, _per = _quien()
+            nuevo = bp.punto_del_mapa(rows, lng, lat, resp, observador=_nom, perfil=_per,
+                                      certidumbre=st.session_state.get('mapa_certidumbre')
+                                      or '',
+                                      nota=st.session_state.get('mapa_nota', ''))
+            _be = st.session_state.get('active_backend') or backend
+            _feats = st.session_state.get('sel_model_feats', []) or []
+            try:
+                _anios = bp.parse_years(years_str)
+            except Exception:
+                _anios = tuple(range(2017, 2026))
+            with st.status(i18n.pick(f'Leyendo las variables de {nuevo["ID"]}…',
+                                     f'Reading the variables of {nuevo["ID"]}…'),
+                           expanded=True) as _stt:
+                _t0 = time.time()
+                fallos = leer_variables_puntos(
+                    [nuevo], work, _be, _anios, img_src=img_src, skip_imgs=skip_imgs,
+                    skip_s2=skip_s2,
+                    con_cir=any(f.startswith('cir_') for f in _feats) and not fast_mode,
+                    gee_project=gee_project, consola=_stt)
+                _stt.update(label=i18n.pick(
+                    f'Variables de {nuevo["ID"]} leídas ({time.time() - _t0:.0f} s)',
+                    f'Variables of {nuevo["ID"]} read ({time.time() - _t0:.0f} s)'),
+                    state='error' if fallos else 'complete')
+            # Lo que opinaba el modelo ANTES de saber la respuesta (el modelo propio,
+            # si lo hay, aprenderá después de este mismo punto).
+            try:
+                _bun = st.session_state.get('model_bundle') or bp.load_model_bundle(MODEL_PATH)
+                p = float(bp.predecir_con_bundle([nuevo], _bun)[0])
+            except Exception:
+                p = float('nan')
+            nuevo['rf_proba_al_anadir'] = p
+            rows2 = [dict(r) for r in rows] + [nuevo]
+            new_base = set(base_truth_ids) | ({nuevo['ID']} if resp == 'si' else set())
+            with st.spinner(i18n.pick('Recalculando…', 'Recalculating…')):
+                _recalcular_y_guardar(rows2, new_base,
+                                      f'añadido en el mapa ({nuevo["ID"]})', 1)
+            st.session_state['_clic_usado'] = (lat, lng)
+            st.session_state['_ultimo_anadido'] = (lat, lng)
+            op = bp.opinion_modelo(p, threshold)
+            if op is None:
+                texto = i18n.pick(f'**{nuevo["ID"]}** añadido ({_RESP_MAPA[resp]}).',
+                                  f'**{nuevo["ID"]}** added ({_RESP_MAPA[resp]}).')
+            elif resp == 'duda':
+                texto = i18n.pick(
+                    f'**{nuevo["ID"]}** añadido como dudoso: no entrena ni cuenta en el '
+                    f'acierto. El modelo le daba **{_num(p)}** ({_OPINION[op]}).',
+                    f'**{nuevo["ID"]}** added as doubtful: it does not train and does not '
+                    f'count in the accuracy. The model gave it **{_num(p)}** ({_OPINION[op]}).')
+            else:
+                _corte = bp.corte_borreguil(threshold)
+                texto = i18n.pick(
+                    f'**{nuevo["ID"]}** añadido: {_RESP_MAPA[resp]}. El modelo le daba '
+                    f'**{_num(p)}** (da borreguil desde {_num(_corte)}), así que decía '
+                    f'«{_OPINION[op]}»: '
+                    + ('**coincide** ✓' if op == resp else '**no coincide** ✗') + '.',
+                    f'**{nuevo["ID"]}** added: {_RESP_MAPA[resp]}. The model gave it '
+                    f'**{_num(p)}** (borreguil from {_num(_corte)}), so it said '
+                    f'"{_OPINION[op]}": '
+                    + ('**it agrees** ✓' if op == resp else '**it disagrees** ✗') + '.')
+            if fallos:
+                texto += ' ' + i18n.pick(
+                    'No se pudo leer: ' + '; '.join(fallos) + '. Para eso el modelo usa su '
+                    'valor típico, así que su opinión vale menos.',
+                    'Could not read: ' + '; '.join(fallos) + '. For that the model uses '
+                    'its typical value, so its opinion is less reliable.')
+            st.session_state['_msg_mapa'] = ('aviso' if fallos else 'ok', texto)
+            st.rerun()
+
+        def _resumen_anadidos(con_deshacer):
+            filas, n, ok = bp.resumen_mapa(rows, threshold)
+            if not filas:
+                return
+            st.markdown(
+                i18n.pick(f'**Puntos añadidos en el mapa: {len(filas)}**',
+                          f'**Points added on the map: {len(filas)}**')
+                + (i18n.pick(f' · el modelo coincidía en **{ok} de {n}**',
+                             f' · the model agreed on **{ok} of {n}**') if n else ''))
+            _c_quien = i18n.pick('Quién', 'Who')
+            _c_nota = i18n.pick('Nota', 'Note')
+            _c_p = i18n.pick('Probabilidad del modelo', 'Model probability')
+            df_m = pd.DataFrame([{
+                i18n.pick('Punto', 'Point'): f['ID'],
+                i18n.pick('Dijo', 'Said'): _RESP_MAPA[f['respuesta']],
+                _c_quien: f['observer'],
+                _c_p: f['proba'],
+                i18n.pick('El modelo decía', 'The model said'): _OPINION.get(f['modelo'], '—'),
+                i18n.pick('¿Coincide?', 'Agrees?'): ('✓' if f['coincide']
+                                                     else '✗' if f['coincide'] is False
+                                                     else '—'),
+                _c_nota: f['notes'],
+            } for f in filas])
+            for _c in (_c_quien, _c_nota):
+                if not df_m[_c].astype(str).str.strip().any():
+                    df_m = df_m.drop(columns=_c)
+            st.dataframe(_con_coma(df_m), hide_index=True, width='stretch')
+            st.caption(i18n.pick(
+                'La probabilidad es la que daba el modelo al añadir el punto, antes de saber '
+                'la respuesta. Los dudosos no cuentan. Los puntos añadidos van en las '
+                'descargas como datos de campo (`method` = local knowledge).',
+                'The probability is the one the model gave when the point was added, '
+                'before knowing the answer. Doubtful points do not count. The added '
+                'points go into the downloads as field points (`method` = local '
+                'knowledge).'))
+            if con_deshacer:
+                _ult_id = filas[-1]['ID']
+                if st.button(i18n.pick(f'↩ Quitar el último añadido ({_ult_id})',
+                                       f'↩ Remove the last one added ({_ult_id})'),
+                             key='mapa_deshacer'):
+                    rows2 = [dict(r) for r in rows if r.get('ID') != _ult_id]
+                    with st.spinner(i18n.pick('Recalculando…', 'Recalculating…')):
+                        _recalcular_y_guardar(rows2, set(base_truth_ids) - {_ult_id},
+                                              f'quitado del mapa ({_ult_id})', 0)
+                    st.session_state.sel_point = None
+                    st.session_state.sel_idx = None
+                    st.session_state.prev_sel_set = set()
+                    st.session_state['_vaciar_seleccion'] = True
+                    st.session_state['_msg_mapa'] = ('ok', i18n.pick(
+                        f'**{_ult_id}** quitado.', f'**{_ult_id}** removed.'))
+                    st.rerun()
+
+        def _panel_anadir(clic):
+            if clic:
+                lat, lng = clic
+                _i, _d = bp.punto_mas_cercano(rows, lng, lat)
+                if _i is not None and _d < bp.CERCA_M:
+                    st.info(i18n.pick(
+                        f'Has pinchado en **{rows[_i].get("ID")}**, que ya está en el '
+                        'análisis. Para añadir un punto, pincha fuera de los marcadores.',
+                        f'You clicked on **{rows[_i].get("ID")}**, which is already in '
+                        'the analysis. To add a point, click away from the markers.'))
+                else:
+                    st.markdown(i18n.pick(
+                        f'📍 Has pinchado en **{_num(lat, 5)}; {_num(lng, 5)}** (círculo rojo). '
+                        '¿Hay borreguil aquí?',
+                        f'📍 You clicked on **{_num(lat, 5)}, {_num(lng, 5)}** (red circle). '
+                        'Is there a borreguil here?'))
+                    st.radio(i18n.pick('Certidumbre de tu respuesta (opcional)',
+                                       'Certainty of your answer (optional)'),
+                             list(bp.CERTIDUMBRES), index=None, horizontal=True,
+                             format_func=_CERT_TXT.get, key='mapa_certidumbre',
+                             help=_CERT_AYUDA)
+                    _b1, _b2, _b3, _b4 = st.columns([3, 3, 3, 2])
+                    resp = None
+                    if _b1.button(i18n.pick('✓ Aquí hay borreguil', '✓ There is a borreguil'),
+                                  type='primary', key='mapa_si'):
+                        resp = 'si'
+                    if _b2.button(i18n.pick('✗ Aquí no hay', '✗ There is none'),
+                                  key='mapa_no'):
+                        resp = 'no'
+                    if _b3.button(i18n.pick('? No estoy seguro', '? Not sure'),
+                                  key='mapa_duda'):
+                        resp = 'duda'
+                    if _b4.button(i18n.pick('Cancelar', 'Cancel'), key='mapa_cancelar'):
+                        st.session_state['_clic_usado'] = clic
+                        st.rerun()
+                    if resp:
+                        _anadir_del_mapa(resp, lat, lng)
+            else:
+                st.caption(i18n.pick('👆 Pincha en el mapa donde sepas si hay borreguil.',
+                                     '👆 Click on the map where you know whether there '
+                                     'is a borreguil.'))
+
+        _q1, _q2 = st.columns([3, 2])
+        _q1.text_input(i18n.pick('Quién revisa (opcional)', 'Who is reviewing (optional)'),
+                       key='revisor_nombre')
+        _q2.selectbox(i18n.pick('Perfil (opcional)', 'Profile (optional)'),
+                      list(bp.PERFILES), index=None, format_func=_PERFIL_TXT.get,
+                      placeholder=i18n.pick('Elige…', 'Choose…'), key='revisor_perfil')
+        st.caption(i18n.pick(
+            'Se apunta, con la certidumbre que indiques, en cada punto que verifiques en '
+            '«Revisar puntos» o añadas en el mapa, y sale en las descargas.',
+            'It is recorded, with the certainty you give, in each point you verify in '
+            '"Review points" or add on the map, and it goes into the downloads.'))
+
         # Tabs
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-            ['Mapa', 'Tabla', 'Histograma RF', 'Descargas', '🔑 Variables',
-             '📊 Distribuciones'])
+        # Nombres y orden de la autora (24-11): Descargas, al final.
+        tab1, tab2, tab3, tab5, tab6, tab4 = st.tabs([
+            i18n.pick('Mapa de los puntos', 'Points map'),
+            i18n.pick('Revisar puntos', 'Review points'),
+            i18n.pick('Probabilidades', 'Probabilities'),
+            i18n.pick('Peso de las variables', 'Variable weights'),
+            i18n.pick('Tipos y distribuciones', 'Types and distributions'),
+            i18n.pick('Descargas', 'Downloads')])
 
         with tab1:
             st.markdown('Mapa interactivo. Haz click en un marcador para ver sus detalles y '
                         'poder **quitarlo** del análisis. Al seleccionar filas en la pestaña '
-                        '**Tabla**, el mapa se centra en el **último punto seleccionado**. '
+                        '**Revisar puntos**, el mapa se centra en el **último punto seleccionado**. '
                         'La **leyenda de colores** está abajo a la izquierda.')
             lat_med = sum(r['lat'] for r in rows)/len(rows)
             lon_med = sum(r['lon'] for r in rows)/len(rows)
             st.caption('Capas activables (control ▤ arriba a la derecha): **Píxel S2 '
-                       '(10 m)**, **ventana de muestreo 10 m** (S2 + Sentinel-1) y **20 m** '
-                       '(S2). Cambia a **Google Satélite** para más zoom. Sentinel-1 RTC '
-                       'comparte la rejilla de 10 m con Sentinel-2.')
-            m = _base_map([lat_med, lon_med], 12)
+                       '(10 m)**, **ventana de muestreo 10 m** (S2 y radar) y **20 m** '
+                       '(S2). Cambia a **Google Satélite** para más zoom.')
+            # --- Añadir puntos pinchando en el mapa (p. ej. en un taller con quien
+            # conoce el sitio). El punto entra como un dato de campo más.
+            _anadir = st.toggle(
+                i18n.pick('➕ Añadir puntos pinchando en el mapa',
+                          '➕ Add points by clicking on the map'),
+                key='modo_anadir',
+                help=i18n.pick(
+                    'Para quien conoce el sitio: pincha donde sepas si hay borreguil y '
+                    'contesta debajo del mapa. El punto queda como un dato de campo más '
+                    '(con `method` = local knowledge) y se guarda en las descargas.',
+                    'For people who know the site: click where you know whether there is '
+                    'a borreguil and answer below the map. The point becomes one more '
+                    'field point (with `method` = local knowledge) and is saved in the '
+                    'downloads.'))
+            _msg_mapa = st.session_state.pop('_msg_mapa', None)
+            if _msg_mapa:
+                (st.success if _msg_mapa[0] == 'ok' else st.warning)(_msg_mapa[1])
+            if _anadir:
+                # cuántos puntos tiene el modelo para aprender (sin los dudosos)
+                _n_e = sum(1 for t in (tabla_entrenamiento() or [])
+                           if t.get('borreguil') in ('si', 'no')
+                           and not bp._es_si(t.get('duda')))
+                st.caption(i18n.pick(
+                    'Pincha en el mapa y contesta **debajo** si ahí hay borreguil. '
+                    'La app lee solo el punto nuevo (con Earth Engine, unos segundos) y '
+                    'dice qué opinaba el modelo **antes** de saber tu respuesta.',
+                    'Click on the map and answer **below** whether there is a borreguil '
+                    'there. The app reads only the new point (with Earth Engine, a few seconds) '
+                    'and tells what the model thought **before** knowing your answer.'))
+                if _propio and _n_e:
+                    st.success(i18n.pick(
+                        f'Cada punto que añadas se **suma a los {_n_e} de los que aprendió '
+                        'el modelo** y el modelo se reentrena con todos (unos segundos).',
+                        f'Each point you add is **added to the {_n_e} the model learnt '
+                        'from** and the model is retrained with all of them (a few '
+                        'seconds).'))
+                elif _n_e:
+                    st.info(i18n.pick(
+                        'Para que los puntos que añadas se sumen a los del modelo y lo '
+                        'reentrenen, marca **«Sumar mis puntos a los del modelo y '
+                        'reentrenarlo»** en el panel (Modelo de partida). Sin ella, solo '
+                        'sirven para medir cuánto acierta.',
+                        'For the points you add to be added to the model\'s and retrain '
+                        'it, tick **"Add my points to the model\'s and retrain it"** in '
+                        'the panel (Starting model). Without it, they only serve to '
+                        'measure how well it does.'))
+                # Quién lo dice va en «Quién revisa», encima de las pestañas.
+                st.text_input(i18n.pick('Nota (opcional)', 'Note (optional)'),
+                              key='mapa_nota')
+
+            # El clic que trae el mapa (el componente guarda su último valor con su
+            # clave): se lee antes de dibujarlo para marcar dónde se ha pinchado.
+            _clic = None
+            if _anadir:
+                _lc = (st.session_state.get('mainmap') or {}).get('last_clicked') \
+                    if isinstance(st.session_state.get('mainmap'), dict) else None
+                if _lc and _lc.get('lat') is not None:
+                    _c = (round(float(_lc['lat']), 7), round(float(_lc['lng']), 7))
+                    if _c != st.session_state.get('_clic_usado'):
+                        _clic = _c
+
+            # Con el modo de añadir, el mapa no se recoloca en cada clic: solo se
+            # centra en el último punto añadido cuando se vuelve a dibujar.
+            _ult = st.session_state.get('_ultimo_anadido') if _anadir else None
+            if _ult:
+                m = _base_map(list(_ult), 16)
+            else:
+                m = _base_map([lat_med, lon_med], 12)
             _add_points(m, rows, highlight_id=(sel.get('ID') if sel else None))
             _add_pixel_layers(m, rows, show=False)
             _add_legend(m, rows)
             folium.LayerControl(collapsed=False).add_to(m)
-            if sel:
+            _g_clic = folium.FeatureGroup(name=i18n.pick('Donde has pinchado',
+                                                         'Where you clicked'))
+            if _clic:
+                folium.CircleMarker(list(_clic), radius=11, color='#FF1744', weight=3,
+                                    fill=False).add_to(_g_clic)
+                folium.CircleMarker(list(_clic), radius=2, color='#FF1744',
+                                    fill=True, fill_opacity=1).add_to(_g_clic)
+            if _anadir:
+                map_state = st_folium(m, width=None, height=600, feature_group_to_add=_g_clic,
+                                      returned_objects=['last_object_clicked', 'last_clicked'],
+                                      key='mainmap')
+            elif sel:
                 map_state = st_folium(m, width=None, height=600,
                                       returned_objects=['last_object_clicked'],
                                       center=[sel['lat'], sel['lon']], zoom=18, key='mainmap')
@@ -1901,8 +3097,19 @@ git push
                 map_state = st_folium(m, width=None, height=600,
                                       returned_objects=['last_object_clicked'], key='mainmap')
 
-            # Quitar un punto pinchando directamente en su marcador
-            clicked = (map_state or {}).get('last_object_clicked') if isinstance(map_state, dict) else None
+            if _anadir:
+                # Manda lo que devuelve el mapa al dibujarlo: es su último clic (al
+                # empezar la pasada, la sesión podía tener aún el anterior).
+                _lc = (map_state or {}).get('last_clicked') if isinstance(map_state, dict) else None
+                if _lc and _lc.get('lat') is not None:
+                    _c = (round(float(_lc['lat']), 7), round(float(_lc['lng']), 7))
+                    _clic = None if _c == st.session_state.get('_clic_usado') else _c
+                _panel_anadir(_clic)
+
+            # Quitar un punto pinchando directamente en su marcador (no con el modo de
+            # añadir: ahí pinchar es para añadir, y lo añadido se deshace con su botón)
+            clicked = (map_state or {}).get('last_object_clicked') \
+                if isinstance(map_state, dict) and not _anadir else None
             if clicked and clicked.get('lat') is not None:
                 clat, clon = clicked['lat'], clicked['lng']
                 ni, nd = None, 1e18
@@ -1918,13 +3125,17 @@ git push
                     _rftxt = f'{_rfp*100:.0f}%' if isinstance(_rfp, (int, float)) and not _m.isnan(_rfp) else '—'
                     ci, cb = st.columns([3, 2])
                     with ci:
-                        st.markdown(f"📍 Marcador seleccionado: **{rr.get('ID','?')}** — "
-                                    f"{rr.get('decision','—')} (RF {_rftxt})")
+                        st.markdown(i18n.pick('📍 Marcador seleccionado: ',
+                                              '📍 Selected marker: ')
+                                    + f"**{rr.get('ID','?')}** — "
+                                    f"{i18n.tv_decision(rr.get('decision') or '—')} "
+                                    f"(RF {_rftxt})")
                     with cb:
                         if st.button('🗑 Quitar este punto del análisis', key='remove_map_pt'):
                             keep = [r for j, r in enumerate(rows) if j != ni]
                             if not keep:
-                                st.warning('No puedes quitar todos los puntos.')
+                                st.warning(i18n.pick('No puedes quitar todos los puntos.',
+                                                     'You cannot remove all the points.'))
                             else:
                                 bp.save_csv(keep, work / 'classification.csv')
                                 bp.save_points_geojson(keep, work / 'puntos.geojson')
@@ -1936,29 +3147,45 @@ git push
                                 st.session_state.sel_idx = None
                                 st.session_state.prev_sel_set = set()
                                 st.session_state['_vaciar_seleccion'] = True
-                                st.success(f"Punto {rr.get('ID','?')} quitado del análisis.")
+                                # Para la pasada siguiente (antes de st.rerun no se veía)
+                                st.session_state['_msg_mapa'] = ('ok', _msg_puntos(
+                                    [rr.get('ID', '?')], 'quitado del análisis', '',
+                                    'removed from the analysis', ''))
                                 st.rerun()
 
+            _resumen_anadidos(con_deshacer=_anadir)
+
         with tab2:
-            st.caption('Selecciona una o varias filas (casilla izquierda). El **último punto '
-                       'seleccionado** centra el mapa y muestra su imagen, sin perder los '
-                       'anteriores. Con varias seleccionadas puedes **marcarlas como '
-                       'borreguil verificado** y reentrenar.')
+            st.caption(i18n.pick(
+                'Selecciona una o varias filas (casilla izquierda). El **último punto '
+                'seleccionado** centra el mapa y muestra su imagen, sin perder los '
+                'anteriores. Con varias seleccionadas puedes **marcarlas como borreguil o '
+                'como no borreguil verificado**. Si has marcado «Sumar mis puntos a los del '
+                'modelo y reentrenarlo», además se reentrena el modelo.',
+                'Select one or several rows (left checkbox). The **last selected point** '
+                'centres the map and shows its image, without losing the previous ones. '
+                'With several selected you can **mark them as verified borreguil or '
+                'non-borreguil**. If you ticked "Add my points to the model\'s and retrain '
+                'it", the model is also retrained.'))
             _aviso_rev = st.session_state.pop('_rev_msg', None)
             if _aviso_rev:
                 st.success(_aviso_rev)
             _rs = bp.resumen_revision(rows, pp.is_borreguil_decision)
             if _rs['n_borreguil']:
                 _pn = _rs['por_nivel']
+                _rn = _rs['revisados_por_nivel']
                 st.markdown(i18n.pick(
                     f"🌿 **Tipo revisado: {_rs['n_revisados']} de {_rs['n_borreguil']}** "
-                    f"borreguiles · corregidos respecto a la propuesta de la app: "
-                    f"**{_rs['n_corregidos']}** (ambiente {_pn['ambiente']} · humedad "
+                    f"borreguiles (ambiente {_rn['ambiente']} · humedad {_rn['humedad']} · "
+                    f"pureza {_rn['pureza']}) · corregidos respecto a la propuesta de la "
+                    f"app: **{_rs['n_corregidos']}** (ambiente {_pn['ambiente']} · humedad "
                     f"{_pn['humedad']} · pureza {_pn['pureza']})",
                     f"🌿 **Type reviewed: {_rs['n_revisados']} of {_rs['n_borreguil']}** "
-                    f"borreguiles · corrected against the app's proposal: "
-                    f"**{_rs['n_corregidos']}** (environment {_pn['ambiente']} · moisture "
-                    f"{_pn['humedad']} · purity {_pn['pureza']})"))
+                    f"borreguiles (environment {_rn['ambiente']} · moisture "
+                    f"{_rn['humedad']} · purity {_rn['pureza']}) · corrected against the "
+                    f"app's proposal: **{_rs['n_corregidos']}** (environment "
+                    f"{_pn['ambiente']} · moisture {_pn['humedad']} · purity "
+                    f"{_pn['pureza']})"))
                 st.caption(i18n.pick(
                     'Los tipos revisados son las muestras del mapa de tipos: pestaña '
                     '**🌿 Mapa Modelo RF**, arriba del todo.',
@@ -1972,29 +3199,58 @@ git push
                         "None has been corrected: either the proposal is always right or "
                         "it is being accepted without looking at the orthophoto. A type "
                         "accepted without looking is still the app's rule."))
-            cols_show = ['ID','cuenca_id','source','origin','Borreguil','decision','rf_proba',
-                          'ambiente','humedad','pureza','tipo_revisado',
-                          'mat_signature','elev_dem_m','slope_deg','twi','dist_water_m',
-                          'ndvi_late','clre_late','ndmi_late','evi_late','lat','lon']
+            # Variables: las 3 que más pesan en el modelo usado, una por grupo de
+            # parecidas (como en la ficha del punto), y la pendiente. Antes salían 4 de
+            # fin de verano que dicen casi lo mismo y que el modelo ya no usa, el TWI
+            # (vacío con Earth Engine; desde el 20-11-2026 los modelos no lo usan) y el
+            # «patrón», un código interno.
+            _rs_tab = load_ref_stats(MODEL_PATH)
+            _vars_tab = [k['feat'] for k in pp.variables_clave(
+                (_rs_tab or {}).get('importances'),
+                set((_rs_tab or {}).get('model_features') or []) or None, 3)]
+            if 'slope_deg' not in _vars_tab:
+                _vars_tab.append('slope_deg')
+            cols_show = (['ID', 'cuenca_id', 'source', 'origin', 'Borreguil', 'decision',
+                          'rf_proba', 'ambiente', 'humedad', 'pureza', 'tipo_revisado']
+                         + _vars_tab + ['dist_cauce_m', 'lat', 'lon'])
             df = pd.DataFrame(rows)
             cols_show = [c for c in cols_show if c in df.columns]
             # Las columnas opcionales que están vacías en todos los puntos (p. ej.
             # la cuenca, si el fichero no la trae) no se muestran: solo ocupaban
             # ancho y empujaban fuera de la pantalla la decisión y el tipo.
-            _opcionales = ('cuenca_id', 'source', 'origin', 'Borreguil', 'mat_signature',
-                           'dist_water_m')
+            _opcionales = ('cuenca_id', 'source', 'origin', 'Borreguil', 'dist_cauce_m')
             cols_show = [c for c in cols_show if c not in _opcionales
                          or any(bp._txt(v) != '' for v in df[c])]
             # Los valores del pipeline son españoles; se traducen SOLO para
             # mostrarlos (df_show), sin tocar `rows`, del que depende la lógica.
             df_show = df[cols_show].copy()
+            # Celdas sin dato en las columnas de texto: vacías, no «None» (la columna
+            # «Borreguil» de los puntos sin etiqueta de campo lo enseñaba así).
+            # (las de texto no siempre son «object»: con pandas 3 son «str», y lo que
+            # falta es NaN)
+            for _c in df_show.columns:
+                if not pd.api.types.is_numeric_dtype(df_show[_c]):
+                    df_show[_c] = df_show[_c].map(
+                        lambda v: '' if v is None or (isinstance(v, float) and v != v)
+                        or (isinstance(v, str) and v.strip().lower() in ('none', 'nan'))
+                        else v)
+            if 'Borreguil' in df_show.columns:
+                df_show['Borreguil'] = df_show['Borreguil'].map(
+                    lambda v: {'si': i18n.pick('sí', 'yes'), 'no': 'no'}.get(
+                        bp._txt(v).lower(), ''))
             for _c in ('decision', 'ambiente', 'humedad', 'pureza', 'tipo_borreguil'):
                 if _c in df_show.columns:
-                    df_show[_c] = df_show[_c].map(i18n.tv)
+                    # la decisión, en texto normal («Borreguil verificado»)
+                    df_show[_c] = df_show[_c].map(i18n.tv_decision if _c == 'decision'
+                                                  else i18n.tv)
             if 'tipo_revisado' in df_show.columns:
-                df_show['tipo_revisado'] = df_show['tipo_revisado'].map(
-                    lambda v: i18n.pick('sí', 'yes')
-                    if bp.tipo_revisado({'tipo_revisado': v}) else '')
+                # «sí» con los tres niveles revisados; si no, cuáles
+                def _rev_txt(r):
+                    nv = bp.niveles_revisados(r)
+                    if len(nv) == len(bp.NIVELES_TIPO):
+                        return i18n.pick('sí', 'yes')
+                    return ', '.join(i18n.pick(n, bp.COLUMNA_TIPO_EN[n]) for n in nv)
+                df_show['tipo_revisado'] = [_rev_txt(r) for r in rows]
             # Los ID muy largos se abrevian SOLO en la tabla, conservando el final, que
             # es lo que los distingue; si no, la columna se come el ancho y hay que
             # desplazarse para ver la decisión y el tipo. Además queda fija al
@@ -2007,8 +3263,16 @@ git push
                     'completo aparece al seleccionar el punto y en las descargas.',
                     'Long names are shown abbreviated ("…"). The full name appears '
                     'when you select the point and in the downloads.'))
-            df_show = df_show.rename(columns={c: i18n.tcol(c) for c in df_show.columns})
-            event = st.dataframe(df_show, hide_index=True, width='stretch',
+            # Cabeceras legibles («Decisión», «Altitud (m)»…), no los nombres internos
+            df_show = df_show.rename(columns={c: _nombre_columna(c) for c in df_show.columns})
+            # Los números, con 3 decimales; las coordenadas con 5 (con 3 se moverían
+            # unos 100 m). Solo cambia lo que se ve: `rows` conserva el valor completo.
+            _coords = {_nombre_columna('lat'), _nombre_columna('lon')}
+            for _c in df_show.columns:
+                if _c not in _cfg_tabla and pd.api.types.is_float_dtype(df_show[_c]):
+                    _cfg_tabla[_c] = st.column_config.NumberColumn()
+            event = st.dataframe(_con_coma(df_show, decimales={c: 5 for c in _coords}),
+                                 hide_index=True, width='stretch',
                                  on_select='rerun', selection_mode='multi-row',
                                  column_config=_cfg_tabla, key='results_table')
             sel_rows = []
@@ -2017,19 +3281,42 @@ git push
                 sel_rows = (_selo.get('rows') if isinstance(_selo, dict)
                             else getattr(_selo, 'rows', [])) or []
 
-            # --- Aprendizaje activo: marcar seleccionados como verdad-terreno ---
+            # --- Verificar (o quitar) los puntos seleccionados ---
             if sel_rows:
                 sel_ids = [rows[i].get('ID') for i in sel_rows if i < len(rows)]
-                already = sum(1 for i in sel_rows
-                              if i < len(rows) and str(rows[i].get('Borreguil','')).lower() == 'si')
+                _ya = sum(1 for i in sel_rows if i < len(rows)
+                          and bp._txt(rows[i].get('Borreguil')).lower() in ('si', 'no'))
+                _n = len(sel_ids)
+                _ya_txt = ('' if not _ya else
+                           i18n.pick(' · ya verificado', ' · already verified') if _n == 1 else
+                           i18n.pick(f" · {_ya} ya verificado{'s' if _ya > 1 else ''}",
+                                     f' · {_ya} already verified'))
+                _espera = (i18n.pick('Guardando y reentrenando…', 'Saving and retraining…')
+                           if _propio else i18n.pick('Guardando…', 'Saving…'))
+                _reentrenado = i18n.pick(' Modelo reentrenado sumando tus puntos.',
+                                         ' Model retrained adding your points.')
                 cA, cB, cC = st.columns([3, 2, 2])
                 with cA:
-                    st.markdown(f'**{len(sel_ids)} punto(s) seleccionado(s)** '
-                                f'({already} ya son verdad-terreno).')
+                    st.markdown(i18n.pick(
+                        f"**{_n} punto{'' if _n == 1 else 's'} seleccionado"
+                        f"{'' if _n == 1 else 's'}**{_ya_txt}",
+                        f"**{_n} point{'' if _n == 1 else 's'} selected**{_ya_txt}"))
+                    st.radio(i18n.pick('Certidumbre (opcional)', 'Certainty (optional)'),
+                             list(bp.CERTIDUMBRES), index=None, horizontal=True,
+                             format_func=_CERT_TXT.get, key='rev_certidumbre',
+                             help=_CERT_AYUDA)
+                _nom, _per = _quien()
+                _cert = st.session_state.get('rev_certidumbre') or ''
                 with cB:
-                    if st.button('✓ Marcar como borreguil verificado y reentrenar',
+                    # Sin la casilla «Sumar mis puntos…» no se reentrena nada: el modelo
+                    # de partida da la misma probabilidad a los demás puntos.
+                    if st.button(i18n.pick('✓ Marcar como borreguil verificado y reentrenar',
+                                           '✓ Mark as verified borreguil and retrain')
+                                 if _propio else
+                                 i18n.pick('✓ Marcar como borreguil verificado',
+                                           '✓ Mark as verified borreguil'),
                                  type='primary', key='mark_verified'):
-                        with st.spinner('Incorporando verdad-terreno y reentrenando…'):
+                        with st.spinner(_espera):
                             rows2 = [dict(r) for r in rows]
                             sset = set(sel_ids)
                             for r in rows2:
@@ -2038,39 +3325,19 @@ git push
                                     # Verificarlo a mano resuelve la duda de campo: si
                                     # siguiera «dudoso», no entraría en el entrenamiento.
                                     r['Duda'] = ''
-                            new_base = set(base_truth_ids) | sset
-                            info2 = bp.run_rf_and_decide(rows2, threshold=threshold,
-                                                         default_model_path=MODEL_PATH)
-                            # Los verificados se muestran como tales (los que siguen
-                            # dudosos, no: tampoco entrenan).
-                            for r in rows2:
-                                if (r.get('ID') in new_base
-                                        and bp._txt(r.get('Duda')).lower() != 'si'):
-                                    r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
-                            bp.apply_typology(rows2, pp.is_borreguil_decision)
-                            bp.save_csv(rows2, work / 'classification.csv')
-                            bp.save_points_geojson(rows2, work / 'puntos.geojson')
-                            bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
-                            bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
-                            st.session_state.rows = rows2
-                            st.session_state.base_truth_ids = new_base
-                            st.session_state.iter_n = iter_n + 1
-                            st.session_state.model_bundle = (info2 or {}).get('model_bundle')
-                            n_train_pos = sum(1 for r in rows2
-                                              if bp._txt(r.get('Borreguil')).lower() == 'si'
-                                              and bp._txt(r.get('Duda')).lower() != 'si')
-                            st.session_state.iter_history = hist + [{
-                                'iter': iter_n + 1,
-                                'mode': f'verdad-terreno (+{len(sset - set(base_truth_ids))})',
-                                'cutoff': None,
-                                'info': info2,
-                                'counts': dict(Counter(r['decision'] for r in rows2)),
-                                'n_train_pos': n_train_pos,
-                                'n_new': len(sset - set(base_truth_ids)),
-                            }]
+                                    bp.anotar_revision(r, _nom, _per, _cert)
+                            _nuevos = len(sset - set(base_truth_ids))
+                            info2 = _recalcular_y_guardar(
+                                rows2, set(base_truth_ids) | sset,
+                                f'verdad-terreno (+{_nuevos})', _nuevos)
                             st.session_state.sel_point = None
-                        st.success(f'{len(sset - set(base_truth_ids))} nuevos verificados '
-                                   'incorporados. Modelo reentrenado.')
+                        # El aviso se guarda para la pasada siguiente: con st.success
+                        # antes de st.rerun() no llegaba a verse.
+                        st.session_state['_rev_msg'] = _msg_puntos(
+                            sel_ids, 'marcado como borreguil verificado',
+                            'marcados como borreguil verificado',
+                            'marked as verified borreguil', 'marked as verified borreguil'
+                        ) + (_reentrenado if (info2 or {}).get('sumado') else '')
                         st.rerun()
                 with cC:
                     if st.button('🗑 Quitar del análisis', key='remove_pts',
@@ -2079,7 +3346,8 @@ git push
                         drop = set(sel_rows)
                         keep = [r for i, r in enumerate(rows) if i not in drop]
                         if not keep:
-                            st.warning('No puedes quitar todos los puntos.')
+                            st.warning(i18n.pick('No puedes quitar todos los puntos.',
+                                                 'You cannot remove all the points.'))
                         else:
                             bp.save_csv(keep, work / 'classification.csv')
                             bp.save_points_geojson(keep, work / 'puntos.geojson')
@@ -2091,60 +3359,54 @@ git push
                             st.session_state.sel_idx = None
                             st.session_state.prev_sel_set = set()
                             st.session_state['_vaciar_seleccion'] = True
-                            st.success(f'{len(drop)} punto(s) quitado(s) del análisis.')
+                            st.session_state['_rev_msg'] = _msg_puntos(
+                                sel_ids, 'quitado del análisis', 'quitados del análisis',
+                                'removed from the analysis', 'removed from the analysis')
                             st.rerun()
                 # Lo contrario de verificar como borreguil: un punto que una persona ha
                 # mirado y NO lo es (por ejemplo, uno generado al azar). Queda como
                 # ausencia verificada, igual que las de campo, y el modelo la usa para
                 # aprender qué no es borreguil. Un no borreguil no tiene tipo: si tenía
                 # uno revisado, se le quita.
-                if st.button('✗ Marcar como no borreguil verificado y reentrenar',
+                if st.button(i18n.pick('✗ Marcar como no borreguil verificado y reentrenar',
+                                       '✗ Mark as verified non-borreguil and retrain')
+                             if _propio else
+                             i18n.pick('✗ Marcar como no borreguil verificado',
+                                       '✗ Mark as verified non-borreguil'),
                              key='mark_absent',
-                             help='Para los puntos que has mirado (con la ortofoto o en campo) '
-                                  'y no son borreguil. Quedan como «NO BORREGUIL '
-                                  'VERIFICADO», igual que las ausencias de tu verdad-terreno: '
-                                  'sirven de ausencias para el modelo y para el mapa de '
-                                  'tipos.'):
-                    with st.spinner('Incorporando las ausencias y reentrenando…'):
+                             help=i18n.pick(
+                                 'Para los puntos que has mirado (con la ortofoto o en campo) '
+                                 'y no son borreguil. Quedan como «No borreguil verificado», '
+                                 'igual que las ausencias que traías de campo, y sirven para '
+                                 'el mapa de tipos. Si has marcado «Sumar mis puntos a los '
+                                 'del modelo y reentrenarlo», el modelo los usa además para '
+                                 'aprender qué no es borreguil.',
+                                 'For the points you have looked at (with the orthophoto or '
+                                 'in the field) that are not a borreguil. They become '
+                                 '"Verified non-borreguil", like the absences you brought '
+                                 'from the field, and are used for the type map. If you '
+                                 'ticked "Add my points to the model\'s and retrain it", '
+                                 'the model also uses them to learn what is not a '
+                                 'borreguil.')):
+                    with st.spinner(_espera):
                         rows2 = [dict(r) for r in rows]
                         sset = set(sel_ids)
                         for r in rows2:
                             if r.get('ID') in sset:
                                 r['Borreguil'] = 'no'; r['origin'] = 'verificado'
                                 r['Duda'] = ''
+                                bp.anotar_revision(r, _nom, _per, _cert)
                                 if bp.tipo_revisado(r):
                                     bp.clear_tipo_revisado(r)
-                        new_base = set(base_truth_ids) - sset
-                        info2 = bp.run_rf_and_decide(rows2, threshold=threshold,
-                                                     default_model_path=MODEL_PATH)
-                        for r in rows2:
-                            if (r.get('ID') in new_base
-                                    and bp._txt(r.get('Duda')).lower() != 'si'):
-                                r['decision'] = 'BORREGUIL VERIFICADO'; r['origin'] = 'verificado'
-                        bp.apply_typology(rows2, pp.is_borreguil_decision)
-                        bp.save_csv(rows2, work / 'classification.csv')
-                        bp.save_points_geojson(rows2, work / 'puntos.geojson')
-                        bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx', threshold=threshold)
-                        bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
-                        st.session_state.rows = rows2
-                        st.session_state.base_truth_ids = new_base
-                        st.session_state.iter_n = iter_n + 1
-                        st.session_state.model_bundle = (info2 or {}).get('model_bundle')
-                        n_train_pos = sum(1 for r in rows2
-                                          if bp._txt(r.get('Borreguil')).lower() == 'si'
-                                          and bp._txt(r.get('Duda')).lower() != 'si')
-                        st.session_state.iter_history = hist + [{
-                            'iter': iter_n + 1,
-                            'mode': f'ausencias verificadas (+{len(sset)})',
-                            'cutoff': None,
-                            'info': info2,
-                            'counts': dict(Counter(r['decision'] for r in rows2)),
-                            'n_train_pos': n_train_pos,
-                            'n_new': len(sset),
-                        }]
+                        info2 = _recalcular_y_guardar(
+                            rows2, set(base_truth_ids) - sset,
+                            f'ausencias verificadas (+{len(sset)})', len(sset))
                         st.session_state.sel_point = None
-                    st.success(f'{len(sset)} ausencia(s) verificada(s) incorporada(s). '
-                               'Modelo reentrenado.')
+                    st.session_state['_rev_msg'] = _msg_puntos(
+                        sel_ids, 'marcado como no borreguil verificado',
+                        'marcados como no borreguil verificado',
+                        'marked as verified non-borreguil', 'marked as verified non-borreguil'
+                    ) + (_reentrenado if (info2 or {}).get('sumado') else '')
                     st.rerun()
 
             # --- Revisión del TIPO de borreguil (ambiente / humedad / pureza) ---
@@ -2163,14 +3425,25 @@ git push
                                 'borreguil, así que no tienen tipo. Si alguno lo es, '
                                 'márcalo primero como borreguil verificado.')
                     else:
-                        st.caption('Decide con la ortofoto o con datos de campo, no por lo '
-                                   'que propone la app. **Ambiente**: dónde está el prado '
-                                   '(junto a un arroyo, junto a una laguna o en ladera). '
-                                   '**Humedad**: aplica siempre el mismo criterio a todos '
-                                   'los puntos. **Pureza**: «mixto-agua» si hay agua dentro '
-                                   'del píxel de 10 m, «mixto-roca» si hay roca o suelo '
-                                   'desnudo, «puro» si todo es prado. Deja «(sin cambio)» '
-                                   'para confirmar la propuesta.')
+                        st.caption(i18n.pick(
+                            'Decide con la ortofoto o con datos de campo, no por lo que '
+                            'propone la app. **Ambiente**: dónde está el prado (junto a un '
+                            'arroyo, junto a una laguna o en ladera). **Humedad**: aplica '
+                            'siempre el mismo criterio a todos los puntos. **Pureza**: '
+                            '«mixto-agua» si hay agua dentro del píxel de 10 m, «mixto-roca» '
+                            'si hay roca o suelo desnudo, «puro» si todo es prado. **Cada '
+                            'nivel cuenta por separado:** elige solo lo que hayas podido '
+                            'ver; lo que dejes en «(sin cambio)» no cuenta como revisado. '
+                            'Para dar por buena la propuesta de la app, elígela.',
+                            'Decide with the orthophoto or with field data, not by what the '
+                            'app proposes. **Environment**: where the meadow is (by a '
+                            'stream, by a lake or on a slope). **Moisture**: always apply '
+                            'the same criterion to all points. **Purity**: "mixed-water" if '
+                            'there is water inside the 10 m pixel, "mixed-rock" if there is '
+                            'rock or bare soil, "pure" if it is all meadow. **Each level '
+                            'counts separately:** choose only what you could see; what you '
+                            'leave at "(no change)" does not count as reviewed. To accept '
+                            "the app's proposal, choose it."))
                         import hashlib as _hl
                         # La clave de los desplegables depende de QUÉ puntos hay
                         # seleccionados (por ID, no por posición: al quitar un punto
@@ -2188,10 +3461,17 @@ git push
                                 ('ambiente', 'Ambiente'), ('humedad', 'Humedad'),
                                 ('pureza', 'Pureza'))):
                             _ops = [_SIN] + list(bp.NIVELES_TIPO[_niv])
-                            _act = _uno.get(_niv) if _uno else None
+                            # arranca con lo revisado; un nivel sin revisar, en «(sin
+                            # cambio)», para que guardar no lo dé por revisado sin mirarlo
+                            _act = (_uno.get(_niv) if _uno and _niv in bp.niveles_revisados(_uno)
+                                    else None)
+                            _prop = bp._txt(_uno.get(_niv + '_regla')) if _uno else ''
                             with _col:
                                 _eleccion[_niv] = st.selectbox(
-                                    _etq, _ops,
+                                    i18n.tr(_etq) + (i18n.pick(
+                                        f' (propuesta: {i18n.tv(_prop)})',
+                                        f' (proposal: {i18n.tv(_prop)})') if _prop else ''),
+                                    _ops,
                                     index=_ops.index(_act) if _act in _ops else 0,
                                     key=f'rev_{_niv}_{_firma}',
                                     format_func=lambda o: (i18n.tr(o) if o == '(sin cambio)'
@@ -2214,15 +3494,23 @@ git push
                                 f'{len(_idx_tipo)} point(s) to review'
                                 + (f' · {_n_fuera} are not borreguil and are skipped'
                                    if _n_fuera else '')))
+                        _elegidos = {n: v for n, v in _eleccion.items() if v != _SIN}
+                        if _guardar and not _elegidos:
+                            st.warning(i18n.pick(
+                                'No has elegido ningún nivel: no hay nada que guardar.',
+                                'You have not chosen any level: there is nothing to save.'))
+                            _guardar = False
                         if _guardar or _deshacer:
                             rows2 = [dict(r) for r in rows]
                             _errores = []
                             for i in _idx_tipo:
                                 try:
                                     if _guardar:
-                                        bp.set_tipo_revisado(rows2[i], **{
-                                            n: (None if v == _SIN else v)
-                                            for n, v in _eleccion.items()})
+                                        bp.set_niveles_revisados(rows2[i], **_elegidos)
+                                        # aquí se revisa con la ortofoto (plantilla:
+                                        # `method`); lo que traía el fichero se respeta
+                                        if not bp._txt(rows2[i].get('method')):
+                                            rows2[i]['method'] = 'orthophoto'
                                     else:
                                         bp.clear_tipo_revisado(rows2[i])
                                 except ValueError as _e:
@@ -2245,9 +3533,11 @@ git push
                                     st.session_state.get('_rev_n', 0) + 1
                                 st.session_state['_rev_msg'] = (
                                     i18n.pick(f'Tipo revisado guardado en {len(_idx_tipo)} '
-                                              'punto(s).',
+                                              'punto(s): ' + ', '.join(_elegidos) + '.',
                                               f'Reviewed type saved for {len(_idx_tipo)} '
-                                              'point(s).')
+                                              'point(s): ' + ', '.join(
+                                                  bp.COLUMNA_TIPO_EN[n] for n in _elegidos)
+                                              + '.')
                                     if _guardar else
                                     i18n.pick(f'Revisión deshecha en {len(_idx_tipo)} '
                                               'punto(s).',
@@ -2297,7 +3587,7 @@ git push
                         "line-height:1.3;overflow-wrap:anywhere;'>"
                         f"{bp.nombre_html(sel.get('ID', '?'))}</h4>",
                         unsafe_allow_html=True)
-                    st.markdown(f"**{i18n.tv(sel.get('decision','—'))}**")
+                    st.markdown(f"**{i18n.tv_decision(sel.get('decision') or '—')}**")
                     if sel.get('tipo_borreguil'):
                         st.markdown(
                             f"🌿 {i18n.tv(sel['tipo_borreguil'])} — "
@@ -2308,29 +3598,37 @@ git push
                     rfp = sel.get('rf_proba')
                     if isinstance(rfp, (int, float)) and not _m.isnan(rfp):
                         st.metric('Probabilidad RF', f'{rfp*100:.0f}%')
-                    # La imagen es la que se anotó en el punto al descargarla; por
-                    # posición solo si el punto no lleva la anotación.
-                    _img = sel.get('_img', f'pt_{idx:04d}.jpg')
-                    img_p = (work / 'imgs' / _img) if _img else None
-                    if img_p is not None and img_p.exists():
-                        st.image(str(img_p), caption='ESRI World Imagery (~550 m)',
-                                 width='stretch')
-
-                    _n = bp.fmt_num                 # 4 decimales
+                    # (Sin la imagen aérea de ~550 m de la que salen las texturas: el
+                    # mapa de la izquierda ya enseña el sitio, y mejor. Quitada el
+                    # 24-11-2026 a petición de la autora; se sigue descargando.)
+                    _n = _num                       # 3 decimales, con coma en español
+                    # Las 3 variables que más pesan en el modelo, una por grupo de
+                    # parecidas (antes eran NDVI, clorofila y EVI de fin de verano, que
+                    # dicen casi lo mismo: correlación 0,94–0,98).
+                    _rs_sel = load_ref_stats(MODEL_PATH)
+                    _mf = set((_rs_sel or {}).get('model_features') or []) or None
+                    _clave3 = pp.variables_clave((_rs_sel or {}).get('importances'), _mf, 3)
+                    _ya = {k['feat'] for k in _clave3}
+                    # (sin las que no tienen dato)
+                    _terreno = ' · '.join(
+                        f"{pp.etiqueta(f)}: **{_n(sel.get(f))}**"
+                        for f in ('elev_dem_m', 'slope_deg')
+                        if f not in _ya and _n(sel.get(f)) != '—')
+                    _mas_peso = ' · '.join(
+                        f"{pp.etiqueta(k['feat'])}: **{_n(sel.get(k['feat']))}**"
+                        + ('' if k['peso'] is None else f" ({100 * k['peso']:.0f} %)")
+                        for k in _clave3)
                     st.markdown(
-                        f"Altitud: **{_n(sel.get('elev_dem_m'))} m** · Slope: "
-                        f"**{_n(sel.get('slope_deg'))}°** · TWI: "
-                        f"**{_n(sel.get('twi'))}**\n\n"
-                        f"NDVI fin: **{_n(sel.get('ndvi_late'))}** · Clre: "
-                        f"**{_n(sel.get('clre_late'))}** · EVI: "
-                        f"**{_n(sel.get('evi_late'))}**\n\n"
-                        f"Patrón: **{sel.get('mat_signature','—')}** · "
-                        f"Coords: {sel.get('lat'):.5f}, {sel.get('lon'):.5f}")
+                        i18n.pick('Lo que más pesa en el modelo: ',
+                                  'What weighs most in the model: ') + _mas_peso + '\n\n'
+                        + (_terreno + '\n\n' if _terreno else '')
+                        # (sin el «Patrón»: era un código interno, BORREGUIL_LIKE…)
+                        + f"Coords: {_num(sel.get('lat'), 5)}{i18n.pick('; ', ', ')}{_num(sel.get('lon'), 5)}")
                     gmaps = f"https://www.google.com/maps/search/?api=1&query={sel.get('lat')},{sel.get('lon')}"
                     st.markdown(f'[Abrir en Google Maps]({gmaps})')
-                rs = load_ref_stats(st.session_state.get('start_model_path')
-                                    or str(model_path('rf_sierra_nevada.joblib')))
-                with st.expander('📈 Perfil espectral del punto vs. borreguiles de referencia',
+                rs = load_ref_stats(MODEL_PATH)
+                with st.expander(i18n.pick('📈 Este punto frente a los borreguiles verdaderos',
+                                           '📈 This point vs the real borreguiles'),
                                  expanded=True):
                     render_point_profile(sel, rs)
             elif sel:
@@ -2348,39 +3646,67 @@ git push
                 dfh = pd.DataFrame({'rf_proba': rf_vals})
                 # Histograma real: agrupa las probabilidades en bins de 0,05 y cuenta
                 # cuántos puntos caen en cada uno (antes pintaba una barra por punto).
-                hist = alt.Chart(dfh).mark_bar(color='#2e7d32', opacity=0.85).encode(
+                graf_hist = alt.Chart(dfh).mark_bar(color='#2e7d32', opacity=0.85).encode(
                     x=alt.X('rf_proba:Q', bin=alt.Bin(extent=[0, 1], step=0.05),
                             title='Probabilidad RF'),
                     y=alt.Y('count():Q', title='Nº de puntos'),
                     tooltip=[alt.Tooltip('count():Q', title='puntos')])
                 rules = alt.Chart(
                     pd.DataFrame({'umbral': [threshold, 0.7],
-                                  'etiqueta': [f'umbral {threshold:.2f}', '0.70']})
+                                  'etiqueta': [i18n.pick('umbral ', 'threshold ')
+                                               + _n3(threshold), _n3(0.7)]})
                 ).mark_rule(color='#c62828', strokeDash=[4, 4]).encode(
                     x='umbral:Q',
                     tooltip=[alt.Tooltip('etiqueta:N', title='línea')])
-                st.altair_chart((hist + rules).properties(height=320),
+                st.altair_chart((graf_hist + rules).properties(height=320),
                                 width='stretch')
                 _med = sorted(rf_vals)[len(rf_vals)//2]
-                st.markdown(f'**Mediana**: {_med:.3f}  ·  '
-                             f'**N** ≥ 0.5: {sum(1 for v in rf_vals if v>=0.5)}  ·  '
-                             f'**N** ≥ 0.7: {sum(1 for v in rf_vals if v>=0.7)}  ·  '
+                st.markdown(i18n.pick('**Mediana**', '**Median**') + f': {_n3(_med)}  ·  '
+                             f'**N** ≥ {_n3(0.5)}: {sum(1 for v in rf_vals if v>=0.5)}  ·  '
+                             f'**N** ≥ {_n3(0.7)}: {sum(1 for v in rf_vals if v>=0.7)}  ·  '
                              f'**Total**: {len(rf_vals)}')
             else:
                 st.info('Sin probabilidades RF disponibles.')
 
         with tab4:
-            st.markdown('Resultados generados (reflejan la última iteración):')
-            for name in ('classification.csv','Clasificacion_puntos.xlsx',
-                          'puntos.geojson','mapa.html','area_estudio.geojson'):
+            st.markdown(i18n.pick(
+                'Los ficheros de este análisis, con los últimos cambios (puntos '
+                'revisados, añadidos o reentrenados):',
+                'The files of this analysis, with the latest changes (points reviewed, '
+                'added or retrained):'))
+            for name, que in (
+                ('Clasificacion_puntos.xlsx', i18n.pick(
+                    'Excel para **mirar los resultados**: cada punto con su probabilidad, '
+                    'la decisión y el tipo de borreguil.',
+                    'Excel to **look at the results**: each point with its probability, '
+                    'the decision and the type of borreguil.')),
+                ('puntos.geojson', i18n.pick(
+                    'Los puntos con **todo lo revisado**: ábrelo en QGIS, o vuelve a '
+                    'subirlo a la app otro día para seguir donde lo dejaste.',
+                    'The points with **everything reviewed**: open it in QGIS, or upload '
+                    'it to the app again another day to carry on where you left off.')),
+                ('mapa.html', i18n.pick(
+                    'El **mapa** de los puntos para abrirlo en el navegador, sin la app.',
+                    'The **map** of the points to open in the browser, without the app.')),
+                ('classification.csv', i18n.pick(
+                    'Tabla con **todas las variables** de cada punto (para analizarlas en '
+                    'R, Python o una hoja de cálculo).',
+                    'Table with **all the variables** of each point (to analyse them in '
+                    'R, Python or a spreadsheet).')),
+                ('area_estudio.geojson', i18n.pick(
+                    'El **área de estudio** que usaste, para abrirla en QGIS.',
+                    'The **study area** you used, to open it in QGIS.')),
+            ):
                 p = work / name
                 if p.exists():
+                    _c1, _c2 = st.columns([1, 2], vertical_alignment='center')
                     with open(p, 'rb') as fh:
-                        st.download_button(label=f'⬇ {name}',
-                                           data=fh.read(),
-                                           file_name=name,
-                                           mime='application/octet-stream',
-                                           key=f'dl_{name}')
+                        _c1.download_button(label=f'⬇ {name}',
+                                            data=fh.read(),
+                                            file_name=name,
+                                            mime='application/octet-stream',
+                                            key=f'dl_{name}')
+                    _c2.markdown(que)
 
         with tab5:
             st.markdown('**Variables más decisivas del modelo Random Forest** usado en esta '
@@ -2423,14 +3749,21 @@ git push
                 if hier_df is not None:
                     st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')
                     st.dataframe(hier_df, hide_index=True, width='stretch')
-                st.caption('Reglas sobre las variables ya calculadas (cercanía a lagunas, '
-                           'TWI, pendiente, NDMI, NDWI, roca/agua…). Arroyo se detecta por '
-                           'topografía (TWI alto o pendiente baja) cuando no hay capa OSM. '
-                           'La **pureza es relativa** a esta población: marca como mixto-agua/'
-                           'mixto-roca el ~15% con más firma de agua (NDWI) o roca (albedo/'
-                           'NDVI bajo), porque a 10 m no se mide la fracción sub-píxel '
-                           'absoluta (para eso harían falta PlanetScope o CIR). Umbrales '
-                           'en `borreguil_pipeline.py` (HIER_THRESH).')
+                st.caption(i18n.pick(
+                    'Cómo se propone el tipo: el **ambiente**, por la cercanía a lagunas y a '
+                    'los ríos y arroyos de OpenStreetMap (arroyo: a 30 m o menos); la '
+                    '**humedad**, por el NDMI; la **pureza**, igual que en el mapa: cuánto '
+                    'verde hay en el píxel de 10 m del punto, estimado con su NDVI de inicio '
+                    'de verano (puro si llega al 75 %; si no, mixto-agua si el píxel es agua '
+                    'o toca agua, y mixto-roca si no). La pureza se lee con Earth Engine: sin '
+                    'él, se queda sin propuesta (—).',
+                    'How the type is proposed: the **environment**, from the closeness to '
+                    'lakes and to the OpenStreetMap rivers and streams (stream: 30 m or '
+                    'less); the **moisture**, from the NDMI; the **purity**, as in the map: '
+                    'how much green there is in the 10 m pixel of the point, estimated from '
+                    'its early-summer NDVI (pure if it reaches 75 %; otherwise mixed-water if '
+                    'the pixel is water or touches water, and mixed-rock if not). Purity is '
+                    'read with Earth Engine: without it, there is no proposal (—).'))
                 st.divider()
 
             st.markdown(
@@ -2457,6 +3790,83 @@ git push
             if dc is not None:
                 st.altair_chart(dc, width='stretch')
 
+        # --- Guardar el modelo reentrenado ---
+        # Solo cuando se ha reentrenado sumando los puntos de la sesión: el de partida
+        # ya está en el desplegable y guardarlo otra vez solo haría una copia.
+        bundle = st.session_state.get('model_bundle')
+        _info_ult = (hist[-1].get('info') if hist else None) or st.session_state.get('info') or {}
+        _saved_msg = st.session_state.pop('_model_saved_msg', None)
+        if bundle and _info_ult.get('mode') == 'trained':
+            with st.expander(i18n.pick('💾 Guardar el modelo reentrenado',
+                                       '💾 Save the retrained model'),
+                             expanded=bool(_saved_msg)):
+                # Mensaje PERSISTENTE: sobrevive al st.rerun que sigue a guardar.
+                if _saved_msg:
+                    st.success(_saved_msg)
+                st.markdown(i18n.pick(
+                    'Guarda el modelo reentrenado con tus puntos para usarlo otro día: '
+                    'aparecerá en el desplegable «Modelo de partida». También puedes '
+                    'descargarlo para pasárselo a otra persona.',
+                    'Save the model retrained with your points to use it another day: it '
+                    'will appear in the "Starting model" list. You can also download it '
+                    'to give it to someone else.'))
+                # Pre-rellenar con el nombre del área de estudio, sin sufijos largos
+                # tipo «, Comarca de…, Andalucía, España»
+                _si = st.session_state.get('study_info') or {}
+                area_default = (_si.get('name') or _si.get('query') or '').strip()
+                if ',' in area_default:
+                    area_default = area_default.split(',')[0].strip()
+                area_name = st.text_input(
+                    i18n.pick('Nombre de la zona (será el nombre del modelo)',
+                              'Name of the area (it will be the name of the model)'),
+                    value=area_default or i18n.pick('Mi zona de montaña', 'My mountain area'))
+                fname = area_to_filename(area_name)
+                out_path = DATA_DIR / f'{fname}.joblib'
+                st.caption(i18n.pick(
+                    f'Se guardará como **{fname}**'
+                    + (' (sustituye al que ya hay con ese nombre)' if out_path.exists() else ''),
+                    f'It will be saved as **{fname}**'
+                    + (' (it replaces the one with that name)' if out_path.exists() else '')))
+
+                import io as _io, joblib as _jl
+                b_save = dict(bundle); b_save['training_zone'] = area_name
+                buf = _io.BytesIO()
+                try:
+                    _jl.dump(b_save, buf)
+                    buf_bytes = buf.getvalue()
+                except Exception as _je:
+                    buf_bytes = None
+                    st.error(i18n.pick(f'No se pudo preparar el modelo: {_je}',
+                                       f'The model could not be prepared: {_je}'))
+
+                cS1, cS2 = st.columns(2)
+                with cS1:
+                    if st.button(i18n.pick('💾 Guardar en la app', '💾 Save in the app'),
+                                 type='primary'):
+                        try:
+                            bp.save_model_bundle(b_save, out_path)
+                            if out_path.exists() and out_path.stat().st_size > 0:
+                                st.session_state['_model_saved_msg'] = i18n.pick(
+                                    f'✓ Modelo guardado: **{fname}**. Ya aparece en el '
+                                    'desplegable «Modelo de partida».',
+                                    f'✓ Model saved: **{fname}**. It is already in the '
+                                    '"Starting model" list.')
+                                st.rerun()
+                            else:
+                                st.error(i18n.pick(
+                                    'No se pudo guardar. Usa «Descargar el modelo».',
+                                    'It could not be saved. Use "Download the model".'))
+                        except Exception as e:
+                            st.error(i18n.pick(
+                                f'No se pudo guardar ({e}). Usa «Descargar el modelo».',
+                                f'It could not be saved ({e}). Use "Download the model".'))
+                with cS2:
+                    if buf_bytes:
+                        st.download_button(
+                            i18n.pick('⬇ Descargar el modelo', '⬇ Download the model'),
+                            data=buf_bytes, file_name=f'{fname}.joblib',
+                            mime='application/octet-stream', key='dl_model')
+
 
 # ============================================================
 # MAPA MODELO RF — pestaña propia, al mismo nivel que «Verdad terreno»
@@ -2469,61 +3879,68 @@ git push
 with tab_tipos:
     import mapeo_rf as mr
     _en = i18n.get_lang() == 'en'
-    st.subheader(i18n.pick('Mapa de tipos de borreguil — Random Forest',
-                           'Map of borreguil types — Random Forest'))
+    st.subheader(i18n.pick('Mapa de borreguiles — Random Forest',
+                           'Borreguil map — Random Forest'))
     if 'rows' not in st.session_state:
         st.info(i18n.pick(
-            'Aquí se entrena un modelo con los borreguiles cuyo **tipo has revisado** y '
-            'se obtiene un **mapa de tipos**. Todavía no hay puntos en la sesión:\n\n'
+            'Aquí se entrena un modelo con tus puntos y se obtiene el **mapa de '
+            'borreguiles**: dónde hay borreguil y, si quieres, de qué tipo. Todavía no '
+            'hay puntos en la sesión:\n\n'
             '1. Ejecuta el análisis (panel lateral → **▶ Ejecutar pipeline**). El '
             'resultado sale en la pestaña **📍 Verdad terreno**.\n'
-            '2. En **Resultados → Tabla**, revisa el tipo de los borreguiles: ambiente, '
-            'humedad y pureza.\n'
+            '2. En **📍 Verdad terreno → Revisar puntos**, marca puntos como **borreguil o no borreguil '
+            'verificado**, o añádelos pinchando en **📍 Verdad terreno → Mapa de los puntos**: con eso se '
+            'hace el mapa de borreguil sí o no. Para el tipo, revisa además el tipo de '
+            'los borreguiles (ambiente, humedad y pureza).\n'
             '3. Vuelve a esta pestaña.',
-            'Here a model is trained with the borreguiles whose **type you have '
-            'reviewed** to produce a **type map**. There are no points in the session '
-            'yet:\n\n'
+            'Here a model is trained with your points to produce the **borreguil '
+            'map**: where there is borreguil and, if you want, of which type. There are '
+            'no points in the session yet:\n\n'
             '1. Run the analysis (sidebar → **▶ Run pipeline**). The result appears in '
             'the **📍 Ground truth** tab.\n'
-            '2. Under **Results → Table**, review the type of the borreguiles: '
-            'environment, moisture and purity.\n'
+            '2. Under **📍 Ground truth → Review points**, mark points as **verified borreguil or '
+            'verified not-borreguil**, or add them by clicking under **📍 Ground truth → Points map**: '
+            'that is enough for the borreguil yes-or-no map. For the type, also review '
+            'the type of the borreguiles (environment, moisture and purity).\n'
             '3. Come back to this tab.'))
     else:
         rows = st.session_state.rows
         st.markdown(i18n.pick(
             'Entrena un modelo de **borreguil sí o no** con los puntos marcados en campo y, '
             'si quieres el tipo, otro con los puntos cuyo **tipo has revisado** (en **📍 '
-            'Verdad terreno → Tabla**), y obtén el **mapa de borreguiles**. Los pasos van '
+            'Verdad terreno → Revisar puntos**), y obtén el **mapa de borreguiles**. Los pasos van '
             'en orden, cada uno en su pestaña.',
             'Train a **borreguil yes-or-no** model with the points marked in the field and, '
             'if you want the type, another one with the points whose **type you have '
-            'reviewed** (under **📍 Ground truth → Table**), and get the **borreguil map**. '
+            'reviewed** (under **📍 Ground truth → Review points**), and get the **borreguil map**. '
             'The steps go in order, each in its own tab.'))
         _niv_txt = {
             mr.NIVEL_SI_NO: i18n.pick('Borreguil sí o no', 'Borreguil yes or no'),
-            'ambiente': i18n.pick('Ambiente (arroyo · laguna · ladera)',
-                                  'Environment (stream · lake · slope)'),
             'humedad': i18n.pick('Humedad (húmedo · seco)', 'Moisture (wet · dry)'),
-            'pureza': i18n.pick('Pureza (puro · mixto-agua · mixto-roca)',
-                                'Purity (pure · mixed-water · mixed-rock)'),
             # corto: en el panel estrecho el desplegable no parte el texto, lo corta
             'ambiente_humedad': i18n.pick(
                 'Ambiente y humedad (en cada ambiente, húmedo o seco)',
                 'Environment and moisture (in each one, wet or dry)'),
         }
+        # Lo que se ofrece (24-11-2026, la autora): sin «Ambiente», en el que el modelo no ve
+        # dónde están las lagunas ni los cauces y puede poner «laguna» lejos de
+        # cualquiera («Ambiente y humedad» lo pone por cercanía), ni «Pureza», que
+        # repetía la «Pureza dentro del píxel» del mapa (salían dos purezas distintas en
+        # un mismo mapa). mapeo_rf los sigue sabiendo hacer.
+        _NIVELES_APP = [n for n in mr.NIVELES if n in _niv_txt]
         # El nivel va encima de los pasos: lo que se elige aquí vale para todos. Viene
         # elegido el primer paso: borreguil sí o no.
-        if st.session_state.get('mrf_nivel') not in mr.NIVELES:
+        if st.session_state.get('mrf_nivel') not in _NIVELES_APP:
             st.session_state['mrf_nivel'] = mr.NIVEL_SI_NO
         _nivel = st.selectbox(
             i18n.pick('Qué quieres cartografiar', 'What to map'),
-            list(mr.NIVELES), key='mrf_nivel', format_func=lambda n: _niv_txt[n],
+            _NIVELES_APP, key='mrf_nivel', format_func=lambda n: _niv_txt[n],
             help=i18n.pick(
                 'Se entrena un modelo por cada opción.\n\n'
                 '**Borreguil sí o no** decide solo si hay borreguil. Aprende de **todos '
                 'los puntos marcados en campo** como borreguil o no, tengan o no el tipo '
                 'revisado. Su mapa ya es el de borreguil sí o no.\n\n'
-                'Para el **tipo**, entrena después uno de los otros niveles: aprende el '
+                'Para el **tipo**, entrena después una de las otras opciones: aprende el '
                 'tipo solo de los borreguiles con el tipo revisado, y en su mapa el sí o '
                 'no lo sigue decidiendo el modelo de **Borreguil sí o no**.\n\n'
                 '**Ambiente y humedad** da el tipo completo: el modelo dice si es húmedo '
@@ -2531,9 +3948,6 @@ with tab_tipos:
                 'cada píxel a lagunas y cauces**, que se ajusta en **4 · Mapa**.\n\n'
                 '**Recomendado: primero Borreguil sí o no, y después Ambiente y '
                 'humedad.**\n\n'
-                'En **Ambiente**, en cambio, el ambiente lo decide el modelo, que no ve '
-                'dónde están las lagunas ni los cauces: puede poner «laguna» lejos de '
-                'cualquier laguna.\n\n'
                 'No se ofrece la combinación de los tres niveles (18 categorías): no '
                 'habría puntos para casi ninguna. La pureza se añade al mapa de otra '
                 'manera: «Pureza dentro del píxel», en **4 · Mapa**.',
@@ -2542,7 +3956,7 @@ with tab_tipos:
                 'learns from **every point marked in the field** as a borreguil or not, '
                 'whether or not its type has been reviewed. Its map is already the '
                 'borreguil yes-or-no map.\n\n'
-                'For the **type**, train one of the other levels afterwards: it learns '
+                'For the **type**, train one of the other options afterwards: it learns '
                 'the type only from the borreguiles whose type has been reviewed, and in '
                 'its map the yes or no is still decided by the **Borreguil yes or no** '
                 'model.\n\n'
@@ -2552,9 +3966,6 @@ with tab_tipos:
                 'Map**.\n\n'
                 '**Recommended: first Borreguil yes or no, then Environment and '
                 'moisture.**\n\n'
-                'Under **Environment**, by contrast, the model decides the environment, '
-                'and it cannot see where lakes and watercourses are: it may say "lake" '
-                'far from any lake.\n\n'
                 'The combination of the three levels (18 categories) is not offered: '
                 'there would be no points for most of them. Purity is added to the map '
                 'in another way: "Purity within the pixel", under **4 · Map**.'))
@@ -2562,17 +3973,6 @@ with tab_tipos:
         # el de fuera (el ambiente) lo pone el mapa por cercanía a lagunas y cauces.
         _nivel_mod = mr.nivel_del_modelo(_nivel)
         _cercania = mr.nivel_por_cercania(_nivel)
-        if _nivel == 'ambiente':
-            st.warning(i18n.pick(
-                'En este nivel el ambiente lo decide **el modelo**, que solo conoce lo '
-                'que hay en cada píxel y no ve dónde están las lagunas ni los cauces: '
-                'puede poner «laguna» lejos de cualquier laguna. Para que el ambiente '
-                'salga de la **cercanía a lagunas y cauces**, elige «Ambiente y humedad».',
-                'At this level the environment is decided by **the model**, which only '
-                'knows what is in each pixel and cannot see where lakes and watercourses '
-                'are: it may say "lake" far from any lake. For the environment to come '
-                'from **closeness to lakes and watercourses**, choose "Environment and '
-                'moisture".'))
 
         def _leyenda_cats(cats, marca, color_de=lambda c, i: c['color']):
             """Las filas de una leyenda (HTML): una por categoría, con su marca de
@@ -2714,7 +4114,7 @@ with tab_tipos:
             if _res['errores']:
                 st.error(i18n.pick('**Con estos puntos todavía no se puede entrenar:**',
                                    '**These points are not enough to train yet:**')
-                         + ''.join('\n- ' + mr.mensaje(e, _en, i18n.tv)
+                         + ''.join('\n- ' + mr.mensaje(e, _en, i18n.tv, nivel=_nivel_mod)
                                    for e in _res['errores']))
             _otros = [a for a in _res['avisos'] if a[0] != 'sin_ausencia']
             if _otros:
@@ -2736,6 +4136,85 @@ with tab_tipos:
                 else:
                     st.info(mr.mensaje(('sin_ausencia',), _en))
 
+            # ¿Son bastantes puntos? Dónde está la persona en la curva de Sierra Nevada
+            # (24-11, idea de la autora). Solo para el sí o no: la curva se midió ahí.
+            if _nivel == mr.NIVEL_SI_NO:
+                _nb = sum(c['n'] for c in _res['clases']
+                          if c['codigo'] != mr.CODIGO_AUSENCIA)
+                _lp = mr.lectura_puntos(_nm, _nb)
+                (_mn, _mb), (_rn, _rb) = mr.MINIMO_PUNTOS, mr.RECOMENDADO_PUNTOS
+                _fa, _fb = _lp['faltan'], _lp['faltan_borreguiles']
+                if not _fa:
+                    _falta_es = f'te faltan {_fb} borreguiles'
+                    _falta_en = f'you need {_fb} more borreguiles'
+                elif not _fb:
+                    _falta_es = f'te faltan unos {_fa} puntos'
+                    _falta_en = f'you need about {_fa} more points'
+                else:
+                    _falta_es = (f'te faltan unos {max(_fa, _fb)} puntos, {_fb} de ellos '
+                                 'borreguiles')
+                    _falta_en = (f'you need about {max(_fa, _fb)} more points, {_fb} of '
+                                 'them borreguiles')
+                _tienes_es = (f"**{_nm} muestra{'' if _nm == 1 else 's'} ({_nb} "
+                              f"borreguil{'' if _nb == 1 else 'es'})**")
+                _tienes_en = (f"**{_nm} sample{'' if _nm == 1 else 's'} ({_nb} "
+                              f"borreguil{'' if _nb == 1 else 'es'})**")
+                _auc = _num(_lp['auc'])
+                st.markdown(i18n.pick('**¿Son bastantes puntos?**', '**Are they enough points?**'))
+                if _lp['nivel'] == 'sin_referencia':
+                    st.warning(i18n.pick(
+                        f'Tienes {_tienes_es}. Con menos de 20 no hay referencia: el acierto '
+                        f'será bajo y muy variable. Para el mínimo ({_mn} puntos, {_mb} '
+                        f'borreguiles), {_falta_es}.',
+                        f'You have {_tienes_en}. Below 20 there is no reference: accuracy '
+                        f'will be low and very variable. For the minimum ({_mn} points, '
+                        f'{_mb} borreguiles), {_falta_en}.'))
+                elif _lp['nivel'] in ('pocos', 'bajo_minimo'):
+                    _var_es = (', y cambiaba mucho según qué puntos fueran'
+                               if _lp['nivel'] == 'pocos' else '')
+                    _var_en = (', and it changed a lot depending on which points they were'
+                               if _lp['nivel'] == 'pocos' else '')
+                    st.warning(i18n.pick(
+                        f'Tienes {_tienes_es}. En Sierra Nevada, con {_nm} puntos el AUC en '
+                        f'zonas nuevas era de {_auc}{_var_es}. Para el mínimo ({_mn} '
+                        f'puntos, {_mb} borreguiles), {_falta_es}.',
+                        f'You have {_tienes_en}. In Sierra Nevada, with {_nm} points the AUC '
+                        f'in new areas was {_auc}{_var_en}. For the minimum ({_mn} points, '
+                        f'{_mb} borreguiles), {_falta_en}.'))
+                elif _lp['nivel'] == 'minimo':
+                    st.info(i18n.pick(
+                        f'Tienes {_tienes_es}: llegas al mínimo. En Sierra Nevada, con '
+                        f'{_nm} puntos el AUC en zonas nuevas era de {_auc}. Con más, hasta '
+                        f'unos {_rn} ({_rb} borreguiles), el mapa todavía mejora algo.',
+                        f'You have {_tienes_en}: you reach the minimum. In Sierra Nevada, '
+                        f'with {_nm} points the AUC in new areas was {_auc}. With more, up '
+                        f'to about {_rn} ({_rb} borreguiles), the map still improves a '
+                        'little.'))
+                else:
+                    st.success(i18n.pick(
+                        f'Tienes {_tienes_es}: llegas a lo recomendado. En Sierra Nevada, con '
+                        f'{_nm} puntos el AUC en zonas nuevas era de {_auc}; con más puntos '
+                        'apenas cambia.',
+                        f'You have {_tienes_en}: you reach the recommended number. In Sierra '
+                        f'Nevada, with {_nm} points the AUC in new areas was {_auc}; with more '
+                        'points it hardly changes.'))
+                st.altair_chart(pp.chart_curva_puntos(
+                    mr.CURVA_PUNTOS_SN, n=_nm,
+                    marcas=[(_mn, i18n.pick('Mínimo', 'Minimum')),
+                            (_rn, i18n.pick('Recomendado', 'Recommended'))]),
+                    width='stretch')
+                st.caption(i18n.pick(
+                    'Referencia de Sierra Nevada: el mapa entrenado con distintos números de '
+                    'puntos revisados y medido en zonas que no había visto. En una montaña '
+                    'más variada pueden hacer falta más, y los puntos repartidos por toda la '
+                    'zona enseñan más que los concentrados en pocos valles. Más en '
+                    '📖 Documentación.',
+                    'Sierra Nevada reference: the map trained with different numbers of '
+                    'reviewed points and measured in areas it had not seen. A more varied '
+                    'mountain may need more, and points spread over the whole area teach '
+                    'more than points concentrated in a few valleys. More under '
+                    '📖 Documentation.'))
+
             # Qué puntos no entran, y por qué
             if _res['excluidos']:
                 st.markdown(i18n.pick('**Puntos que no entran como muestra**',
@@ -2749,10 +4228,10 @@ with tab_tipos:
                 if _sin_rev:
                     st.caption(i18n.pick(
                         f'Los {_sin_rev} borreguiles con el tipo sin revisar pasarán a ser '
-                        'muestras en cuanto los revises en **📍 Verdad terreno → Tabla**.',
+                        'muestras en cuanto los revises en **📍 Verdad terreno → Revisar puntos**.',
                         f'The {_sin_rev} borreguiles whose type has not been reviewed will '
                         'become samples as soon as you review them under **📍 Ground truth → '
-                        'Table**.'))
+                        'Review points**.'))
             with st.expander(i18n.pick(
                     'Ver punto por punto (cuáles se usan y por qué no el resto)',
                     'See point by point (which are used and why not the rest)')):
@@ -2809,7 +4288,7 @@ with tab_tipos:
                 # Qué mide cada una está en la tabla de debajo.
                 _elegidas += st.multiselect(
                     mr.nombre_grupo(_g, _en), _ops, default=_ops, key=f'mrf_vars_{_gi}',
-                    format_func=lambda n: n)
+                    format_func=_var)
             _predictores = mr.ordenar_predictores(_elegidas)
             st.markdown(i18n.pick(
                 f'**{len(_predictores)} de {len(mr.PREDICTORES)} variables seleccionadas.**',
@@ -2817,6 +4296,124 @@ with tab_tipos:
             if not _predictores:
                 st.error(i18n.pick('Elige al menos una variable.',
                                    'Choose at least one variable.'))
+
+            # ---- Variables repetidas: con el VIF o con un PCA. Desde el 24-11 se decide
+            # aquí, junto a las variables (lo pidió la autora). Se calcula en «2 · Tabla»,
+            # con los valores de las muestras (la lectura trae siempre todas las
+            # variables), y aquí se dice cuántas se quedan. De entrada no se quita nada.
+            st.markdown(i18n.pick('**Variables repetidas**', '**Repeated variables**'))
+            _met_txt = {'ninguno': i18n.pick('No quitar ninguna', 'Remove none'),
+                        'vif': i18n.pick('Con el VIF', 'With the VIF'),
+                        'pca': i18n.pick('Con un PCA', 'With a PCA')}
+            _metodo = st.radio(
+                i18n.pick('Quitar las variables repetidas', 'Remove repeated variables'),
+                list(_met_txt), format_func=_met_txt.get, key='mrf_seleccion',
+                horizontal=True,
+                help=i18n.pick(
+                    'Muchas variables dicen casi lo mismo (los índices de verdor, por '
+                    'ejemplo). Hay dos formas de quedarse con menos:\n\n'
+                    '- **Con el VIF**: el VIF de una variable dice qué parte de ella se '
+                    'puede adivinar con todas las demás juntas (5 quiere decir el 80 %; 10, '
+                    'el 90 %). Se quita la que más se repite, se vuelve a calcular y se '
+                    'sigue mientras alguna pase del umbral.\n'
+                    '- **Con un PCA**: el PCA resume las variables en unos pocos ejes '
+                    'independientes. De cada eje importante (valor propio mayor que 1) se '
+                    'queda una variable: entre las muy ligadas a él, la que mejor separa '
+                    'las categorías por sí sola.\n\n'
+                    'Los dos se calculan con los valores de las muestras, que se leen en '
+                    '«2 · Tabla»; allí sale qué variables se quedan. El Random Forest no los '
+                    'necesita para acertar, pero con menos variables el modelo es más '
+                    'sencillo y su peso, en «5 · Peso», se lee mejor. En Sierra Nevada, el '
+                    'VIF dejó 14 variables y el PCA con la altitud, 4, con el mismo acierto '
+                    '(F1 0,865 y 0,861); el del PCA cartografió un 38 % más de borreguil.\n\n'
+                    '**Recomendado:** entrenar con cada opción y quedarse con la que mejor '
+                    'valide (la comparación sale al final de «3 · Modelo»).',
+                    'Many variables say almost the same (the greenness indices, for '
+                    'instance). There are two ways of keeping fewer:\n\n'
+                    '- **With the VIF**: the VIF of a variable says how much of it can be '
+                    'guessed from all the others together (5 means 80 %; 10, 90 %). The '
+                    'most repeated one is removed, the VIF is computed again, and so on '
+                    'while any is above the threshold.\n'
+                    '- **With a PCA**: the PCA summarises the variables in a few '
+                    'independent axes. One variable is kept from each important axis '
+                    '(eigenvalue above 1): among those strongly tied to it, the one that '
+                    'best separates the categories on its own.\n\n'
+                    'Both are computed with the values of the samples, which are read under '
+                    '"2 · Table"; which variables stay is shown there. The Random Forest '
+                    'does not need them to be right, but with fewer variables the model is '
+                    'simpler and its weights, under "5 · Weights", are easier to read. In '
+                    'Sierra Nevada, the VIF kept 14 variables and the PCA with elevation 4, '
+                    'with the same accuracy (F1 0.865 and 0.861); the PCA one mapped 38 % '
+                    'more borreguil.\n\n'
+                    '**Recommended:** train with each option and keep the one that '
+                    'validates better (the comparison is at the end of "3 · Model").'))
+            _vif_si, _pca_si = _metodo == 'vif', _metodo == 'pca'
+            _vif_u, _vif_f = float(mr.VIF_UMBRAL), list(mr.VIF_FIJAS)
+            _pca_c, _vif_linea = float(mr.PCA_CARGA), None
+            if _metodo != 'ninguno':
+                # Los valores de partida se ponen justo antes de dibujar los controles
+                # (si no, el navegador no los enseña); las fijas, solo las elegidas.
+                st.session_state.setdefault('mrf_vif_umbral', float(mr.VIF_UMBRAL))
+                st.session_state.setdefault('mrf_pca_carga', float(mr.PCA_CARGA))
+                _fv = st.session_state.get('mrf_vif_fijas')
+                if _fv is None:
+                    st.session_state['mrf_vif_fijas'] = [
+                        v for v in mr.VIF_FIJAS if v in _predictores]
+                elif any(v not in _predictores for v in _fv):
+                    st.session_state['mrf_vif_fijas'] = [v for v in _fv if v in _predictores]
+                _vq1, _vq2 = st.columns([1, 2])
+                if _vif_si:
+                    _vif_u = _vq1.number_input(
+                        i18n.pick('Umbral del VIF', 'VIF threshold'),
+                        min_value=1.5, max_value=100.0, step=0.5, key='mrf_vif_umbral',
+                        help=i18n.pick(
+                            'Se quitan variables mientras alguna tenga un VIF mayor que '
+                            'este. Con 10, ninguna de las que quedan se explica en más del '
+                            '90 % con las demás; con 5, en más del 80 %. Cuanto más bajo, '
+                            'más variables se quitan.\n\n'
+                            '**Recomendado: 10**; 5 si quieres quedarte con menos.',
+                            'Variables are removed while any has a VIF above this one. '
+                            'With 10, none of those left is explained more than 90 % by '
+                            'the others; with 5, more than 80 %. The lower it is, the more '
+                            'variables are removed.\n\n'
+                            '**Recommended: 10**; 5 if you want to keep fewer.'))
+                else:
+                    _pca_c = _vq1.number_input(
+                        i18n.pick('Correlación mínima con el eje',
+                                  'Minimum correlation with the axis'),
+                        min_value=0.3, max_value=0.95, step=0.05, key='mrf_pca_carga',
+                        help=i18n.pick(
+                            'De cada eje se elige entre las variables cuya correlación con '
+                            'él (en valor absoluto) llega a esta. Cuanto más alta, menos '
+                            'candidatas y más claro qué representa cada eje.\n\n'
+                            '**Recomendado: 0,65**, el de la comparación de Sierra Nevada.',
+                            'From each axis, the choice is among the variables whose '
+                            'correlation with it (in absolute value) reaches this one. The '
+                            'higher it is, the fewer candidates and the clearer what each '
+                            'axis stands for.\n\n'
+                            '**Recommended: 0.65**, the one of the Sierra Nevada '
+                            'comparison.'))
+                _vif_f = _vq2.multiselect(
+                    i18n.pick('Variables que se quedan siempre', 'Variables that always stay'),
+                    _predictores, key='mrf_vif_fijas', format_func=_var,
+                    help=i18n.pick(
+                        'Estas no se quitan nunca (con el VIF, sí cuentan al calcular el de '
+                        'las demás; con el PCA, quedan fuera de él y se añaden). Viene la '
+                        'altitud: en cualquier sitio, los borreguiles son prados húmedos de '
+                        'alta montaña.\n\n'
+                        '**Recomendado: la altitud.**',
+                        'These are never removed (with the VIF, they do count when '
+                        'computing that of the others; with the PCA, they are left out of it '
+                        'and added). Elevation comes selected: anywhere, borreguiles are wet '
+                        'high-mountain meadows.\n\n'
+                        '**Recommended: elevation.**'))
+                # Cuántas se quedan: lo escribe «2 · Tabla» cuando lo calcula.
+                _vif_linea = st.empty()
+                _vif_linea.caption(i18n.pick(
+                    'Se calculará con los valores de las muestras, al leerlos en '
+                    '«2 · Tabla».',
+                    'It will be computed with the values of the samples, once they are '
+                    'read under "2 · Table".'))
             with st.expander(i18n.pick('Qué mide cada variable', 'What each variable measures')):
                 st.caption(i18n.pick(
                     'Las **estadísticas de jun – sep** (media, mínimo, máximo y '
@@ -2830,11 +4427,12 @@ with tab_tipos:
                     'value of a single image (a cloud shadow, for instance) in all the '
                     'years.'))
                 st.dataframe(pd.DataFrame([{
-                    'Variable': n,
+                    'Variable': _var(n),
                     i18n.pick('Qué mide', 'What it measures'): (en_ if _en else es_),
                     i18n.pick('Grupo', 'Group'): mr.nombre_grupo(g, _en),
                     i18n.pick('Seleccionada', 'Selected'):
-                        i18n.pick('sí', 'yes') if n in _predictores else 'no'}
+                        i18n.pick('sí', 'yes') if n in _predictores else 'no',
+                    i18n.pick('Nombre en los ficheros', 'Name in the files'): n}
                     for n, g, es_, en_ in mr.PREDICTORES]), hide_index=True, width='stretch')
             with st.expander(i18n.pick('Variables que usa el detector y aquí no están',
                                        'Variables the detector uses that are missing here')):
@@ -2848,12 +4446,12 @@ with tab_tipos:
             st.caption(i18n.pick(
                 'Lee en Earth Engine el valor de cada variable en el **píxel de 10 m** de '
                 'cada muestra: el mismo píxel que después se clasificará. Por eso no se '
-                'usan los valores que ya tienen los puntos, que son medias en un radio de '
-                '25 m.',
+                'usan los valores que ya tienen los puntos, que son medias de una ventana '
+                'de 50–60 m alrededor del punto.',
                 'Reads from Earth Engine the value of each variable at the **10 m pixel** '
                 'of each sample: the same pixel that will later be classified. That is why '
-                'the values the points already have, which are means over a 25 m radius, '
-                'are not used.'))
+                'the values the points already have, which are means over a 50–60 m '
+                'window around the point, are not used.'))
             import gee_backend as geb
             try:
                 _anios = list(bp.parse_years(years_str))
@@ -2872,16 +4470,21 @@ with tab_tipos:
             _pend = [f for f in _usadas
                      if mr.clave_punto(f['lon'], f['lat']) not in _leidos]
 
-            _proy = st.text_input(
-                i18n.pick('Proyecto de Google Earth Engine', 'Google Earth Engine project'),
-                value=(gee_project.strip() or leer_ajuste('gee_project', '')),
-                key='mrf_proyecto', placeholder='ee-tunombre',
-                help=i18n.pick(
-                    'El mismo que usas en el panel lateral. Se recuerda para la próxima vez.',
-                    'The same one you use in the sidebar. It is remembered for next time.'))
+            # El proyecto de Earth Engine es el del panel lateral (ya no se vuelve a pedir
+            # aquí, 24-11-2026). Si allí está elegido Planetary Computer, el último con
+            # el que Earth Engine funcionó.
+            _proy = gee_project.strip() or leer_ajuste('gee_project', '')
             st.caption(i18n.pick(
-                f'Años de Sentinel-2: **{years_str}** (los del panel lateral).',
-                f'Sentinel-2 years: **{years_str}** (those in the sidebar).'))
+                f'Años de Sentinel-2: **{years_str}** · proyecto de Earth Engine: '
+                f"**{_proy or 'ninguno'}** (los dos, del panel lateral).",
+                f'Sentinel-2 years: **{years_str}** · Earth Engine project: '
+                f"**{_proy or 'none'}** (both from the sidebar)."))
+            if not _proy.strip():
+                st.warning(i18n.pick(
+                    'Para leer las variables hace falta **Earth Engine**: en el panel '
+                    'lateral, elígelo como fuente de los datos y escribe tu proyecto.',
+                    'Reading the variables needs **Earth Engine**: in the sidebar, choose '
+                    'it as the data source and enter your project.'))
             _rm = st.session_state.pop('_mrf_msg', None)
             if _rm:
                 (st.success if _rm[0] == 'ok' else st.warning)(_rm[1])
@@ -2988,13 +4591,13 @@ with tab_tipos:
                             i18n.pick('categoría', 'category'): i18n.tv(a['categoria']),
                             i18n.pick('motivo', 'reason'): mr.motivo_tabla(a['motivo'], _en),
                             i18n.pick('variables sin dato', 'variables without data'):
-                                ', '.join(a['faltan'][:6])
+                                ', '.join(_var(x) for x in a['faltan'][:6])
                                 + (' …' if len(a['faltan']) > 6 else '')}
                             for a in _tab['apartadas']]), hide_index=True, width='stretch')
                 if _tab['errores']:
                     st.error(i18n.pick('**Con esta tabla todavía no se puede entrenar:**',
                                        '**This table is not enough to train yet:**')
-                             + ''.join('\n- ' + mr.mensaje(e, _en, i18n.tv)
+                             + ''.join('\n- ' + mr.mensaje(e, _en, i18n.tv, nivel=_nivel_mod)
                                        for e in _tab['errores']))
 
                 # Control de calidad de las variables: avisa, no quita nada
@@ -3006,7 +4609,8 @@ with tab_tipos:
                         'si quieres prescindir de alguna, desmárcala en «1 · Datos».',
                         '**Quality check of the variables.** None has been removed: if you '
                         'want to drop one, deselect it under "1 · Data".')
-                        + ''.join('\n- ' + mr.mensaje_calidad(h, _en) for h in _hall[:_max])
+                        + ''.join('\n- ' + mr.mensaje_calidad(h, _en, nombre=_var, num=_num)
+                                  for h in _hall[:_max])
                         + (i18n.pick(f'\n- … y {len(_hall) - _max} más.',
                                      f'\n- … and {len(_hall) - _max} more.')
                            if len(_hall) > _max else ''))
@@ -3021,11 +4625,11 @@ with tab_tipos:
                     st.info(i18n.pick(
                         f"**Categorías desequilibradas:** «{i18n.tv(_des[1]['categoria'])}» "
                         f"tiene {_des[1]['n']} muestras y «{i18n.tv(_des[2]['categoria'])}», "
-                        f"{_des[2]['n']} ({_des[0]:.1f} veces menos). Al entrenar se "
+                        f"{_des[2]['n']} ({_num(_des[0])} veces menos). Al entrenar se "
                         'compensará dando más peso a las categorías escasas.',
                         f"**Unbalanced categories:** \"{i18n.tv(_des[1]['categoria'])}\" has "
                         f"{_des[1]['n']} samples and \"{i18n.tv(_des[2]['categoria'])}\" has "
-                        f"{_des[2]['n']} ({_des[0]:.1f} times fewer). Training will "
+                        f"{_des[2]['n']} ({_num(_des[0])} times fewer). Training will "
                         'compensate by giving more weight to the scarce categories.'))
 
                 with st.expander(i18n.pick('Ver la tabla de entrenamiento',
@@ -3036,9 +4640,10 @@ with tab_tipos:
                         _dft = _dft.drop(columns=['indice', 'lon', 'lat'])
                         _dft['ID'] = bp.abreviar_ids(_dft['ID'].tolist())
                         _dft['categoria'] = _dft['categoria'].map(i18n.tv)
-                        st.dataframe(_dft.rename(columns={
+                        st.dataframe(_con_coma(_dft.rename(columns={
+                            **{v: _var(v) for v in _tab['predictores']},
                             'categoria': i18n.pick('categoría', 'category'),
-                            'codigo': i18n.pick('código', 'code')}),
+                            'codigo': i18n.pick('código', 'code')})),
                             hide_index=True, width='stretch',
                             column_config={'ID': st.column_config.Column(pinned=True)})
                     st.download_button(
@@ -3049,89 +4654,96 @@ with tab_tipos:
                 _inf = (_lect or {}).get('info') or {}
                 if _inf:
                     st.caption(i18n.pick(
-                        f"Leído el {(_lect.get('cuando') or '').replace('T', ' ')} · rejilla "
-                        f"{_inf.get('crs')} de {_inf.get('resolucion_m')} m · años "
-                        f"{bp.abreviar_anios(_inf.get('anios', []))} · estadísticas de "
-                        'jun – sep calculadas en cada año y promediadas entre años · '
-                        'topografía de 30 m interpolada (bilineal).',
+                        f"Leído el {(_lect.get('cuando') or '').replace('T', ' ')} · píxeles "
+                        f"de {_inf.get('resolucion_m')} m · años "
+                        f"{bp.abreviar_anios(_inf.get('anios', []))} · lo de junio a "
+                        'septiembre se calcula en cada año y después se hace la media entre '
+                        'años · el relieve viene a 30 m y se suaviza a 10 m.',
                         f"Read on {(_lect.get('cuando') or '').replace('T', ' ')} · "
-                        f"{_inf.get('crs')} grid at {_inf.get('resolucion_m')} m · years "
-                        f"{bp.abreviar_anios(_inf.get('anios', []))} · Jun – Sep statistics "
-                        'computed in each year and averaged across years · 30 m topography '
-                        'interpolated (bilinear).'))
+                        f"{_inf.get('resolucion_m')} m pixels · years "
+                        f"{bp.abreviar_anios(_inf.get('anios', []))} · the June to September "
+                        'figures are computed in each year and then averaged across years · '
+                        'the relief comes at 30 m and is smoothed to 10 m.'))
 
-                # ---- Variables repetidas (VIF). Es una opción: de entrada no se quita
-                # nada. Se calcula con los valores de las muestras de esta tabla; el
-                # modelo, el mapa y el peso usan después la tabla con las que se quedan.
-                st.markdown(i18n.pick('#### Variables repetidas (VIF)',
-                                      '#### Repeated variables (VIF)'))
-                _vif_si = st.checkbox(
-                    i18n.pick('Quitar las variables repetidas con el VIF',
-                              'Remove repeated variables with the VIF'),
-                    key='mrf_vif_si',
-                    help=i18n.pick(
-                        'El **VIF** de una variable dice qué parte de ella se puede '
-                        'adivinar con todas las demás juntas: 5 quiere decir el 80 %; 10, '
-                        'el 90 %. Con esta opción se quita la que más se repite (la de VIF '
-                        'más alto), se vuelve a calcular y se sigue mientras alguna pase '
-                        'del umbral. Se calcula con los valores de las muestras de esta '
-                        'tabla.\n\n'
-                        'El Random Forest no lo necesita para acertar, pero con menos '
-                        'variables el modelo es más sencillo y su peso, en «5 · Peso», se '
-                        'lee mejor. Si acierta igual o no lo dice la comparación del final '
-                        'de «3 · Modelo».\n\n'
-                        '**Recomendado:** entrenar una vez sin él y otra con él, y quedarse '
-                        'con el que mejor valide.',
-                        'The **VIF** of a variable says how much of it can be guessed from '
-                        'all the others together: 5 means 80 %; 10, 90 %. With this option '
-                        'the most repeated one (the highest VIF) is removed, the VIF is '
-                        'computed again, and so on while any is above the threshold. It is '
-                        'computed with the values of the samples of this table.\n\n'
-                        'The Random Forest does not need it to be right, but with fewer '
-                        'variables the model is simpler and its weights, under "5 · '
-                        'Weights", are easier to read. Whether it does as well is shown by '
-                        'the comparison at the end of "3 · Model".\n\n'
-                        '**Recommended:** train once without it and once with it, and keep '
-                        'the one that validates better.'))
-                if _vif_si:
-                    # Los valores de partida se ponen justo antes de dibujar los controles
-                    # (si no, el navegador no los enseña); las fijas, solo las que existen.
-                    st.session_state.setdefault('mrf_vif_umbral', float(mr.VIF_UMBRAL))
-                    _fv = st.session_state.get('mrf_vif_fijas')
-                    if _fv is None:
-                        st.session_state['mrf_vif_fijas'] = [
-                            v for v in mr.VIF_FIJAS if v in _tab['predictores']]
-                    elif any(v not in _tab['predictores'] for v in _fv):
-                        st.session_state['mrf_vif_fijas'] = [
-                            v for v in _fv if v in _tab['predictores']]
-                    _vif_u = st.number_input(
-                        i18n.pick('Umbral del VIF', 'VIF threshold'),
-                        min_value=1.5, max_value=100.0, step=0.5, key='mrf_vif_umbral',
-                        help=i18n.pick(
-                            'Se quitan variables mientras alguna tenga un VIF mayor que '
-                            'este. Con 10, ninguna de las que quedan se explica en más del '
-                            '90 % con las demás; con 5, en más del 80 %. Cuanto más bajo, '
-                            'más variables se quitan.\n\n'
-                            '**Recomendado: 10**; 5 si quieres quedarte con menos.',
-                            'Variables are removed while any has a VIF above this one. '
-                            'With 10, none of those left is explained more than 90 % by '
-                            'the others; with 5, more than 80 %. The lower it is, the more '
-                            'variables are removed.\n\n'
-                            '**Recommended: 10**; 5 if you want to keep fewer.'))
-                    _vif_f = st.multiselect(
-                        i18n.pick('Variables que se quedan siempre', 'Variables that always stay'),
-                        _tab['predictores'], key='mrf_vif_fijas', format_func=lambda n: n,
-                        help=i18n.pick(
-                            'Estas no se quitan nunca, aunque su VIF pase del umbral (sí '
-                            'cuentan al calcular el de las demás). Viene la altitud: en '
-                            'cualquier sitio, los borreguiles son prados húmedos de alta '
-                            'montaña.\n\n'
-                            '**Recomendado: la altitud.**',
-                            'These are never removed, even if their VIF is above the '
-                            'threshold (they do count when computing that of the others). '
-                            'Elevation comes selected: anywhere, borreguiles are wet '
-                            'high-mountain meadows.\n\n'
-                            '**Recommended: elevation.**'))
+                # ---- Variables repetidas (VIF). Se decide en «1 · Datos», junto a las
+                # variables; aquí se calcula con los valores de las muestras de esta
+                # tabla, y el modelo, el mapa y el peso usan después la tabla con las que
+                # se quedan.
+                if _metodo == 'ninguno':
+                    st.caption(i18n.pick(
+                        'Para quitar las variables repetidas, elige el VIF o un PCA en '
+                        '«1 · Datos», debajo de las variables.',
+                        'To remove repeated variables, choose the VIF or a PCA under '
+                        '"1 · Data", below the variables.'))
+                elif _pca_si:
+                    st.markdown(i18n.pick('#### Variables repetidas (PCA)',
+                                          '#### Repeated variables (PCA)'))
+                    _vif_f = [v for v in _vif_f if v in _tab['predictores']]
+                    if not _tab['listo'] or len(_tab['filas']) < 3:
+                        st.info(i18n.pick(
+                            'El PCA se calcula cuando la tabla esté lista para entrenar.',
+                            'The PCA is computed once the table is ready for training.'))
+                    else:
+                        _selp = mr.elegir_por_pca(_tab['X'], _tab['y'], _tab['predictores'],
+                                                  _vif_f, _pca_c)
+                        _de_pca = len(_tab['predictores'])
+                        if _vif_linea is not None:          # la línea de «1 · Datos»
+                            _vif_linea.markdown(i18n.pick(
+                                f"Con el PCA se quedan **{len(_selp['quedan'])} de "
+                                f"{_de_pca}** variables (detalle en «2 · Tabla»).",
+                                f"With the PCA, **{len(_selp['quedan'])} of {_de_pca}** "
+                                'variables stay (details under "2 · Table").'))
+                        st.markdown(i18n.pick(
+                            f"**Se quedan {len(_selp['quedan'])} de {_de_pca} variables**: "
+                            f"una por cada eje importante del PCA ({len(_selp['ejes'])} "
+                            f"ejes, el {_num(_selp['varianza_pct'], 1)} % de la varianza), "
+                            'más las que se quedan siempre. El modelo, el mapa y el peso '
+                            'usan solo estas.',
+                            f"**{len(_selp['quedan'])} of {_de_pca} variables stay**: one "
+                            f"for each important axis of the PCA ({len(_selp['ejes'])} axes, "
+                            f"{_num(_selp['varianza_pct'], 1)} % of the variance), plus "
+                            'those that always stay. The model, the map and the weights use '
+                            'only these.'))
+                        if _selp['pocas_muestras']:
+                            st.warning(i18n.pick(
+                                f"Con {len(_tab['filas'])} muestras y {_de_pca} variables el "
+                                'PCA no es fiable: hacen falta bastantes más muestras que '
+                                'variables.',
+                                f"With {len(_tab['filas'])} samples and {_de_pca} variables "
+                                'the PCA is not reliable: many more samples than variables '
+                                'are needed.'))
+                        _k_lig = i18n.pick(f"Ligadas al eje (|r| ≥ {_num(_pca_c, 2)})",
+                                           f"Tied to the axis (|r| ≥ {_num(_pca_c, 2)})")
+                        st.dataframe(pd.DataFrame([{
+                            i18n.pick('Eje', 'Axis'): e['eje'],
+                            i18n.pick('Valor propio', 'Eigenvalue'): _num(e['valor_propio'], 2),
+                            i18n.pick('Varianza (%)', 'Variance (%)'): _num(e['varianza_pct'], 1),
+                            _k_lig: ', '.join(f"{_var(d['variable'])} ({_num(d['carga'], 2)})"
+                                              for d in e['variables']) or '—',
+                            i18n.pick('Se queda', 'Stays'):
+                                _var(e['elegida']) if e['elegida'] else '—'}
+                            for e in _selp['ejes']]), hide_index=True, width='stretch')
+                        st.caption(i18n.pick(
+                            'Cada fila es un eje del PCA con valor propio mayor que 1. Entre '
+                            'paréntesis, la correlación de cada variable con el eje. De cada '
+                            'eje se queda la que mejor separa las categorías por sí sola. '
+                            'Las que se quedan siempre (' + (', '.join(_var(v) for v in
+                            _selp['fijas']) or 'ninguna') + ') no entran en el PCA.',
+                            'Each row is an axis of the PCA with an eigenvalue above 1. In '
+                            'brackets, the correlation of each variable with the axis. From '
+                            'each axis, the one that best separates the categories on its '
+                            'own stays. Those that always stay (' + (', '.join(_var(v) for v
+                            in _selp['fijas']) or 'none') + ') are left out of the PCA.'))
+                        # La tabla con la que se sigue: solo con las que se quedan.
+                        _tab = mr.construir_tabla(_res, _leidos, _selp['quedan'])
+                        _tab['pca'] = {'metodo': 'pca', 'carga': float(_pca_c),
+                                       'fijas': list(_selp['fijas']), 'de': _de_pca,
+                                       'ejes': len(_selp['ejes'])}
+                else:
+                    st.markdown(i18n.pick('#### Variables repetidas (VIF)',
+                                          '#### Repeated variables (VIF)'))
+                    # que las fijas sean de las que hay en la tabla
+                    _vif_f = [v for v in _vif_f if v in _tab['predictores']]
                     if not _tab['listo'] or len(_tab['filas']) < 3:
                         st.info(i18n.pick(
                             'El VIF se calcula cuando la tabla esté lista para entrenar.',
@@ -3139,6 +4751,12 @@ with tab_tipos:
                     else:
                         _sel = mr.elegir_por_vif(_tab['X'], _tab['predictores'], _vif_u, _vif_f)
                         _de_vif = len(_tab['predictores'])
+                        if _vif_linea is not None:          # la línea de «1 · Datos»
+                            _vif_linea.markdown(i18n.pick(
+                                f"Con el VIF se quedan **{len(_sel['quedan'])} de "
+                                f"{_de_vif}** variables (detalle en «2 · Tabla»).",
+                                f"With the VIF, **{len(_sel['quedan'])} of {_de_vif}** "
+                                'variables stay (details under "2 · Table").'))
                         st.markdown(i18n.pick(
                             f"**Se quedan {len(_sel['quedan'])} de {_de_vif} variables.** "
                             'El modelo, el mapa y el peso usan solo estas.',
@@ -3155,14 +4773,14 @@ with tab_tipos:
 
                         def _txt_vif(v):
                             return '—' if v is None else ('∞' if v == float('inf')
-                                                          else bp.fmt_num(v))
+                                                          else _num(v))
                         _k_q = i18n.pick('Qué pasa', 'What happens')
                         st.dataframe(pd.DataFrame(
-                            [{'Variable': n, 'VIF': _txt_vif(_sel['vif'][n]),
+                            [{'Variable': _var(n), 'VIF': _txt_vif(_sel['vif'][n]),
                               _k_q: (i18n.pick('se queda siempre', 'always stays')
                                      if n in _sel['fijas'] else i18n.pick('se queda', 'stays'))}
                              for n in _sel['quedan']]
-                            + [{'Variable': q['variable'], 'VIF': _txt_vif(q['vif']),
+                            + [{'Variable': _var(q['variable']), 'VIF': _txt_vif(q['vif']),
                                 _k_q: i18n.pick(f"se quita (paso {q['paso']})",
                                                 f"removed (step {q['paso']})")
                                 + (i18n.pick(': no varía', ': it does not vary')
@@ -3181,7 +4799,8 @@ with tab_tipos:
                         # La tabla con la que se sigue: solo con las que se quedan (puede
                         # recuperar muestras a las que solo les faltaba una de las quitadas).
                         _tab = mr.construir_tabla(_res, _leidos, _sel['quedan'])
-                        _tab['vif'] = {'umbral': float(_vif_u), 'fijas': list(_sel['fijas']),
+                        _tab['vif'] = {'metodo': 'vif', 'umbral': float(_vif_u),
+                                       'fijas': list(_sel['fijas']),
                                        'de': _de_vif,
                                        'quitadas': [q['variable'] for q in _sel['quitadas']]}
 
@@ -3426,8 +5045,9 @@ with tab_tipos:
                         _nuevo_m['lectura'] = {'anios': [int(a) for a in _anios],
                                                'epsg': int(_epsg),
                                                'version': geb.VERSION_PILA}
-                        # y si las variables salieron del VIF (None = las de «1 · Datos»)
-                        _nuevo_m['variables'] = _tab.get('vif')
+                        # y si las variables salieron del VIF o del PCA (None = las de
+                        # «1 · Datos»)
+                        _nuevo_m['variables'] = _tab.get('vif') or _tab.get('pca')
                         # uno por nivel: se pueden tener los cuatro entrenados a la vez
                         st.session_state.setdefault('mrf_modelos', {})[_nivel] = _nuevo_m
                     except ValueError as _e:
@@ -3552,7 +5172,7 @@ with tab_tipos:
                             _crit == 'manual' and abs(_regla['umbral'] - _u_manual) > 1e-9):
                         mr.aplicar_regla(_mod, _crit, _u_manual)
                         _regla = _mod['regla']
-                    _eu, _u_txt = _regla['en_umbral'], f"{_regla['umbral']:.3f}"
+                    _eu, _u_txt = _regla['en_umbral'], f"{_num(_regla['umbral'])}"
                     _su_tipo = i18n.pick('su tipo es el más probable',
                                          'its type is then the most probable one')
                     if _nivel == mr.NIVEL_SI_NO:
@@ -3569,19 +5189,19 @@ with tab_tipos:
                         f'Un píxel se da por **borreguil** si {_cuando}. '
                         'Con ese umbral, en la validación:\n\n'
                         f"- encuentra **{_eu['vp']} de {_eu['vp'] + _eu['fn']}** "
-                        f"borreguiles (sensibilidad {bp.fmt_num(_eu['sensibilidad'])});\n"
+                        f"borreguiles (sensibilidad {_num(_eu['sensibilidad'])});\n"
                         f"- descarta bien **{_eu['vn']} de {_eu['vn'] + _eu['fp']}** de lo "
-                        f"que no lo es (especificidad {bp.fmt_num(_eu['especificidad'])});\n"
-                        f"- TSS **{bp.fmt_num(_eu['tss'])}** · F1 de borreguil "
-                        f"{bp.fmt_num(_eu['f1'])}.",
+                        f"que no lo es (especificidad {_num(_eu['especificidad'])});\n"
+                        f"- TSS **{_num(_eu['tss'])}** · F1 de borreguil "
+                        f"{_num(_eu['f1'])}.",
                         f'A pixel counts as a **borreguil** if {_cuando}. '
                         'With that threshold, in the validation:\n\n'
                         f"- it finds **{_eu['vp']} of {_eu['vp'] + _eu['fn']}** borreguiles "
-                        f"(sensitivity {bp.fmt_num(_eu['sensibilidad'])});\n"
+                        f"(sensitivity {_num(_eu['sensibilidad'])});\n"
                         f"- it correctly rejects **{_eu['vn']} of {_eu['vn'] + _eu['fp']}** "
-                        f"of what is not one (specificity {bp.fmt_num(_eu['especificidad'])});\n"
-                        f"- TSS **{bp.fmt_num(_eu['tss'])}** · F1 of borreguil "
-                        f"{bp.fmt_num(_eu['f1'])}."))
+                        f"of what is not one (specificity {_num(_eu['especificidad'])});\n"
+                        f"- TSS **{_num(_eu['tss'])}** · F1 of borreguil "
+                        f"{_num(_eu['f1'])}."))
                     if _crit != 'manual':
                         st.caption(i18n.pick(
                             'El umbral se ha elegido con estas mismas muestras, así que '
@@ -3632,11 +5252,11 @@ with tab_tipos:
                                                          alt.value(0.0)),
                             tooltip=[
                                 alt.Tooltip('umbral:Q', title=_k_um, format='.3f'),
-                                alt.Tooltip('TSS:Q', format='.4f'),
-                                alt.Tooltip('F1:Q', format='.4f'),
-                                alt.Tooltip('sens:Q', format='.4f', title=i18n.pick(
+                                alt.Tooltip('TSS:Q', format='.3f'),
+                                alt.Tooltip('F1:Q', format='.3f'),
+                                alt.Tooltip('sens:Q', format='.3f', title=i18n.pick(
                                     'sensibilidad', 'sensitivity')),
-                                alt.Tooltip('espec:Q', format='.4f', title=i18n.pick(
+                                alt.Tooltip('espec:Q', format='.3f', title=i18n.pick(
                                     'especificidad', 'specificity'))]
                         ).add_params(_cerca)
                         st.altair_chart(
@@ -3647,11 +5267,11 @@ with tab_tipos:
                             'con ese umbral. La raya vertical es el que se está usando.',
                             'Each point of the lines is what the validation would give '
                             'with that threshold. The vertical line is the one in use.'))
-                        _c4u = st.column_config.NumberColumn(format='%.4f')
+                        _c4u = st.column_config.NumberColumn()
                         _k_se = i18n.pick('Sensibilidad', 'Sensitivity')
                         _k_es = i18n.pick('Especificidad', 'Specificity')
                         _k_pr = i18n.pick('Precisión', 'Precision')
-                        st.dataframe(pd.DataFrame([{
+                        st.dataframe(_con_coma(pd.DataFrame([{
                             i18n.pick('Umbral', 'Threshold'): b['umbral'],
                             'TSS': b['tss'], 'F1': b['f1'], _k_se: b['sensibilidad'],
                             _k_es: b['especificidad'], _k_pr: b['precision'],
@@ -3660,10 +5280,10 @@ with tab_tipos:
                             i18n.pick('Dados por borreguil sin serlo',
                                       'Wrongly called borreguil'): b['fp'],
                             i18n.pick('Bien descartados', 'Correctly rejected'): b['vn']}
-                            for b in _bar]), hide_index=True, width='stretch',
+                            for b in _bar])), hide_index=True, width='stretch',
                             column_config={
                                 i18n.pick('Umbral', 'Threshold'):
-                                    st.column_config.NumberColumn(format='%.3f', pinned=True),
+                                    st.column_config.NumberColumn(pinned=True),
                                 'TSS': _c4u, 'F1': _c4u, _k_se: _c4u, _k_es: _c4u,
                                 _k_pr: _c4u})
 
@@ -3682,21 +5302,21 @@ with tab_tipos:
                 _m1, _m2, _m3 = st.columns(3, vertical_alignment='bottom')
                 _m1.metric(i18n.pick('F1 medio entre categorías (macro-F1)',
                                      'Mean F1 across categories (macro-F1)'),
-                           bp.fmt_num(_mod['macro_f1']))
+                           _num(_mod['macro_f1']))
                 _m2.metric(i18n.pick('Exactitud equilibrada', 'Balanced accuracy'),
-                           bp.fmt_num(_mod['exactitud_equilibrada']))
+                           _num(_mod['exactitud_equilibrada']))
                 _m3.metric(i18n.pick('Aciertos sobre el total', 'Overall accuracy'),
-                           bp.fmt_num(_mod['exactitud']))
+                           _num(_mod['exactitud']))
 
-                _c4 = st.column_config.NumberColumn(format='%.4f')
+                _c4 = st.column_config.NumberColumn()
                 st.markdown(i18n.pick('**Por categoría**', '**By category**'))
                 _k_pre = i18n.pick('Precisión', 'Precision')
                 _k_rec = i18n.pick('Sensibilidad (recall)', 'Recall')
-                st.dataframe(pd.DataFrame([{
+                st.dataframe(_con_coma(pd.DataFrame([{
                     i18n.pick('Categoría', 'Category'): i18n.tv(c['categoria']),
                     _k_pre: c['precision'], _k_rec: c['recall'], 'F1': c['f1'],
                     i18n.pick('Muestras validadas', 'Validated samples'): c['n_validacion']}
-                    for c in _mod['por_clase']]), hide_index=True, width='stretch',
+                    for c in _mod['por_clase']])), hide_index=True, width='stretch',
                     column_config={_k_pre: _c4, _k_rec: _c4, 'F1': _c4})
                 st.caption(i18n.pick(
                     '**Precisión**: de lo que el modelo llama así, cuánto lo es. '
@@ -3793,6 +5413,7 @@ with tab_tipos:
                 st.session_state.setdefault('mrf_variantes', {})[
                     (_nivel, _f_mu, tuple(_mod['predictores']))] = {
                     'vif': (_mod.get('variables') or {}).get('umbral'),
+                    'pca': (_mod.get('variables') or {}).get('metodo') == 'pca',
                     'n_var': len(_mod['predictores']), 'n_muestras': _mod['n_muestras'],
                     'f1': _mod['macro_f1']}
             _variantes = sorted(
@@ -3805,26 +5426,30 @@ with tab_tipos:
                 st.dataframe(pd.DataFrame([{
                     i18n.pick('Variables', 'Variables'):
                         ('▶ ' if k[2] == _ahora else '')
-                        + (i18n.pick(f"sin repetidas: VIF ≤ {v['vif']:g} ({v['n_var']})",
+                        + (i18n.pick(f"una por eje del PCA ({v['n_var']})",
+                                     f"one per PCA axis ({v['n_var']})")
+                           if v.get('pca') else
+                           i18n.pick(f"sin repetidas: VIF ≤ {v['vif']:g} ({v['n_var']})",
                                      f"no repeats: VIF ≤ {v['vif']:g} ({v['n_var']})")
                            if v['vif'] else
                            i18n.pick(f"las de «1 · Datos» ({v['n_var']})",
                                      f"those of \"1 · Data\" ({v['n_var']})")),
                     i18n.pick('Muestras', 'Samples'): v['n_muestras'],
-                    i18n.pick('F1 medio', 'Mean F1'): bp.fmt_num(v['f1'])}
+                    i18n.pick('F1 medio', 'Mean F1'): _num(v['f1'])}
                     for k, v in _variantes]), hide_index=True, width='stretch')
                 st.caption(i18n.pick(
                     'Cada fila es un modelo entrenado en esta sesión con las mismas '
                     'muestras; ▶ es el de ahora, el que hace el mapa. El F1 medio es el de '
                     'la validación por zonas. Una diferencia de unas centésimas puede ser '
                     'azar: con pocas muestras, una sola cambia la cifra. Para quedarte con '
-                    'otro, cambia la opción del VIF en «2 · Tabla de entrenamiento» y '
+                    'otro, cambia la opción de las variables repetidas en «1 · Datos» y '
                     'vuelve a entrenar.',
                     'Each row is a model trained in this session with the same samples; ▶ '
                     'is the current one, which makes the map. The mean F1 is that of the '
                     'validation by zones. A difference of a few hundredths may be chance: '
                     'with few samples, a single one changes the figure. To keep another '
-                    'one, change the VIF option under "2 · Training table" and train again.'))
+                    'one, change the repeated-variables option under "1 · Data" and '
+                    'train again.'))
 
         # ------------------------------------------------------------ 4 · Mapa
         # El modelo final se aplica a todos los píxeles de una zona. Se leen de la
@@ -3891,12 +5516,12 @@ with tab_tipos:
                     st.info(i18n.pick(
                         'El mapa se hace **en dos pasos**: si un píxel es borreguil lo '
                         'decide el modelo **«Borreguil sí o no»** (umbral '
-                        f"{_mod_si_no['regla']['umbral']:.3f}, entrenado el "
+                        f"{_num(_mod_si_no['regla']['umbral'])}, entrenado el "
                         f"{_mod_si_no['cuando'].replace('T', ' a las ')}), y su tipo, "
                         'este modelo.',
                         'The map is made **in two steps**: whether a pixel is a borreguil '
                         'is decided by the **"Borreguil yes or no"** model (threshold '
-                        f"{_mod_si_no['regla']['umbral']:.3f}, trained on "
+                        f"{_num(_mod_si_no['regla']['umbral'])}, trained on "
                         f"{_mod_si_no['cuando'].replace('T', ' at ')}), and its type, by "
                         'this model.'))
                 elif _dos_mal:
@@ -3919,7 +5544,9 @@ with tab_tipos:
                 _de_revisado = {}
                 if _cercania:
                     for _r in rows:
-                        if bp.tipo_revisado(_r) and mr.categoria(_r, _nivel):
+                        if (all(p in bp.niveles_revisados(_r)
+                                for p in mr.COMBINADOS.get(_nivel, (_nivel,)))
+                                and mr.categoria(_r, _nivel)):
                             try:
                                 _k_r = mr.clave_punto(_r['lon'], _r['lat'])
                             except Exception:
@@ -3997,8 +5624,8 @@ with tab_tipos:
                                 _mc['km2'] = mra.a_utm(_masc, _m_epsg).area / 1e6
                                 _mc['epsg'] = _m_epsg
                             st.caption(i18n.pick(
-                                f"Máscara leída: {_mc['km2']:.2f} km².",
-                                f"Mask read: {_mc['km2']:.2f} km²."))
+                                f"Máscara leída: {_num(_mc['km2'])} km².",
+                                f"Mask read: {_num(_mc['km2'])} km²."))
 
                 # ---- pureza dentro del píxel: puro, mixto-agua o mixto-roca. No sale del
                 # modelo, sino de cuánto verde hay en cada píxel de borreguil (mapeo_rf.
@@ -4008,7 +5635,10 @@ with tab_tipos:
                     _v = _leidos.get(mr.clave_punto(_f['lon'], _f['lat'])) or {}
                     if _f['categoria'] != mr.AUSENCIA and _v.get(mr.VARIABLE_VERDE) is not None:
                         _r = rows[_f['indice']] if 0 <= _f['indice'] < len(rows) else {}
-                        _m_pur.append({'pureza': bp._txt(_r.get('pureza')),
+                        # solo la pureza que ha revisado una persona, no la propuesta
+                        _m_pur.append({'pureza': (bp._txt(_r.get('pureza'))
+                                                  if 'pureza' in bp.niveles_revisados(_r)
+                                                  else ''),
                                        'ndvi': _v[mr.VARIABLE_VERDE]})
                 _n_puras = sum(1 for m in _m_pur if m['pureza'] == 'puro')
                 _tv_prop, _tv_muestras = mr.todo_verde_de(
@@ -4057,20 +5687,20 @@ with tab_tipos:
                     _q1, _q2 = st.columns(2)
                     _pur_sin = _q1.number_input(
                         i18n.pick('NDVI de un píxel sin verde', 'NDVI of a pixel with no green'),
-                        0.0, 0.5, mr.PUREZA_DEFECTO['sin_verde'], 0.01, format='%.2f',
+                        0.0, 0.5, mr.PUREZA_DEFECTO['sin_verde'], 0.01, format='%.3f',
                         key='mrf_pureza_sin', disabled=not _pur_si,
                         help=i18n.pick(
                             'El NDVI que tiene la roca o el suelo desnudo. Por debajo de '
                             'este valor se cuenta un 0 % de verde.\n\n'
-                            '**Recomendado: 0.08**, lo habitual en roca y suelo de alta '
+                            '**Recomendado: 0.080**, lo habitual en roca y suelo de alta '
                             'montaña.',
                             'The NDVI of rock or bare ground. Below this value the pixel '
                             'counts as 0 % green.\n\n'
-                            '**Recommended: 0.08**, the usual value for high-mountain '
+                            '**Recommended: 0.080**, the usual value for high-mountain '
                             'rock and ground.'))
                     _pur_todo = _q2.number_input(
                         i18n.pick('NDVI de un píxel todo verde', 'NDVI of an all-green pixel'),
-                        0.2, 1.0, min(1.0, max(0.2, round(_tv_prop, 2))), 0.01, format='%.2f',
+                        0.2, 1.0, min(1.0, max(0.2, round(_tv_prop, 3))), 0.01, format='%.3f',
                         key='mrf_pureza_todo', disabled=not _pur_si,
                         help=i18n.pick(
                             'El NDVI de un píxel cubierto entero por borreguil. A partir '
@@ -4105,13 +5735,13 @@ with tab_tipos:
                                     'puro_desde': _pur_corte / 100}
                     st.caption(i18n.pick(
                         f'Tus {_n_puras} muestras de borreguil puro tienen un NDVI de inicio '
-                        f'de verano de {_tv_prop:.2f} de mediana.' if _tv_muestras else
+                        f'de verano de {_num(_tv_prop)} de mediana.' if _tv_muestras else
                         f'Hay {_n_puras} muestras de borreguil puro: con menos de '
-                        f'{mr.MIN_PUROS} no se propone su NDVI, sino {_tv_prop:.2f}.',
+                        f'{mr.MIN_PUROS} no se propone su NDVI, sino {_num(_tv_prop)}.',
                         f'Your {_n_puras} pure borreguil samples have a median early-summer '
-                        f'NDVI of {_tv_prop:.2f}.' if _tv_muestras else
+                        f'NDVI of {_num(_tv_prop)}.' if _tv_muestras else
                         f'There are {_n_puras} pure borreguil samples: with fewer than '
-                        f'{mr.MIN_PUROS} their NDVI is not proposed, but {_tv_prop:.2f}.'))
+                        f'{mr.MIN_PUROS} their NDVI is not proposed, but {_num(_tv_prop)}.'))
                     if _par_pur and _m_pur:
                         _cmp = mr.comparar_pureza(_m_pur, _par_pur)
                         st.markdown(i18n.pick(
@@ -4159,16 +5789,16 @@ with tab_tipos:
                             'cauces, así que no hace falta ningún punto con el tipo '
                             'revisado. En el mapa, cada píxel de borreguil sale como '
                             '«arroyo», «laguna» o «ladera». Las distancias se ajustan en el '
-                            'desplegable de debajo. Tarda algo más: lee también el relieve '
-                            'de alrededor, para los cauces.\n\n'
+                            'desplegable de debajo. Los cauces son los ríos y arroyos de '
+                            'OpenStreetMap, los mismos que en los puntos.\n\n'
                             '**Recomendado: marcado.**',
                             'The model decides whether there is borreguil; the environment '
                             'is set by the map from how **close** each borreguil pixel is to '
                             'lakes and watercourses, so no point with a reviewed type is '
                             'needed. On the map, each borreguil pixel comes out as "stream", '
                             '"lake" or "slope". The distances are set in the expander below. '
-                            'It takes a little longer: it also reads the surrounding relief, '
-                            'for the watercourses.\n\n'
+                            'The watercourses are the OpenStreetMap rivers and streams, the '
+                            'same as for the points.\n\n'
                             '**Recommended: ticked.**'))
                 if _cercania or _amb_si_no:
                     if 'mrf_lagunas' not in st.session_state:
@@ -4245,37 +5875,20 @@ with tab_tipos:
                             key='mrf_amb_arroyo',
                             help=i18n.pick(
                                 'Un píxel que no es de laguna es de arroyo si está a esta '
-                                'distancia o menos de un cauce. Con cauces deducidos del '
-                                'relieve, que sitúan la vaguada con unos 30 m de error, no '
-                                'conviene bajar de 30 m.\n\n'
+                                'distancia o menos de un río o arroyo de OpenStreetMap (o '
+                                'de tu capa de cauces, si la subes).\n\n'
                                 '**Recomendado: 30 m**, lo que usa la app al proponer el '
                                 'tipo de cada punto.',
                                 'A pixel that is not a lake one is a stream one if it is '
-                                'within this distance of a watercourse. With watercourses '
-                                'derived from the relief, which place the valley line with '
-                                'about 30 m of error, it is best not to go below 30 m.\n\n'
+                                'within this distance of an OpenStreetMap river or stream '
+                                '(or of your watercourse layer, if you upload one).\n\n'
                                 '**Recommended: 30 m**, what the app uses when it proposes '
                                 'the type of each point.'))
-                        _cauce_ha = _a2.number_input(
-                            i18n.pick('Cauces del relieve: hectáreas que vierten',
-                                      'Relief watercourses: hectares draining'),
-                            0.5, 500.0, mam.DEFECTO['cauce_ha'], 1.0, format='%.1f',
-                            key='mrf_amb_ha',
-                            help=i18n.pick(
-                                'Si no subes una capa de cauces, salen del relieve: se '
-                                'calcula por dónde corre el agua y es cauce la celda que '
-                                'recibe la de esta superficie o más. Con menos hectáreas '
-                                'salen más cauces y más arriba; con más, solo los '
-                                'principales.\n\n'
-                                '**Recomendado: 8 ha.** Es una aproximación: sitúa bien las '
-                                'vaguadas, no el hilo de agua.',
-                                'If you do not upload a watercourse layer, they come from '
-                                'the relief: where the water runs is computed, and a cell '
-                                'is a watercourse if it receives the water of this area or '
-                                'more. Fewer hectares give more watercourses, starting '
-                                'higher up; more, only the main ones.\n\n'
-                                '**Recommended: 8 ha.** It is an approximation: it places '
-                                'valley lines well, not the thread of water.'))
+                        # Los cauces son los ríos y arroyos de OpenStreetMap, como en los
+                        # puntos (24-11-2026, la autora). Los del relieve quedan solo de reserva,
+                        # si OpenStreetMap no responde fuera de Sierra Nevada, con su ajuste
+                        # de siempre.
+                        _cauce_ha = mam.DEFECTO['cauce_ha']
                         _f_cauces = st.file_uploader(
                             i18n.pick('Capa de cauces propia (líneas; opcional)',
                                       'Your own watercourse layer (lines; optional)'),
@@ -4286,16 +5899,18 @@ with tab_tipos:
                                 'Las líneas de los cauces (por ejemplo, la red hidrográfica '
                                 'oficial). Un único KML, GeoJSON o GeoPackage, o un '
                                 'shapefile (.shp + .shx + .dbf + .prj juntos, o un .zip). '
-                                'Si la subes, se usa en lugar de los cauces del relieve.\n\n'
-                                '**Recomendado: subirla si tienes una de la que te fíes**; '
-                                'es más precisa que el relieve.',
+                                'Si la subes, se usa en lugar de los ríos y arroyos de '
+                                'OpenStreetMap.\n\n'
+                                '**Recomendado: no subir nada**, salvo que tengas una red '
+                                'de cauces de la zona más completa que la de OpenStreetMap.',
                                 'The lines of the watercourses (for example, the official '
                                 'hydrographic network). A single KML, GeoJSON or '
                                 'GeoPackage, or a shapefile (.shp + .shx + .dbf + .prj '
                                 'together, or a .zip). If you upload it, it is used '
-                                'instead of the relief watercourses.\n\n'
-                                '**Recommended: upload it if you have one you trust**; it '
-                                'is more precise than the relief.'))
+                                'instead of the OpenStreetMap rivers and streams.\n\n'
+                                '**Recommended: upload nothing**, unless you have a '
+                                'watercourse network of the zone more complete than '
+                                'OpenStreetMap.'))
                         if _f_cauces:
                             _clave_cau = tuple(sorted((f.name, f.size) for f in _f_cauces))
                             _cc = st.session_state.get('mrf_cauces')
@@ -4316,14 +5931,16 @@ with tab_tipos:
                             f'Lagunas: {len(_lagunas_ll)} puntos de la capa de la app '
                             '(Sierra Nevada) y el agua que se vea en Sentinel-2. Cauces: '
                             + ('los de tu capa.' if _capa_cauces is not None else
-                               'deducidos del relieve (se lee 1 km más alrededor de la zona, '
-                               'para contar el agua que entra de fuera).'),
+                               'los ríos y arroyos de OpenStreetMap, los mismos que en los '
+                               'puntos (los de Sierra Nevada van con la app; en otras zonas '
+                               'se descargan al hacer el mapa).'),
                             f'Lakes: {len(_lagunas_ll)} points of the layer of the app '
                             '(Sierra Nevada) and the water that shows in Sentinel-2. '
                             'Watercourses: '
                             + ('those of your layer.' if _capa_cauces is not None else
-                               'derived from the relief (1 km more is read around the zone, '
-                               'to count the water coming in from outside).')))
+                               'the OpenStreetMap rivers and streams, the same as for the '
+                               'points (those of Sierra Nevada come with the app; elsewhere '
+                               'they are downloaded when the map is made).')))
                     _par_amb = {'laguna_capa_m': float(_d_capa), 'laguna_agua_m': float(_d_agua),
                                 'arroyo_m': float(_d_arroyo), 'cauce_ha': float(_cauce_ha)}
                 if _amb_mal:
@@ -4505,19 +6122,21 @@ with tab_tipos:
                     _min_m = mra.minutos_estimados(_rej, ventanas=_por_leer)
                     _nu, _nl = len(_utiles), len(_por_leer)
                     st.markdown(i18n.pick(
-                        f"**{_zc['km2']:.2f} km²** que clasificar · rejilla de "
-                        f"{_rej['ancho']} × {_rej['alto']} píxeles de 10 m "
-                        f"(EPSG:{_m_epsg}) · años {bp.abreviar_anios(_m_anios)} · "
-                        f"**{_nu} bloque{'' if _nu == 1 else 's'}** de Earth Engine"
+                        f"**{_num(_zc['km2'])} km²** que clasificar · tardará "
+                        f"**{_dura(_min_m)}** aproximadamente.",
+                        f"**{_num(_zc['km2'])} km²** to classify · it will take about "
+                        f"**{_dura(_min_m)}**."))
+                    # los detalles, para quien los quiera, en pequeño
+                    st.caption(i18n.pick(
+                        f"Detalles: {_rej['ancho']} × {_rej['alto']} píxeles de 10 m "
+                        f"(EPSG:{_m_epsg}) · años {bp.abreviar_anios(_m_anios)} · se lee "
+                        f"en {_nu} trozo{'' if _nu == 1 else 's'} de Earth Engine"
                         + (f', {_nu - _nl} ya leído{"" if _nu - _nl == 1 else "s"}'
-                           if _nl < _nu else '')
-                        + f' · tardará **{_dura(_min_m)}** aproximadamente.',
-                        f"**{_zc['km2']:.2f} km²** to classify · grid of "
-                        f"{_rej['ancho']} × {_rej['alto']} pixels of 10 m "
-                        f"(EPSG:{_m_epsg}) · years {bp.abreviar_anios(_m_anios)} · "
-                        f"**{_nu} Earth Engine block{'' if _nu == 1 else 's'}**"
-                        + (f', {_nu - _nl} already read' if _nl < _nu else '')
-                        + f' · it will take about **{_dura(_min_m)}**.'))
+                           if _nl < _nu else '') + '.',
+                        f"Details: {_rej['ancho']} × {_rej['alto']} pixels of 10 m "
+                        f"(EPSG:{_m_epsg}) · years {bp.abreviar_anios(_m_anios)} · read "
+                        f"in {_nu} Earth Engine piece{'' if _nu == 1 else 's'}"
+                        + (f', {_nu - _nl} already read' if _nl < _nu else '') + '.'))
                     if _min_m > 15:
                         st.warning(i18n.pick(
                             'Va para largo. Mientras se hace el mapa **no uses la app**: '
@@ -4635,9 +6254,8 @@ with tab_tipos:
                         'that includes the field absences ("1 · Data").'))
                 if not _proy.strip():
                     st.caption(i18n.pick(
-                        'Escribe el proyecto de Earth Engine en «2 · Tabla de '
-                        'entrenamiento».',
-                        'Enter the Earth Engine project under "2 · Training table".'))
+                        'Escribe el proyecto de Earth Engine en el panel lateral.',
+                        'Enter the Earth Engine project in the sidebar.'))
                 _puede_mapa = bool(_rej and not _pega and _proy.strip() and not _pur_mal
                                    and not _amb_mal
                                    and (_con_aus or _masc is not None))
@@ -4728,20 +6346,38 @@ with tab_tipos:
 
                                     _a_utm_m = _pyproj.Transformer.from_crs(
                                         4326, _m_epsg, always_xy=True)
+                                    # Los cauces: los de tu capa o, si no, los ríos y
+                                    # arroyos de OpenStreetMap (bp.cauces_osm: los de
+                                    # Sierra Nevada van con la app, y lee unos 5 km más
+                                    # alrededor). Si OpenStreetMap no responde, los del
+                                    # relieve, y se avisa con el mapa.
+                                    _cau_utm, _de_cau = None, 'relieve'
+                                    if _capa_cauces is not None:
+                                        _cau_utm = mra.a_utm(_capa_cauces, _m_epsg)
+                                        _de_cau = ', '.join(f.name for f in _f_cauces)
+                                    else:
+                                        from shapely.ops import unary_union as _union
+                                        _barra.progress(1.0, text=i18n.pick(
+                                            'Leyendo los ríos y arroyos de OpenStreetMap…',
+                                            'Reading the OpenStreetMap rivers and '
+                                            'streams…'))
+                                        _lin_osm, _de_osm = bp.cauces_osm(
+                                            mra.limites_lonlat(_rej))
+                                        if _lin_osm is not None:
+                                            _cau_utm = mra.a_utm(_union(_lin_osm), _m_epsg)
+                                            _de_cau = ('OpenStreetMap ('
+                                                       + ('capa de la app' if _de_osm == 'capa'
+                                                          else 'Overpass') + ')')
                                     _amb_arg = {
                                         'nivel': _nivel, 'params': _par_amb,
                                         'lagunas': [_a_utm_m.transform(lo, la)
                                                     for lo, la in _lagunas_ll],
-                                        'cauces': (mra.a_utm(_capa_cauces, _m_epsg)
-                                                   if _capa_cauces is not None else None),
-                                        'relieve': (None if _capa_cauces is not None
-                                                    else _leer_relieve),
+                                        'cauces': _cau_utm,
+                                        'relieve': None if _cau_utm is not None else _leer_relieve,
                                         'fuentes': {
                                             'lagunas': 'lagunas_sierra_nevada.kml '
                                                        f'({len(_lagunas_ll)}) + Sentinel-2',
-                                            'cauces': (', '.join(f.name for f in _f_cauces)
-                                                       if _capa_cauces is not None
-                                                       else 'relieve')}}
+                                            'cauces': _de_cau}}
                                 _meta = mra.hacer_mapa(
                                     _mod_mapa, _rej, _lee, _carp, zona_utm=_zc['zona_utm'],
                                     mascara_utm=_zc['mascara_utm'], progreso=_avance,
@@ -4797,9 +6433,9 @@ with tab_tipos:
                                 _ha_m = _meta['pixeles_clasificados'] / 100
                                 st.session_state['_mrf_mapa_msg'] = i18n.pick(
                                     f"Mapa hecho en {_dura(_meta['segundos'] / 60, False)}: "
-                                    f"{_ha_m:.1f} ha clasificadas.",
+                                    f"{_num(_ha_m)} ha clasificadas.",
                                     f"Map made in {_dura(_meta['segundos'] / 60, False)}: "
-                                    f"{_ha_m:.1f} ha classified.")
+                                    f"{_num(_ha_m)} ha classified.")
                                 st.rerun()
 
             # ---------------------------------------------------- el mapa ya hecho
@@ -4826,18 +6462,16 @@ with tab_tipos:
                 st.markdown(i18n.pick('#### El mapa', '#### The map'))
                 st.caption(i18n.pick(
                     f"Hecho el {_meta['cuando'].replace('T', ' ')} · años "
-                    f"{bp.abreviar_anios(_meta.get('anios', []))} · {_meta['crs']}, "
-                    f"{_meta['resolucion_m']} m · {_rej_m['ancho']} × {_rej_m['alto']} "
-                    'píxeles.',
+                    f"{bp.abreviar_anios(_meta.get('anios', []))} · píxeles de "
+                    f"{_meta['resolucion_m']} m.",
                     f"Made on {_meta['cuando'].replace('T', ' ')} · years "
-                    f"{bp.abreviar_anios(_meta.get('anios', []))} · {_meta['crs']}, "
-                    f"{_meta['resolucion_m']} m · {_rej_m['ancho']} × {_rej_m['alto']} "
-                    'pixels.')
+                    f"{bp.abreviar_anios(_meta.get('anios', []))} · "
+                    f"{_meta['resolucion_m']} m pixels.")
                     + ('' if _u_mapa is None else i18n.pick(
                         f' Borreguil si la suma de la probabilidad de sus tipos llega a '
-                        f'{_u_mapa:.3f}.',
+                        f'{_num(_u_mapa)}.',
                         f' Borreguil if the probabilities of its types add up to '
-                        f'{_u_mapa:.3f} or more.')))
+                        f'{_num(_u_mapa)} or more.')))
                 _mod_m = _para_el_mapa(_mod)[0]          # en dos pasos, los dos juntos
                 if not _mod_m or _meta.get('firma_modelo') != _mod_m['firma']:
                     st.warning(i18n.pick(
@@ -4849,15 +6483,15 @@ with tab_tipos:
                     _u_ahora = (_mod_m.get('regla') or {}).get('umbral')
                     st.warning(i18n.pick(
                         'Este mapa se hizo con otro umbral de «¿borreguil o no?» ('
-                        + ('ninguno' if _u_mapa is None else f'{_u_mapa:.3f}')
+                        + ('ninguno' if _u_mapa is None else f'{_num(_u_mapa)}')
                         + '); el de «3 · Modelo» es ahora '
-                        + ('ninguno' if _u_ahora is None else f'{_u_ahora:.3f}')
+                        + ('ninguno' if _u_ahora is None else f'{_num(_u_ahora)}')
                         + '. Vuelve a hacerlo para aplicarlo: lo ya leído se aprovecha, '
                         'así que tarda poco.',
                         'This map was made with another "borreguil or not?" threshold ('
-                        + ('none' if _u_mapa is None else f'{_u_mapa:.3f}')
+                        + ('none' if _u_mapa is None else f'{_num(_u_mapa)}')
                         + '); the one under "3 · Model" is now '
-                        + ('none' if _u_ahora is None else f'{_u_ahora:.3f}')
+                        + ('none' if _u_ahora is None else f'{_num(_u_ahora)}')
                         + '. Make it again to apply it: what has been read is reused, so '
                         'it takes little time.'))
                 if _meta.get('sin_clase_no_borreguil'):
@@ -4873,13 +6507,13 @@ with tab_tipos:
                 _n_zo = _meta.get('pixeles_zona') or _n_cl
                 _k1, _k2, _k3 = st.columns(3, vertical_alignment='bottom')
                 _k1.metric(i18n.pick('Superficie clasificada', 'Classified area'),
-                           f'{_n_cl / 100:.1f} ha')
+                           f'{_num(_n_cl / 100)} ha')
                 _k2.metric(i18n.pick('Probabilidad media de la categoría elegida',
                                      'Mean probability of the chosen category'),
-                           bp.fmt_num(_meta['pmax_media']))
+                           _num(_meta['pmax_media']))
                 _k3.metric(i18n.pick('Píxeles de la zona sin dato',
                                      'Pixels of the zone without data'),
-                           f"{100 * (_n_zo - _n_cl) / _n_zo:.2f} %" if _n_zo else '—',
+                           f"{_num(100 * (_n_zo - _n_cl) / _n_zo)} %" if _n_zo else '—',
                            help=i18n.pick(
                                'Píxeles de la zona a los que les falta alguna variable '
                                '(nubes o nieve todos los años, borde de las imágenes): '
@@ -4917,43 +6551,49 @@ with tab_tipos:
                     + ('</span>' if _abierto else '') + '</div>')
                 _k_ha, _k_pc = i18n.pick('Hectáreas', 'Hectares'), i18n.pick(
                     '% de lo clasificado', '% of what is classified')
-                st.dataframe(pd.DataFrame([{
+                st.dataframe(_con_coma(pd.DataFrame([{
                     i18n.pick('Categoría', 'Category'): i18n.tv(c['categoria']),
                     i18n.pick('Código', 'Code'): c['codigo'],
                     _k_ha: c['hectareas'],
                     _k_pc: (100 * c['pixeles'] / _n_cl) if _n_cl else 0.0}
-                    for c in _cats_m]), hide_index=True, width='stretch',
-                    column_config={_k_ha: st.column_config.NumberColumn(format='%.2f'),
-                                   _k_pc: st.column_config.NumberColumn(format='%.1f')})
+                    for c in _cats_m])), hide_index=True, width='stretch')
                 # (en el de sí o no, la tabla de arriba ya va por ambiente)
                 if _meta.get('ramas') and _meta.get('nivel') != mr.NIVEL_SI_NO:
                     st.markdown(i18n.pick('**Por ambiente** (húmedo más seco): ',
                                           '**By environment** (wet plus dry): ')
                                 + ' · '.join(
-                                    f"{i18n.tv(r['rama'])} **{r['hectareas']:.2f} ha**"
+                                    f"{i18n.tv(r['rama'])} **{_num(r['hectareas'])} ha**"
                                     for r in _meta['ramas']) + '.')
                 if _con_am:
+                    # los cauces de OpenStreetMap, o los de una capa subida
+                    _am_osm = str((_am.get('fuentes') or {}).get('cauces', '')).startswith(
+                        'OpenStreetMap')
                     st.caption(i18n.pick(
                         'El ambiente no sale del modelo, sino de la cercanía de cada píxel '
                         f"a lagunas y cauces. {mam.frase(_am)[:1].upper()}{mam.frase(_am)[1:]}. "
-                        + ('Cauces: los de tu capa.' if _am['cauces'] == 'capa' else
+                        + (('Cauces: los ríos y arroyos de OpenStreetMap.'
+                            if _am_osm else 'Cauces: los de tu capa.')
+                           if _am['cauces'] == 'capa' else
                            f"Cauces: deducidos del relieve (los que reciben el agua de "
-                           f"{_am['cauce_ha']:g} ha o más); son una aproximación.")
+                           f"{_num(_am['cauce_ha'])} ha o más), porque OpenStreetMap no "
+                           'respondió; son una aproximación.')
                         + ' Lo que se ha tomado por laguna y por cauce se ve en la capa '
                         '**Lagunas y cauces** del mapa.',
                         'The environment does not come from the model but from how close '
                         'each pixel is to lakes and watercourses. '
                         f"{mam.frase(_am, True)[:1].upper()}{mam.frase(_am, True)[1:]}. "
-                        + ('Watercourses: those of your layer.' if _am['cauces'] == 'capa' else
+                        + (('Watercourses: the OpenStreetMap rivers and streams.'
+                            if _am_osm else 'Watercourses: those of your layer.')
+                           if _am['cauces'] == 'capa' else
                            f"Watercourses: derived from the relief (those receiving the "
-                           f"water of {_am['cauce_ha']:g} ha or more); they are an "
-                           'approximation.')
+                           f"water of {_num(_am['cauce_ha'])} ha or more), because "
+                           'OpenStreetMap did not answer; they are an approximation.')
                         + ' What was taken as lake and as watercourse shows in the '
                         '**Lakes and watercourses** layer of the map.'))
                     # (las distancias de ahora, de los controles: si no están en
                     # pantalla, no hay nada que comparar)
                     _ahora = {'laguna_capa_m': 'mrf_amb_capa', 'laguna_agua_m': 'mrf_amb_agua',
-                              'arroyo_m': 'mrf_amb_arroyo', 'cauce_ha': 'mrf_amb_ha'}
+                              'arroyo_m': 'mrf_amb_arroyo'}
                     if any(st.session_state.get(w) is not None
                            and abs(_am.get(k, 0.0) - float(st.session_state[w])) > 1e-9
                            for k, w in _ahora.items()):
@@ -4989,21 +6629,19 @@ with tab_tipos:
                     st.markdown(i18n.pick('**Pureza dentro del píxel** (de lo que es borreguil)',
                                           '**Purity within the pixel** (of what is borreguil)'))
                     _k_pb = i18n.pick('% del borreguil', '% of the borreguil')
-                    st.dataframe(pd.DataFrame([{
+                    st.dataframe(_con_coma(pd.DataFrame([{
                         i18n.pick('Pureza', 'Purity'): i18n.tv(c['categoria']),
                         i18n.pick('Código', 'Code'): c['codigo'],
                         _k_ha: c['hectareas'],
                         _k_pb: (100 * c['pixeles'] / _n_bo) if _n_bo else 0.0}
-                        for c in _pz['categorias']]), hide_index=True, width='stretch',
-                        column_config={_k_ha: st.column_config.NumberColumn(format='%.2f'),
-                                       _k_pb: st.column_config.NumberColumn(format='%.1f')})
+                        for c in _pz['categorias']])), hide_index=True, width='stretch')
                     st.caption(i18n.pick(
                         'Estimada con el NDVI de inicio de verano de cada píxel: sin verde '
-                        f"{_pz['sin_verde']:.2f}, todo verde {_pz['todo_verde']:.2f}; puro "
+                        f"{_num(_pz['sin_verde'])}, todo verde {_num(_pz['todo_verde'])}; puro "
                         f"desde el {100 * _pz['puro_desde']:.0f} % de verde. Mixto-agua, si "
                         'el píxel es agua o toca un píxel de agua.',
                         'Estimated from the early-summer NDVI of each pixel: no green '
-                        f"{_pz['sin_verde']:.2f}, all green {_pz['todo_verde']:.2f}; pure "
+                        f"{_num(_pz['sin_verde'])}, all green {_num(_pz['todo_verde'])}; pure "
                         f"from {100 * _pz['puro_desde']:.0f} % green. Mixed-water, if the "
                         'pixel is water or touches a water pixel.'))
                     if _nivel == 'pureza':
@@ -5227,10 +6865,10 @@ with tab_tipos:
                         'that it is **not** one.')
                         + ('' if _u_mapa is None or not _con_pb else ' ' + i18n.pick(
                             '**Probabilidad de borreguil** es la suma de la de sus tipos: '
-                            f'donde llega a {_u_mapa:.3f}, el mapa pone borreguil, del tipo '
+                            f'donde llega a {_num(_u_mapa)}, el mapa pone borreguil, del tipo '
                             'más probable. Es la capa para ver dónde hay borreguil.',
                             '**Probability of borreguil** is the sum of those of its '
-                            f'types: where it reaches {_u_mapa:.3f}, the map says '
+                            f'types: where it reaches {_num(_u_mapa)}, the map says '
                             'borreguil, of the most probable type. It is the layer to see '
                             'where there is borreguil.'))
                         + ('' if not _con_am else ' ' + i18n.pick(
@@ -5288,12 +6926,15 @@ with tab_tipos:
                                 'Has pinchado fuera del mapa.', 'You clicked outside the map.'))
                     else:
                         _donde = i18n.pick(
-                            f"fila {_q['fila'] + 1}, columna {_q['columna'] + 1} · centro en "
-                            f"X {_q['x']:.0f}, Y {_q['y']:.0f} ({_meta['crs']}) · "
-                            f"lon {_q['lon']:.5f}, lat {_q['lat']:.5f}",
-                            f"row {_q['fila'] + 1}, column {_q['columna'] + 1} · centre at "
-                            f"X {_q['x']:.0f}, Y {_q['y']:.0f} ({_meta['crs']}) · "
-                            f"lon {_q['lon']:.5f}, lat {_q['lat']:.5f}")
+                            f"lon {_num(_q['lon'], 5)}; lat {_num(_q['lat'], 5)}",
+                            f"lon {_num(_q['lon'], 5)}, lat {_num(_q['lat'], 5)}")
+                        _donde_mas = i18n.pick(
+                            f"fila {_q['fila'] + 1}, columna {_q['columna'] + 1} del mapa · "
+                            f"centro en X {_q['x']:.0f}, Y {_q['y']:.0f} "
+                            f"({_meta['crs']})",
+                            f"row {_q['fila'] + 1}, column {_q['columna'] + 1} of the map · "
+                            f"centre at X {_q['x']:.0f}, Y {_q['y']:.0f} "
+                            f"({_meta['crs']})")
                         if _q['codigo'] is None:
                             st.info(i18n.pick(
                                 f'**Píxel sin dato** ({_donde}). Está fuera de la zona o de '
@@ -5304,18 +6945,18 @@ with tab_tipos:
                             st.markdown(i18n.pick(
                                 f"**Píxel pinchado:** «{i18n.tv(_q['categoria'])}» (código "
                                 f"{_q['codigo']}), con probabilidad "
-                                f"**{bp.fmt_num(_q['pmax'])}**.",
+                                f"**{_num(_q['pmax'])}**.",
                                 f"**Clicked pixel:** \"{i18n.tv(_q['categoria'])}\" (code "
                                 f"{_q['codigo']}), with probability "
-                                f"**{bp.fmt_num(_q['pmax'])}**.")
+                                f"**{_num(_q['pmax'])}**.")
                                 + ('' if _q.get('p_borreguil') is None or _u_mapa is None
                                    else ' ' + i18n.pick(
                                        'Probabilidad de borreguil (la suma de sus tipos): '
-                                       f"**{bp.fmt_num(_q['p_borreguil'])}**; el umbral es "
-                                       f'{_u_mapa:.3f}.',
+                                       f"**{_num(_q['p_borreguil'])}**; el umbral es "
+                                       f'{_num(_u_mapa)}.',
                                        'Probability of borreguil (the sum of its types): '
-                                       f"**{bp.fmt_num(_q['p_borreguil'])}**; the "
-                                       f'threshold is {_u_mapa:.3f}.'))
+                                       f"**{_num(_q['p_borreguil'])}**; the "
+                                       f'threshold is {_num(_u_mapa)}.'))
                                 + ('' if not _q.get('ambiente') else ' ' + i18n.pick(
                                     f"Ambiente por cercanía: **{i18n.tv(_q['ambiente'])}** ("
                                     + _a_cuanto(_q['distancias'], False) + ').',
@@ -5332,15 +6973,15 @@ with tab_tipos:
                                     + (f"; purity from that green: **{i18n.tv(_q['pureza'])}**."
                                        if _q.get('pureza') else '.'))))
                             _k_pr = i18n.pick('Probabilidad', 'Probability')
-                            st.dataframe(pd.DataFrame([{
+                            st.dataframe(_con_coma(pd.DataFrame([{
                                 i18n.pick('Categoría', 'Category'): i18n.tv(p['categoria']),
                                 i18n.pick('Código', 'Code'): p['codigo'],
                                 _k_pr: p['probabilidad']}
                                 for p in sorted(_q['probabilidades'],
-                                                key=lambda p: -p['probabilidad'])]),
-                                hide_index=True, width='stretch',
-                                column_config={_k_pr: st.column_config.NumberColumn(format='%.4f')})
-                            st.caption(_donde[:1].upper() + _donde[1:] + '.')
+                                                key=lambda p: -p['probabilidad'])])),
+                                hide_index=True, width='stretch')
+                            st.caption(i18n.pick('Dónde: ', 'Where: ') + _donde + ' · '
+                                       + _donde_mas + '.')
 
                 _visor_del_mapa()
 
@@ -5414,7 +7055,7 @@ with tab_tipos:
                 for _cl, _nom, _mime, _ay in _desc:
                     _mb = (_carp_m / mra.FICHEROS[_cl]).stat().st_size / 1e6
                     st.download_button(
-                        label=f'⬇ {_nom} ({_mb:.1f} MB)' if _mb >= 0.1 else f'⬇ {_nom}',
+                        label=f'⬇ {_nom} ({_num(_mb, 1)} MB)' if _mb >= 0.1 else f'⬇ {_nom}',
                         data=_fichero(mra.FICHEROS[_cl]), file_name=_nom, mime=_mime,
                         key=f'mrf_dl_mapa_{_cl}', help=_ay, on_click='ignore')
 
@@ -5465,7 +7106,7 @@ with tab_tipos:
                     '- **Lo que pierde el modelo sin ella** (importancia por permutación). '
                     f'Se repite {_valid} con los valores de esa variable **desordenados** '
                     'entre las muestras, como si dejara de informar, y se mira cuánto baja '
-                    f'el F1 medio, que es **{bp.fmt_num(_f1)}**. Se hace {_nrep} veces; el '
+                    f'el F1 medio, que es **{_num(_f1)}**. Se hace {_nrep} veces; el '
                     '«±» es lo que cambia de una vez a otra.\n'
                     '- **Uso interno** (importancia por impureza). Cuánto ha usado el '
                     'modelo final esa variable para separar las muestras al entrenar. Es '
@@ -5475,7 +7116,7 @@ with tab_tipos:
                     f'{_valid[:1].upper() + _valid[1:]} is repeated with the values of that '
                     'variable **shuffled** among the samples, as if it stopped telling '
                     'anything, and the drop in the mean F1, which is '
-                    f'**{bp.fmt_num(_f1)}**, is recorded. This is done {_nrep} times; the '
+                    f'**{_num(_f1)}**, is recorded. This is done {_nrep} times; the '
                     '"±" is how much it changes from one time to the next.\n'
                     '- **Internal use** (impurity importance). How much the final model '
                     'used that variable to split the samples during training. It is a '
@@ -5488,14 +7129,14 @@ with tab_tipos:
                 _nc = len(_claras)
                 if _1a['permutacion'] > 0:
                     _titular = i18n.pick(
-                        f"**La que más pesa es `{_1a['variable']}`** "
+                        f"**La que más pesa es «{_var(_1a['variable'])}»** "
                         f"({mr.descripcion(_1a['variable'])}): con ella desordenada, el F1 "
-                        f"medio baja de {bp.fmt_num(_f1)} a "
-                        f"{bp.fmt_num(_f1 - _1a['permutacion'])}.",
-                        f"**The one that weighs most is `{_1a['variable']}`** "
+                        f"medio baja de {_num(_f1)} a "
+                        f"{_num(_f1 - _1a['permutacion'])}.",
+                        f"**The one that weighs most is “{_var(_1a['variable'])}”** "
                         f"({mr.descripcion(_1a['variable'], True)}): with it shuffled, the "
-                        f"mean F1 drops from {bp.fmt_num(_f1)} to "
-                        f"{bp.fmt_num(_f1 - _1a['permutacion'])}.")
+                        f"mean F1 drops from {_num(_f1)} to "
+                        f"{_num(_f1 - _1a['permutacion'])}.")
                 else:
                     _titular = i18n.pick(
                         '**Ninguna variable hace bajar el F1 al desordenarla**: el modelo '
@@ -5548,9 +7189,7 @@ with tab_tipos:
                             'se entrena: da algo de peso a todas las variables que el '
                             'modelo usa, también a las que no le ayudan a acertar fuera.\n\n'
                             '**Recomendado: la primera** para decidir qué variables '
-                            'importan. La segunda es la que suele darse en los artículos '
-                            '(en R, «MeanDecreaseGini»; la primera equivale a '
-                            '«MeanDecreaseAccuracy», aquí con el F1 medio).',
+                            'importan. La segunda es la que suele darse en los artículos.',
                             '**What the model loses without it** is measured with samples '
                             'the model has not seen (those of the validation): it tells '
                             'which variables it needs to get new places right.\n\n'
@@ -5558,9 +7197,7 @@ with tab_tipos:
                             'training: it gives some weight to every variable the model '
                             'uses, including those that do not help it elsewhere.\n\n'
                             '**Recommended: the first one** to decide which variables '
-                            'matter. The second is the one usually reported in papers (in '
-                            'R, "MeanDecreaseGini"; the first corresponds to '
-                            '"MeanDecreaseAccuracy", here with the mean F1).'))
+                            'matter. The second is the one usually reported in papers.'))
                     _perm = _med == 'permutacion'
                     _fil = sorted(_vs, key=lambda v: v['orden' if _perm else 'orden_impureza'])
                     try:
@@ -5572,14 +7209,14 @@ with tab_tipos:
                     _azul, _tinta, _linea = (('#3987e5', '#c3c2b7', '#383835') if _oscuro
                                              else ('#2a78d6', '#52514e', '#c3c2b7'))
                     _dfp = pd.DataFrame([{
-                        'variable': v['variable'],
+                        'variable': _var(v['variable']),
                         'que': mr.descripcion(v['variable'], _en),
                         'grupo': mr.nombre_grupo(v['grupo'], _en),
                         'valor': v['permutacion'] if _perm else 100 * v['impureza'],
                         'menos': v['permutacion'] - v['desviacion'],
                         'mas': v['permutacion'] + v['desviacion'],
-                        'pierde': f"{v['permutacion']:+.4f} ± {v['desviacion']:.4f}",
-                        'uso': f"{100 * v['impureza']:.2f} %",
+                        'pierde': f"{_num(v['permutacion'], signo=True)} ± {_num(v['desviacion'])}",
+                        'uso': f"{_num(100 * v['impureza'])} %",
                         'puesto': f"{v['orden']} · {v['orden_impureza']}"} for v in _fil])
                     _tx = (i18n.pick('bajada del F1 medio al desordenar la variable',
                                      'drop in mean F1 when the variable is shuffled')
@@ -5589,7 +7226,7 @@ with tab_tipos:
                     def _x(campo):
                         return alt.X(f'{campo}:Q', title=_tx, axis=alt.Axis(orient='top'))
 
-                    _y = alt.Y('variable:N', sort=[v['variable'] for v in _fil], title=None,
+                    _y = alt.Y('variable:N', sort=[_var(v['variable']) for v in _fil], title=None,
                                axis=alt.Axis(labelLimit=220, labelOverlap=False, ticks=False,
                                              domain=False, labelPadding=8))
                     _b = alt.Chart(_dfp)
@@ -5712,19 +7349,19 @@ with tab_tipos:
                     # (\u00a0: espacio que no se parte; la cifra y su «±» van juntos)
                     st.table(pd.DataFrame([{
                         _k_cj: _nombre(g[_campo], _en), _k_nv: str(g['n_variables']),
-                        _k_pj: f"{g['permutacion']:+.4f}\u00a0±\u00a0{g['desviacion']:.4f}",
-                        _k_uj: f"{100 * g['impureza']:.2f}\u00a0%"} for g in _lista]
+                        _k_pj: f"{_num(g['permutacion'], signo=True)}\u00a0±\u00a0{_num(g['desviacion'])}",
+                        _k_uj: f"{_num(100 * g['impureza'])}\u00a0%"} for g in _lista]
                     ).set_index(_k_cj))
 
                 # ---- todas, una por una (lo mismo que el gráfico, con sus números).
                 # Los números, delante: lo que mide cada una es largo y va al final.
                 st.markdown(i18n.pick('**Todas las variables**', '**All the variables**'))
-                _c4v = st.column_config.NumberColumn(format='%.4f')
-                _c2v = st.column_config.NumberColumn(format='%.2f')
+                _c4v = st.column_config.NumberColumn()
+                _c2v = st.column_config.NumberColumn()
                 _k_pv = i18n.pick('Bajada del F1 sin ella', 'F1 drop without it')
                 _k_ui = i18n.pick('Uso interno (%)', 'Internal use (%)')
-                st.dataframe(pd.DataFrame([{
-                    'Variable': v['variable'], i18n.pick('Puesto', 'Rank'): v['orden'],
+                st.dataframe(_con_coma(pd.DataFrame([{
+                    'Variable': _var(v['variable']), i18n.pick('Puesto', 'Rank'): v['orden'],
                     _k_pv: v['permutacion'], '±': v['desviacion'],
                     _k_ui: 100 * v['impureza'],
                     i18n.pick('Puesto por uso', 'Rank by use'): v['orden_impureza'],
@@ -5733,7 +7370,7 @@ with tab_tipos:
                     i18n.pick('Familia', 'Family'): mr.nombre_familia(v['familia'], _en),
                     i18n.pick('Época u origen', 'Season or source'):
                         mr.nombre_grupo(v['grupo'], _en)}
-                    for v in _vs]), hide_index=True, width='stretch',
+                    for v in _vs])), hide_index=True, width='stretch',
                     column_config={_k_pv: _c4v, '±': _c4v, _k_ui: _c2v,
                                    'Variable': st.column_config.Column(pinned=True)})
                 st.download_button(
@@ -5769,14 +7406,14 @@ with tab_tipos:
             _e2 = (_hecho, i18n.pick(
                 f"{len(_tab['filas'])} muestras, {len(_tab['predictores'])} variables",
                 f"{len(_tab['filas'])} samples, {len(_tab['predictores'])} variables")
-                + (' (VIF)' if _tab.get('vif') else ''))
+                + (' (VIF)' if _tab.get('vif') else ' (PCA)' if _tab.get('pca') else ''))
         if not _mod:
             _e3 = (_falta, i18n.pick('sin entrenar', 'not trained yet'))
         elif _tab is None or _mod['firma'] != mr.firma_tabla(_tab):
             _e3 = (_ojo, i18n.pick('es de una tabla anterior', 'from a previous table'))
         else:
-            _e3 = (_hecho, i18n.pick(f"F1 medio {bp.fmt_num(_mod['macro_f1'])}",
-                                     f"mean F1 {bp.fmt_num(_mod['macro_f1'])}"))
+            _e3 = (_hecho, i18n.pick(f"F1 medio {_num(_mod['macro_f1'])}",
+                                     f"mean F1 {_num(_mod['macro_f1'])}"))
         _mod_e4 = _para_el_mapa(_mod)[0]           # en dos pasos, los dos juntos
         if not _mapa:
             _e4 = (_falta, i18n.pick('sin hacer', 'not made yet'))
@@ -5789,8 +7426,8 @@ with tab_tipos:
             _e4 = (_ojo, i18n.pick('es de otro umbral', 'made with another threshold'))
         else:
             _e4 = (_hecho, i18n.pick(
-                f"{_mapa['meta']['pixeles_clasificados'] / 100:.1f} ha clasificadas",
-                f"{_mapa['meta']['pixeles_clasificados'] / 100:.1f} ha classified"))
+                f"{_num(_mapa['meta']['pixeles_clasificados'] / 100)} ha clasificadas",
+                f"{_num(_mapa['meta']['pixeles_clasificados'] / 100)} ha classified"))
         _imp_e = (_mod or {}).get('importancia')
         if not _mod:
             _e5 = (_falta, i18n.pick('sin calcular', 'not computed yet'))
@@ -5802,8 +7439,8 @@ with tab_tipos:
             _e5 = (_ojo, i18n.pick('ninguna destaca', 'none stands out'))
         else:
             _e5 = (_hecho, i18n.pick(
-                f"la primera: {_imp_e['variables'][0]['variable']}",
-                f"top: {_imp_e['variables'][0]['variable']}"))
+                f"la primera: {_var(_imp_e['variables'][0]['variable'])}",
+                f"top: {_var(_imp_e['variables'][0]['variable'])}"))
         _icono = {_hecho: ':material/check_circle:', _ojo: ':material/error:',
                   _falta: ':material/radio_button_unchecked:'}
         _pasos = (i18n.pick('1 · Datos', '1 · Data'), i18n.pick('2 · Tabla', '2 · Table'),

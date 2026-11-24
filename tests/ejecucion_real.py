@@ -141,9 +141,13 @@ comprobar(r0['tipo_revisado_fecha'] == '2026-09-30T09:00:00', 'y su fecha tambi�
           repr(r0.get('tipo_revisado_fecha')))
 comprobar('ambiente_regla' in r0, 'la propuesta de la app se guarda aparte')
 r3 = por_id['campo_3']
-comprobar(not bp.tipo_revisado(r3) and 'rio' in str(r3.get('tipo_revision_invalida')),
-          'el revisado con categoría inválida no cuenta y queda anotado',
-          repr(r3.get('tipo_revision_invalida')))
+# Cada nivel cuenta por separado: el ambiente no admitido deja de contar como
+# revisado (y queda anotado); la humedad y la pureza, que son válidas, siguen.
+comprobar(bp.niveles_revisados(r3) == ['humedad', 'pureza']
+          and 'rio' in str(r3.get('tipo_revision_invalida')),
+          'el nivel revisado con categoría inválida no cuenta y queda anotado; los demás '
+          'niveles revisados siguen contando',
+          f"{bp.niveles_revisados(r3)} · {r3.get('tipo_revision_invalida')!r}")
 avisos = [str(x.value) for x in at.warning]
 comprobar(any('campo_3' in a and 'no admitida' in a for a in avisos),
           'la pantalla avisa de ese punto', str(avisos)[:200])
@@ -154,25 +158,40 @@ for nombre in ('classification.csv', 'puntos.geojson', 'Clasificacion_puntos.xls
     comprobar((work / nombre).exists(), f'se ha guardado {nombre}')
 gj = json.loads((work / 'puntos.geojson').read_text(encoding='utf-8'))
 props = {f['properties']['ID']: f['properties'] for f in gj['features']}
-comprobar(props['campo_0']['tipo_revisado'] == 'si' and props['campo_0']['ambiente'] == 'laguna'
-          and props['campo_5']['Borreguil'] == 'no' and props['campo_2']['Duda'] == 'si'
-          and props['campo_3']['tipo_revisado'] == '',
-          'puntos.geojson lleva las etiquetas tal como quedaron')
+# Con las columnas de la plantilla de datos de campo; de cada tipo, solo los niveles
+# que ha revisado una persona
+p0, p3 = props['campo_0'], props['campo_3']
+comprobar(p0.get('presence') == 1
+          and (p0.get('environment'), p0.get('moisture'), p0.get('purity'))
+          == ('lake', 'dry', 'mixed-rock')
+          and props['campo_5'].get('presence') == 0 and props['campo_2'].get('doubtful') == 1
+          and (p3.get('environment'), p3.get('moisture'), p3.get('purity'))
+          == (None, 'dry', 'pure'),
+          'puntos.geojson lleva las etiquetas tal como quedaron (columnas de la plantilla)',
+          str({k: {c: props[k].get(c) for c in ('presence', 'doubtful', 'environment',
+                                                 'moisture', 'purity')}
+               for k in ('campo_0', 'campo_2', 'campo_3', 'campo_5')}))
 comprobar(not any(set(p) & set(bp.FEATURES_RF_COMBO) for p in props.values()),
           'puntos.geojson no lleva variables')
 
 # la pantalla de resultados se dibuja tras la ejecución
 comprobar(any(h.value == 'Resultados' for h in at.header), 'se muestra la pantalla de resultados')
-comprobar(any('Tipo revisado: 1 de' in str(m.value) for m in at.markdown),
-          'el contador arranca con el revisado que venía en el fichero',
+# campo_0 con los tres niveles y campo_3 con humedad y pureza (su ambiente no vale)
+comprobar(any('Tipo revisado: 2 de' in str(m.value) for m in at.markdown),
+          'el contador arranca con los revisados que venían en el fichero',
           str([str(m.value)[:60] for m in at.markdown if 'Tipo revisado' in str(m.value)]))
 
 # segunda vuelta: lo guardado se puede cargar otra vez y sigue igual
 otra = bp.read_points(str(work / 'puntos.geojson'))
+bp.leer_etiquetas(otra)                           # lo que hace la app al cargar
 o = {r['ID']: r for r in otra}
-comprobar(bp.tipo_revisado(o['campo_0']) and bp._txt(o['campo_5']['Borreguil']) == 'no'
+comprobar(bp.niveles_revisados(o['campo_0']) == list(bp.NIVELES_TIPO)
+          and bp.niveles_revisados(o['campo_3']) == ['humedad', 'pureza']
+          and bp._txt(o['campo_5']['Borreguil']) == 'no'
           and bp._txt(o['campo_2']['Duda']) == 'si',
-          'el fichero guardado se vuelve a leer con las mismas etiquetas')
+          'el fichero guardado se vuelve a leer con las mismas etiquetas',
+          str({k: (bp.niveles_revisados(o[k]), o[k].get('Borreguil'), o[k].get('Duda'))
+               for k in ('campo_0', 'campo_2', 'campo_3', 'campo_5')}))
 
 print()
 print('RESULTADO:', 'todo correcto' if not FALLOS else f'{len(FALLOS)} FALLO(S)')

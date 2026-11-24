@@ -109,8 +109,11 @@ for name in ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
     if p.exists():
         datas.append((str(p), '.'))
 
-# Modelos entrenados y capas auxiliares que la app espera encontrar a su lado.
-for pattern in ('*.joblib', 'lagunas_sierra_nevada.kml'):
+# Modelos entrenados y capas auxiliares que la app espera encontrar a su lado. La tabla
+# de entrenamiento del modelo de Sierra Nevada sirve para verla en el mapa y para
+# reentrenarlo sumando los puntos de quien usa la app.
+for pattern in ('*.joblib', 'lagunas_sierra_nevada.kml', 'cauces_sierra_nevada.geojson',
+                'entrenamiento_sierra_nevada.csv'):
     for p in APP_DIR.glob(pattern):
         # Los ficheros «._algo» son restos de macOS (AppleDouble), no modelos:
         # empaquetarlos los haria aparecer en el desplegable del ejecutable.
@@ -118,8 +121,14 @@ for pattern in ('*.joblib', 'lagunas_sierra_nevada.kml'):
             continue
         datas.append((str(p), '.'))
 
+# Versiones sin radar de los modelos, que la app usa sola cuando no se lee el radar
+# (Planetary Computer). En su carpeta para que no salgan en el desplegable.
+for p in (APP_DIR / 'sin_radar').glob('*.joblib'):
+    if not p.name.startswith('.'):
+        datas.append((str(p), 'sin_radar'))
+
 # Datos de referencia para las gráficas comparativas (opcional pero recomendable).
-for cand in (APP_DIR / 'classification_v5.csv', REPO_DIR / 'classification_v5.csv'):
+for cand in (APP_DIR / 'classification_v7.csv', REPO_DIR / 'classification_v7.csv'):
     if cand.exists():
         datas.append((str(cand), '.'))
         break
@@ -131,6 +140,11 @@ for name in ('MANUAL.md', 'TUTORIAL.md', 'LICENSE', 'CITATION.cff'):
         if p.exists():
             datas.append((str(p), '.'))
             break
+
+# Plantilla de datos de campo para quien sube sus puntos (Excel, ejemplo y definiciones).
+for p in (APP_DIR / 'plantilla').glob('*'):
+    if p.is_file() and not p.name.startswith('.'):
+        datas.append((str(p), 'plantilla'))
 
 # Paquetes de terceros que la app no usa. NO excluir aquí submódulos internos de
 # numpy/scipy (p. ej. numpy.f2py): numpy los importa de forma perezosa desde

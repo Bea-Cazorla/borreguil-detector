@@ -12,8 +12,9 @@ Lo que tiene que cumplirse para que el mapa sea coherente con el entrenamiento:
   5. El mapa, que lee por bloques, ve en cada píxel EXACTAMENTE lo que se leyó para
      la muestra que cae en él, y donde no hay dato recibe un hueco, no un cero.
   6. Las estadísticas de jun–sep del mapeo son la media entre años de la estadística
-     de cada año (se rehacen aquí imagen a imagen), y las del detector siguen siendo
-     las de todos los años juntos.
+     de cada año (se rehacen aquí imagen a imagen); sin `por_anio`, las de todos los
+     años juntos. (Las variables del detector no salen de esta pila: las comprueba
+     earth_engine_detector.py.)
 
     BORREGUIL_GEE_PROJECT=mi-proyecto python tests/earth_engine_real.py
 
@@ -149,8 +150,8 @@ for k in geb.NEW_INDS:
 comprobar(not distintas,
           'las 16 estadísticas de jun–sep son la media entre años de la de cada año '
           '(rehechas imagen a imagen)', str(distintas[:4]))
-# El detector no cambia: sus modelos se entrenaron con todos los años juntos.
-juntas = geb._s2_stack(region, ANIOS)[1].reduceRegion(
+# Sin por_anio, todas las imágenes de todos los años juntas.
+juntas =geb._s2_stack(region, ANIOS)[1].reduceRegion(
     ee.Reducer.first(), ee.Geometry.Point(list(PUNTOS[i])), crs=f'EPSG:{epsg}',
     crsTransform=[10, 0, 0, 0, -10, 0]).getInfo()
 distintas = []
@@ -160,7 +161,7 @@ for k in geb.NEW_INDS:
         if not cerca(juntas[f'{k}_{s}'], f(todas)):
             distintas.append((f'{k}_{s}', juntas[f'{k}_{s}'], f(todas)))
 comprobar(not distintas,
-          'el detector sigue con todas las imágenes de todos los años juntas',
+          'sin por_anio, las estadísticas son las de todas las imágenes juntas',
           str(distintas[:4]))
 comprobar(all(valores[i][f'{k}_min'] >= juntas[f'{k}_min'] - 1e-9
               and valores[i][f'{k}_max'] <= juntas[f'{k}_max'] + 1e-9 for k in geb.NEW_INDS)

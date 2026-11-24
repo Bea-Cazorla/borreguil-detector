@@ -238,8 +238,7 @@ def _period_new_stats(region, years, por_anio=False):
 
     Hay dos maneras de juntar los años:
 
-      · todas las imágenes de todos los años a la vez (por defecto). Es como se
-        entrenaron los modelos del detector, y el detector tiene que seguir así;
+      · todas las imágenes de todos los años a la vez (por defecto);
       · `por_anio`: la estadística se calcula en CADA año y después se hace la media
         entre los años que tienen dato. Es lo que usa el mapeo. Con todo junto, el
         mínimo y el máximo son los de una sola imagen en nueve veranos (basta una
@@ -316,11 +315,11 @@ def _season_composite(region, years, season):
 
 
 def _s2_stack(region, years, por_anio=False):
-    """Las bandas de Sentinel-2 que usa la app: índices de inicio y fin de verano,
-    la caída del NDVI y las estadísticas de jun–sep. Devuelve (pila, estadísticas).
-    Es la ÚNICA definición: la usan el detector y el mapeo. Solo cambia cómo se
-    juntan los años en las estadísticas (`por_anio`, ver _period_new_stats): el
-    detector, todos a la vez; el mapeo, año a año."""
+    """Las bandas de Sentinel-2 del MAPEO: índices de inicio y fin de verano (mediana
+    de todas las imágenes de las ventanas), la caída del NDVI y las estadísticas de
+    jun–sep. Devuelve (pila, estadísticas). El mapeo entrena sus propios modelos con
+    estas bandas (y año a año, `por_anio`), así que solo tiene que ser coherente
+    consigo mismo. El detector NO la usa: ver _pila_detector."""
     import ee
     early = _indices_image(_season_composite(region, years, 'early'))
     late = _indices_image(_season_composite(region, years, 'late'))
@@ -332,9 +331,126 @@ def _s2_stack(region, years, por_anio=False):
     return ee.Image.cat([early, late, drop, new_stats]), new_stats
 
 
+# ---- Detector: las variables tal como se entrenaron los modelos de partida ----
+# Los modelos de Sierra Nevada se entrenaron con variables de Planetary Computer
+# (borreguil_pipeline.fetch_s2), y el modelo solo acierta si recibe los números
+# calculados de la misma manera. Calcularlas «a la manera de Earth Engine» (mediana de
+# todas las imágenes) da otros números: comprobado el 19-11-2026 en los 796 puntos de
+# entrenamiento, el EVI salía ×0,3, la variabilidad del NDWI y del NDMI ×2 y la caída
+# del NDVI muy distinta (r 0,46), y el modelo bajaba de AUC 0,83 a 0,79 en cuencas que
+# no había visto. Con esta imitación las variables coinciden (r ≥ 0,9 en las que más
+# pesan) y el acierto es el mismo (AUC 0,83). Lo que imita de fetch_s2:
+#   · ventanas 15 jun–25 jul y 1 ago–30 sep de cada año, escenas con nubes < 30 %;
+#   · de cada ventana, la ÚLTIMA escena válida (fetch_s2 se queda con las primeras que
+#     devuelve el catálogo, que van de la más reciente a la más antigua);
+#   · en cada escena, la MEDIA de las bandas en una ventana de 5 × 5 píxeles (10 m) y
+#     de 3 × 3 (20 m) alrededor del punto, y el índice con esas medias; la escena vale
+#     si al menos la mitad de la ventana 3 × 3 de SCL es vegetación, suelo, agua, sin
+#     clasificar o nieve;
+#   · inicio y fin de verano: mediana entre años;
+#   · el EVI, el normal (reflectancia 0–1 y su «+1»). Hasta el 19-11-2026 los modelos se
+#     entrenaron con un EVI calculado en números digitales (0–10 000), donde el «+1» casi
+#     no pesa y el EVI salía unas 3 veces mayor (pasaba de 1); ese día se recalculó el EVI
+#     normal de los 796 puntos y se reentrenaron los modelos;
+#   · estadísticas de WAVI, albedo, NDMI y NDWI: con las mismas escenas elegidas, todos
+#     los años juntos, sin nieve (SCL) y con NDSI de la ventana < 0,4.
+# Solo se usa para los puntos del detector; el mapeo tiene su propia pila (_s2_stack).
+_SCL_VALIDA = [4, 5, 6, 7, 11]          # vegetación, suelo, agua, sin clasificar, nieve
+_SCL_SIN_NIEVE = [4, 5, 6, 7]
+CLAVES_S2 = ([f'{k}_early' for k in INDS] + [f'{k}_late' for k in INDS] + ['ndvi_drop']
+             + [f'{k}_{s}' for k in NEW_INDS for s in ('mean', 'min', 'max', 'sd')])
+
+
+def _escena_detector(img):
+    """Índices de una escena con la media de la ventana de cada punto (ver arriba)."""
+    import ee
+    p10 = img.select('B2').projection()
+    p20 = img.select('B5').projection()
+    k5 = ee.Kernel.square(2, 'pixels')
+    k3 = ee.Kernel.square(1, 'pixels')
+    n10 = ['B2', 'B3', 'B4', 'B8']
+    n20 = ['B5', 'B6', 'B7', 'B11', 'B12']
+    b10 = img.select(n10)
+    b20 = img.select(n20)
+    # Como en fetch_s2, un píxel ≤ 0 es «sin dato» y no entra en la media.
+    # reproject: la ventana se mide en píxeles de la propia escena (10 m o 20 m)
+    m10 = (b10.updateMask(b10.gt(0)).reduceNeighborhood(ee.Reducer.mean(), k5)
+           .reproject(p10).rename(n10).divide(10000))
+    m20 = (b20.updateMask(b20.gt(0)).reduceNeighborhood(ee.Reducer.mean(), k3)
+           .reproject(p20).rename(n20).divide(10000))
+    scl = img.select('SCL')
+    valida = (scl.remap(_SCL_VALIDA, [1] * len(_SCL_VALIDA), 0)
+              .reduceNeighborhood(ee.Reducer.mean(), k3).reproject(p20).gte(0.5))
+    sin_nieve = (scl.remap(_SCL_SIN_NIEVE, [1] * len(_SCL_SIN_NIEVE), 0)
+                 .reduceNeighborhood(ee.Reducer.mean(), k3).reproject(p20).gte(0.5))
+    b2, b3, b4, b8 = (m10.select(b) for b in n10)
+    b5, b6, b7, b11, b12 = (m20.select(b) for b in n20)
+    e = 1e-6
+
+    def nd(a, b):
+        return a.subtract(b).divide(a.add(b).add(e))
+
+    ind = ee.Image.cat([
+        nd(b8, b4).rename('ndvi'),
+        nd(b3, b8).rename('ndwi'),
+        b8.divide(b5.add(e)).subtract(1).rename('clre'),
+        nd(b8, b3).rename('gndvi'),
+        nd(b8, b11).rename('ndmi'),
+        b8.subtract(b4).multiply(2.5).divide(
+            b8.add(b4.multiply(6)).subtract(b2.multiply(7.5)).add(1).add(e)
+        ).rename('evi'),
+        nd(b8, b12).rename('nbr'),
+    ]).updateMask(valida)
+    alb = (b2.multiply(_ALB[0]).add(b3.multiply(_ALB[1])).add(b4.multiply(_ALB[2]))
+           .add(b5.multiply(_ALB[3])).add(b6.multiply(_ALB[4])).add(b7.multiply(_ALB[5]))
+           .add(b8.multiply(_ALB[6])).add(b11.multiply(_ALB[7])).add(b12.multiply(_ALB[8]))
+           ).clamp(0, 1)
+    L = 0.5
+    nuevos = (ee.Image.cat([
+        b8.subtract(b2).multiply(1 + L).divide(b8.add(b2).add(L).add(e)).rename('n_wavi'),
+        alb.rename('n_albedo'),
+        nd(b8, b11).rename('n_ndmi'),
+        nd(b3, b8).rename('n_ndwi'),
+    ]).updateMask(valida).updateMask(sin_nieve).updateMask(nd(b3, b11).lt(0.4)))
+    return ee.Image.cat([ind, nuevos]).copyProperties(img, ['system:time_start'])
+
+
+def _pila_detector(region, years):
+    """ee.Image con las 31 bandas Sentinel-2 del detector (CLAVES_S2), calculadas como
+    en el entrenamiento de los modelos de partida. Se lee en el píxel del punto: la
+    media de su entorno ya va dentro (ventanas 5 × 5 y 3 × 3)."""
+    import ee
+    base = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(region)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30)))
+    nuevos = [f'n_{k}' for k in NEW_INDS]
+    early, late, escenas = [], [], []
+    for y in years:
+        for lista, (a, b) in ((early, (f'{y}-06-15', f'{y}-07-26')),
+                              (late, (f'{y}-08-01', f'{y}-10-01'))):
+            # mosaic() pone encima la última imagen: en cada píxel queda la escena
+            # válida más reciente de la ventana
+            ultima = (base.filterDate(a, b).map(_escena_detector)
+                      .sort('system:time_start').mosaic())
+            lista.append(ultima.select(INDS))
+            escenas.append(ultima.select(nuevos))
+    e = ee.ImageCollection(early).median().rename([f'{k}_early' for k in INDS])
+    l = ee.ImageCollection(late).median().rename([f'{k}_late' for k in INDS])
+    drop = e.select('ndvi_early').subtract(l.select('ndvi_late')).rename('ndvi_drop')
+    red = (ee.Reducer.mean().combine(ee.Reducer.minMax(), sharedInputs=True)
+           .combine(ee.Reducer.stdDev(), sharedInputs=True))   # stdDev: poblacional
+    st = ee.ImageCollection(escenas).reduce(red)
+    de, a = [], []
+    for k in NEW_INDS:
+        for s, s2 in (('mean', 'mean'), ('min', 'min'), ('max', 'max'), ('stdDev', 'sd')):
+            de.append(f'n_{k}_{s}'); a.append(f'{k}_{s2}')
+    return ee.Image.cat([e, l, drop, st.select(de, a)]).select(CLAVES_S2)
+
+
 def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025),
-                 buffer_m=25, chunk=400, progress=None):
-    """Rellena en cada row los índices Sentinel-2 (early/late) usando GEE."""
+                 chunk=200, progress=None):
+    """Rellena en cada row las variables Sentinel-2 del detector usando GEE, calculadas
+    como en el entrenamiento de los modelos de partida (ver _pila_detector)."""
     import ee
     print('  → Sentinel-2 vía Google Earth Engine (server-side)…')
     try:
@@ -347,15 +463,18 @@ def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 20
     west, south, east, north = bbox[0], bbox[1], bbox[2], bbox[3]
     region = ee.Geometry.Rectangle([west, south, east, north])
 
-    stack, new_stats = _s2_stack(region, years)
-    try:
-        new_keys = list(new_stats.bandNames().getInfo())
-    except Exception:
-        new_keys = [f'{k}_{s}' for k in NEW_INDS for s in ('mean', 'min', 'max', 'sd')]
+    stack = _pila_detector(region, years)
+    # Se lee el píxel de 10 m que contiene el punto, en la rejilla UTM de Sentinel-2
+    epsg = _utm_epsg((south + north) / 2, (west + east) / 2)
+    return _leer_en_puntos(stack, rows, list(CLAVES_S2), epsg, chunk, 'Sentinel-2',
+                           progress)
 
+
+def _leer_en_puntos(stack, rows, out_keys, epsg, chunk, nombre, progress=None):
+    """Lee las bandas `out_keys` de `stack` en el píxel de 10 m de cada punto y las
+    escribe en cada row. Devuelve cuántos puntos fallaron."""
+    import ee
     # Inicializa NaN
-    out_keys = ([f'{k}_early' for k in INDS] + [f'{k}_late' for k in INDS]
-                + ['ndvi_drop'] + new_keys)
     for r in rows:
         for k in out_keys:
             r.setdefault(k, float('nan'))
@@ -368,13 +487,13 @@ def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 20
         típico con muchos puntos), divide el lote en dos y reintenta; así un fallo
         no deja TODO el lote en NaN silenciosamente. Por debajo de un mínimo, registra
         el fallo de forma visible (no se traga el error)."""
-        feats = [ee.Feature(ee.Geometry.Point([r['lon'], r['lat']]).buffer(buffer_m),
+        feats = [ee.Feature(ee.Geometry.Point([r['lon'], r['lat']]),
                             {'idx': base_idx + i}) for i, r in enumerate(sub)]
         fc = ee.FeatureCollection(feats)
         # tileScale=4: GEE divide el cómputo en tiles menores → evita 'User memory limit
         # exceeded' con muchos puntos (esos fallos disparaban reintentos lentos).
         sampled = stack.reduceRegions(collection=fc, reducer=ee.Reducer.mean(),
-                                      scale=10, tileScale=4)
+                                      scale=10, crs=f'EPSG:{epsg}', tileScale=4)
         try:
             data = sampled.getInfo()['features']
         except Exception as e:
@@ -404,7 +523,7 @@ def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 20
         print(f'    {done}/{n} puntos muestreados '
               f'(ok={stats["ok"]}, fallidos={stats["failed"]})')
         if progress:
-            try: progress(done / n, f'Sentinel-2 (GEE): {done}/{n} puntos')
+            try: progress(done / n, f'{nombre} (GEE): {done}/{n} puntos')
             except Exception: pass
 
     # Si NINGÚN punto se pudo muestrear, propaga el error para que la UI lo informe
@@ -415,6 +534,93 @@ def fetch_s2_gee(rows, bbox, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 20
             'Suele pasar con MUCHOS puntos a la vez: reduce el nº de puntos o usa '
             'el backend Microsoft Planetary Computer (MPC).')
     return stats['failed']
+
+
+# ============================================================
+# Sentinel-1 (radar) del detector
+# ------------------------------------------------------------
+# Antes se leía de Planetary Computer (sentinel-1-rtc): más de media hora con 20
+# puntos. Desde el 19-11-2026 se lee aquí, en segundos, y los modelos de partida se
+# reentrenaron con estos valores (classification_v7.csv).
+#   · COPERNICUS/S1_GRD, modo IW, VV y VH, 10 m, jun–sep de S1_ANIOS.
+#   · Corrección del relieve: gamma-0 aplanado con el modelo de volumen de Vollrath
+#     et al. (2020, Remote Sensing 12: 1867), con el DEM Copernicus GLO-30; fuera las
+#     zonas en sombra o con inversión por relieve (layover).
+#   · En cada escena, media de la ventana 5 × 5 píxeles (en potencia, no en dB) con al
+#     menos 8 píxeles válidos, como se hacía con Planetary Computer.
+#   · De todas las escenas: media y desviación típica en dB de VV y VH, y VV − VH.
+# ============================================================
+S1_ANIOS = (2019, 2020, 2021, 2022, 2023, 2024)
+CLAVES_S1 = ('s1_vv_mean', 's1_vh_mean', 's1_vv_sd', 's1_vh_sd', 's1_ratio_mean')
+
+
+def _escena_s1(img, pendiente, orientacion):
+    """gamma-0 aplanado (potencia) de una escena, con la media de la ventana 5 × 5."""
+    import ee
+    rad = math.pi / 180
+    proj = img.select('VV').projection()
+    angulo = img.select('angle')
+    # Dirección en que mira el radar: hacia donde crece el ángulo de incidencia
+    mira = (ee.Terrain.aspect(angulo)
+            .reduceRegion(ee.Reducer.mean(), img.geometry(), 1000).get('aspect'))
+    theta = angulo.multiply(rad)
+    phi_r = ee.Image.constant(mira).multiply(rad).subtract(orientacion)
+    alfa_r = pendiente.tan().multiply(phi_r.cos()).atan()      # pendiente hacia el radar
+    noventa = ee.Image.constant(math.pi / 2)
+    potencia = ee.Image.constant(10).pow(img.select(['VV', 'VH']).divide(10))
+    gamma0 = potencia.divide(theta.cos())
+    factor = (noventa.subtract(theta).add(alfa_r).tan()
+              .divide(noventa.subtract(theta).tan()))
+    sin_inversion = alfa_r.lt(theta)
+    sin_sombra = alfa_r.gt(theta.subtract(noventa))
+    plano = gamma0.divide(factor).updateMask(sin_inversion.And(sin_sombra))
+    plano = plano.updateMask(plano.gt(0))
+    k5 = ee.Kernel.square(2, 'pixels')
+    media = plano.reduceNeighborhood(ee.Reducer.mean(), k5).reproject(proj)
+    n = plano.select('VV').reduceNeighborhood(ee.Reducer.count(), k5).reproject(proj)
+    db = media.log10().multiply(10).rename(['vv', 'vh'])
+    return db.updateMask(n.gte(8)).copyProperties(img, ['system:time_start'])
+
+
+def _pila_s1(region, anios=S1_ANIOS):
+    """ee.Image con las 5 bandas de Sentinel-1 del detector (CLAVES_S1)."""
+    import ee
+    dem = (ee.ImageCollection(DEM_ASSET).select('DEM').mosaic()
+           .setDefaultProjection('EPSG:4326', None, 30))
+    rad = math.pi / 180
+    pendiente = ee.Terrain.slope(dem).multiply(rad)
+    orientacion = ee.Terrain.aspect(dem).multiply(rad)
+    filtro = ee.Filter.Or(*[ee.Filter.date(f'{a}-06-01', f'{a}-10-01') for a in anios])
+    col = (ee.ImageCollection('COPERNICUS/S1_GRD')
+           .filterBounds(region).filter(filtro)
+           .filter(ee.Filter.eq('instrumentMode', 'IW'))
+           .filter(ee.Filter.eq('resolution_meters', 10))
+           .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+           .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+           .map(lambda im: _escena_s1(im, pendiente, orientacion)))
+    red = ee.Reducer.mean().combine(ee.Reducer.stdDev(), sharedInputs=True)  # poblacional
+    st = col.reduce(red)
+    vv, vh = st.select('vv_mean'), st.select('vh_mean')
+    return ee.Image.cat([vv.rename('s1_vv_mean'), vh.rename('s1_vh_mean'),
+                         st.select('vv_stdDev').rename('s1_vv_sd'),
+                         st.select('vh_stdDev').rename('s1_vh_sd'),
+                         vv.subtract(vh).rename('s1_ratio_mean')])
+
+
+def fetch_s1_gee(rows, bbox, anios=S1_ANIOS, chunk=200, progress=None):
+    """Rellena en cada row las 5 variables de Sentinel-1 del detector (ver _pila_s1).
+    Devuelve cuántos puntos fallaron."""
+    import ee
+    print('  → Sentinel-1 (radar) vía Google Earth Engine…')
+    try:
+        ee.data.setDeadline(300_000)
+    except Exception:
+        pass
+    west, south, east, north = bbox[0], bbox[1], bbox[2], bbox[3]
+    region = ee.Geometry.Rectangle([west, south, east, north])
+    epsg = _utm_epsg((south + north) / 2, (west + east) / 2)
+    return _leer_en_puntos(_pila_s1(region, anios), rows, list(CLAVES_S1), epsg, chunk,
+                           'Sentinel-1', progress)
 
 
 # ============================================================
@@ -464,7 +670,6 @@ def fetch_topo_gee(rows, bbox, buffer_m=15, chunk=400):
     for r in rows:
         for k in keys:
             r.setdefault(k, float('nan'))
-        r.setdefault('twi', float('nan'))  # TWI no se calcula en GEE (se imputa)
 
     n = len(rows)
     for start in range(0, n, chunk):
@@ -628,6 +833,58 @@ def leer_predictores(puntos, years, epsg=None, progress=None):
     return valores, fallidos, info_pila(years, epsg)
 
 
+# Lo que necesita la pureza de cada punto, leído como la «Pureza dentro del píxel» del
+# mapa (mapeo_rf): el NDVI de inicio de verano del PÍXEL de 10 m de la pila del mapeo y
+# si ese píxel o alguno de sus 8 vecinos es agua (NDWI medio de jun–sep > 0; sin dato no
+# cuenta como agua). Los índices del detector no sirven: son la media de una ventana de
+# 50 m y salen más bajos (con ellos, frente a la ortofoto, acertaba el 56 %; así, el 82 %).
+CLAVES_PUREZA = ('ndvi_early_pixel', 'agua_pixel_vecinos')
+
+
+def fetch_pureza_gee(rows, years=(2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025),
+                     progress=None):
+    """Deja en cada punto r['ndvi_early_pixel'] y r['agua_pixel_vecinos'] (1 o 0), o
+    None donde no hay dato. Devuelve cuántos puntos quedan con NDVI."""
+    import ee
+    validos = []
+    for r in rows:
+        try:
+            lo, la = float(r['lon']), float(r['lat'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if lo == lo and la == la:
+            validos.append((r, (lo, la)))
+    for r in rows:
+        for k in CLAVES_PUREZA:
+            r[k] = None
+    if not validos:
+        return 0
+    puntos = [p for _, p in validos]
+    years = tuple(int(y) for y in years)
+    epsg = int(utm_de(puntos))
+    lons, lats = [p[0] for p in puntos], [p[1] for p in puntos]
+    margen = 0.01
+    region = ee.Geometry.Rectangle([min(lons) - margen, min(lats) - margen,
+                                    max(lons) + margen, max(lats) + margen])
+    pila = pila_predictores(region, years, epsg)
+    g = rejilla(epsg)
+    agua = (pila.select('ndwi_mean').gt(0).unmask(0)
+            .reproject(crs=g['crs'], crsTransform=g['crsTransform'])
+            .focalMax(radius=1, kernelType='square', units='pixels')
+            .rename('agua_vecinos'))
+    img = ee.Image.cat([pila.select('ndvi_early'), agua])
+    valores, _fallidos = muestrear_pila(img, puntos, epsg, bandas=['ndvi_early', 'agua_vecinos'],
+                                        progress=progress)
+    n = 0
+    for (r, _), v in zip(validos, valores):
+        v = v or {}
+        r['ndvi_early_pixel'] = v.get('ndvi_early')
+        r['agua_pixel_vecinos'] = (None if v.get('agua_vecinos') is None
+                                   else int(round(v['agua_vecinos'])))
+        n += r['ndvi_early_pixel'] is not None
+    return n
+
+
 # ------------------------------------------------------------
 # Lectura por BLOQUES, para el mapa
 # ------------------------------------------------------------
@@ -726,6 +983,102 @@ def info_pila(years, epsg):
         'elevaciones': DEM_ASSET,
         'remuestreo': 'Sentinel-2: vecino más próximo; topografía (30 m): bilineal',
     }
+
+
+# ============================================================
+# HUMEDAD TRAS EL DESHIELO (comparable dentro de un parque y entre parques)
+# ------------------------------------------------------------
+# El NDMI medio de junio a septiembre depende del calendario: el NDMI baja a lo
+# largo del verano, así que un píxel que se queda sin nieve en julio y uno que la
+# pierde en mayo se miden en momentos distintos de su verano (y entre parques, con
+# deshielos de meses distintos, más aún). Aquí se mide en el mismo MOMENTO para cada
+# píxel: unos días después de que se le vaya la nieve, cada año.
+#
+# Probado con las 948 muestras de Sierra Nevada (humedad_tras_deshielo/ en la carpeta
+# del proyecto): el NDMI de 15 a 45 días tras el deshielo separa los borreguiles de
+# un pasto igual de verde mejor que el de jun–sep (AUC 0,69 frente a 0,58; +0,11,
+# IC 95 % +0,09 a +0,13). Descontar el verdor (restar el NDMI de un pasto igual de
+# verde) se probó y empeora: en estos prados, seguir verde en verano es parte de
+# estar húmedo, y al quitarlo se quita la humedad. Por eso no se descuenta.
+# ============================================================
+DIAS_TRAS_DESHIELO = (15, 45)       # ventana, en días después del deshielo
+# Fin de la primavera: la nieve que se ve después (una nevada de verano) no retrasa el
+# deshielo.
+FIN_DESHIELO = '08-01'
+# Sin nieve vista desde el 1 de marzo, el deshielo es esa fecha (día 60).
+DIA_SIN_NIEVE = 60
+BANDAS_HUMEDAD = ('deshielo', 'ndmi_tras', 'ndvi_tras', 'n_tras')
+
+
+def _escenas_temporada(region, anio):
+    """Escenas de marzo a octubre de un año, sin nubes ni sombras, con su día del
+    año, si hay nieve, NDMI y NDVI."""
+    import ee
+
+    def prep(img):
+        r = img.select(['B3', 'B4', 'B8', 'B11']).divide(10000)
+        scl = img.select('SCL')
+        # nieve: SCL 11, o NDSI > 0,4 con el infrarrojo cercano alto (el agua también
+        # tiene NDSI alto, pero refleja poco infrarrojo)
+        nieve = (scl.eq(11).Or(r.normalizedDifference(['B3', 'B11']).gt(0.4)
+                               .And(r.select('B8').gt(0.11))))
+        dia = ee.Image.constant(img.date().getRelative('day', 'year').add(1)).toFloat()
+        buena = scl.remap(SCL_VALID, [1] * len(SCL_VALID), 0)
+        return (ee.Image.cat([dia.rename('dia'), nieve.rename('nieve'),
+                              r.normalizedDifference(['B8', 'B11']).rename('ndmi'),
+                              r.normalizedDifference(['B8', 'B4']).rename('ndvi')])
+                .toFloat().updateMask(buena)
+                .copyProperties(img, ['system:time_start']))
+
+    return (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(region)
+            .filterDate(f'{anio}-03-01', f'{anio}-11-01')
+            .map(_s2cloudless_mask)
+            .map(prep))
+
+
+def deshielo_anio(region, anio, col=None):
+    """Día del año en que el píxel se queda sin nieve: la primera escena sin nieve
+    después de la última con nieve de la primavera (hasta FIN_DESHIELO). Sin nieve
+    vista desde marzo, la primera escena sin nieve."""
+    col = col or _escenas_temporada(region, anio)
+    ultima = (col.filterDate(f'{anio}-03-01', f'{anio}-{FIN_DESHIELO}')
+              .map(lambda im: im.select('dia').updateMask(im.select('nieve')))
+              .max().unmask(DIA_SIN_NIEVE))
+    return (col.map(lambda im: im.select('dia').updateMask(
+                im.select('nieve').Not().And(im.select('dia').gt(ultima))))
+            .min().rename('deshielo'))
+
+
+def humedad_anio(region, anio, dias=DIAS_TRAS_DESHIELO):
+    """Un año: deshielo, NDMI y NDVI medianos de las escenas sin nieve entre
+    `dias[0]` y `dias[1]` días después del deshielo, y cuántas escenas hay."""
+    import ee
+    col = _escenas_temporada(region, anio)
+    deshielo = deshielo_anio(region, anio, col)
+
+    def en_ventana(im):
+        tras = im.select('dia').subtract(deshielo)
+        dentro = tras.gte(dias[0]).And(tras.lte(dias[1])).And(im.select('nieve').Not())
+        return im.select(['ndmi', 'ndvi']).updateMask(dentro)
+
+    ventana = col.map(en_ventana)
+    med = ventana.median().rename(['ndmi_tras', 'ndvi_tras'])
+    n = ventana.select('ndmi').count().rename('n_tras').toFloat()
+    return ee.Image.cat([deshielo.toFloat(), med, n])
+
+
+def humedad_tras_deshielo(region, years, dias=DIAS_TRAS_DESHIELO):
+    """Imagen con BANDAS_HUMEDAD: la mediana entre años del deshielo y del NDMI y
+    NDVI tras el deshielo (`ndmi_tras` es la humedad), y `n_tras`, cuántas escenas
+    hubo en la ventana (suma de los años)."""
+    import ee
+    anuales = [humedad_anio(region, int(y), dias) for y in years]
+    # un año sin escenas en la ventana no cuenta en la mediana
+    col = ee.ImageCollection([a.updateMask(a.select('n_tras').gt(0)) for a in anuales])
+    med = col.select(['deshielo', 'ndmi_tras', 'ndvi_tras']).median()
+    n = ee.ImageCollection([a.select('n_tras') for a in anuales]).sum()
+    return ee.Image.cat([med, n]).select(list(BANDAS_HUMEDAD))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Manual / Manual
+    url: https://github.com/Bea-Cazorla/borreguil-detector/wiki
+    about: How to use the app, in Spanish and English / Cómo usar la app, en español e inglés
+  # Formulario anónimo (sin cuenta de GitHub): pendiente de decidir si es el del equipo de
+  # MonitorEO, con «Mapeador de borreguiles» como opción, o uno propio. Cuando esté, añadir:
+  # - name: Anonymous form / Formulario anónimo
+  #   url: <enlace del formulario>
+  #   about: Without a GitHub account, name or email / Sin cuenta de GitHub, nombre ni correo

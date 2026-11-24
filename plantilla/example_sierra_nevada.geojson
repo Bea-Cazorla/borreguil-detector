@@ -1,0 +1,445 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.331035,
+     36.99812
+    ]
+   },
+   "properties": {
+    "id": "SN_001",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": "orthophoto",
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.363655,
+     37.051119
+    ]
+   },
+   "properties": {
+    "id": "SN_002",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.408421,
+     37.031051
+    ]
+   },
+   "properties": {
+    "id": "SN_003",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.295866,
+     37.029042
+    ]
+   },
+   "properties": {
+    "id": "SN_004",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.300135,
+     37.056705
+    ]
+   },
+   "properties": {
+    "id": "SN_005",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.311966,
+     37.061903
+    ]
+   },
+   "properties": {
+    "id": "SN_006",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.353073,
+     37.048897
+    ]
+   },
+   "properties": {
+    "id": "SN_007",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.378305,
+     37.057113
+    ]
+   },
+   "properties": {
+    "id": "SN_008",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.409973,
+     37.02699
+    ]
+   },
+   "properties": {
+    "id": "SN_009",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.379741,
+     37.05179
+    ]
+   },
+   "properties": {
+    "id": "SN_010",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.45976,
+     37.023833
+    ]
+   },
+   "properties": {
+    "id": "SN_011",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.109673,
+     37.103728
+    ]
+   },
+   "properties": {
+    "id": "SN_012",
+    "presence": 1,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.196997,
+     37.1001
+    ]
+   },
+   "properties": {
+    "id": "SN_013",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.212092,
+     37.105572
+    ]
+   },
+   "properties": {
+    "id": "SN_014",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.064296,
+     37.07771
+    ]
+   },
+   "properties": {
+    "id": "SN_015",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.44052,
+     37.00164
+    ]
+   },
+   "properties": {
+    "id": "SN_016",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.342628,
+     37.051903
+    ]
+   },
+   "properties": {
+    "id": "SN_017",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.255012,
+     37.117567
+    ]
+   },
+   "properties": {
+    "id": "SN_018",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": "orthophoto",
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -2.886319,
+     37.074518
+    ]
+   },
+   "properties": {
+    "id": "SN_019",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": "orthophoto",
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -3.219764,
+     37.111959
+    ]
+   },
+   "properties": {
+    "id": "SN_020",
+    "presence": 0,
+    "doubtful": null,
+    "environment": null,
+    "moisture": null,
+    "purity": null,
+    "method": null,
+    "date": null,
+    "observer": null,
+    "notes": null
+   }
+  }
+ ]
+}

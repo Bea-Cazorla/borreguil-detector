@@ -125,6 +125,76 @@ def filas_de_leyenda(categorias):
 MIN_POR_CLASE = 5
 RECOMENDADO_POR_CLASE = 30
 
+# ¿Cuántos puntos hacen falta para el mapa de borreguil sí o no? Curva de aprendizaje
+# calculada el 24-11-2026 (claude-borreguiles/curva_puntos/curva_puntos.py) con las 948
+# muestras revisadas del mapa final de Sierra Nevada (315 borreguiles) y el mismo
+# procedimiento que aquí: VIF ≤ 10, Random Forest de 500 árboles con pesos y validación
+# por zonas (58). Para cada tamaño se entrena con N puntos al azar (con la proporción de
+# borreguiles de la tabla, 1 de cada 3) y se predicen siempre zonas que el modelo no ha
+# visto; 10 repeticiones. Columnas: puntos, borreguiles, AUC media, AUC p10, AUC p90 y
+# TSS (umbral 0,5). La última fila son todos los puntos de las zonas de entrenamiento.
+CURVA_PUNTOS_SN = (
+    (20, 7, 0.896, 0.879, 0.917, 0.621),
+    (30, 10, 0.903, 0.876, 0.923, 0.620),
+    (40, 13, 0.923, 0.914, 0.937, 0.672),
+    (50, 17, 0.930, 0.919, 0.938, 0.690),
+    (60, 20, 0.936, 0.923, 0.943, 0.709),
+    (80, 26, 0.945, 0.938, 0.952, 0.730),
+    (100, 33, 0.951, 0.946, 0.955, 0.752),
+    (125, 41, 0.951, 0.947, 0.956, 0.751),
+    (150, 50, 0.955, 0.948, 0.961, 0.772),
+    (200, 66, 0.957, 0.955, 0.960, 0.771),
+    (250, 83, 0.961, 0.958, 0.964, 0.786),
+    (300, 99, 0.961, 0.957, 0.964, 0.781),
+    (400, 132, 0.964, 0.960, 0.966, 0.792),
+    (500, 166, 0.966, 0.964, 0.968, 0.791),
+    (600, 199, 0.968, 0.966, 0.970, 0.802),
+    (682, 226, 0.969, 0.967, 0.971, 0.807),
+)
+# (puntos, borreguiles). Mínimo: el AUC queda a menos de 0,02 del de todos los puntos
+# y casi no cambia entre repeticiones. Recomendado: a menos de 0,01.
+MINIMO_PUNTOS = (100, 33)
+RECOMENDADO_PUNTOS = (250, 83)
+POCOS_PUNTOS = 50               # por debajo, el acierto cae y depende de qué puntos sean
+
+
+def auc_esperado(n):
+    """AUC que daba en Sierra Nevada el mapa de sí o no con `n` puntos revisados
+    (interpolado en escala logarítmica). None por debajo de lo medido (20 puntos); con
+    más de lo medido, el de todos los puntos."""
+    curva = CURVA_PUNTOS_SN
+    if n is None or n < curva[0][0]:
+        return None
+    if n >= curva[-1][0]:
+        return curva[-1][2]
+    for (n0, _, a0, *_r0), (n1, _b, a1, *_r1) in zip(curva, curva[1:]):
+        if n0 <= n <= n1:
+            f = (math.log(n) - math.log(n0)) / (math.log(n1) - math.log(n0))
+            return a0 + f * (a1 - a0)
+    return None
+
+
+def lectura_puntos(n, n_borreguil):
+    """Dónde están `n` muestras (`n_borreguil` de ellas borreguiles) frente a la curva
+    de Sierra Nevada. Devuelve {'nivel', 'auc', 'faltan', 'faltan_borreguiles'};
+    nivel: 'sin_referencia' (< 20), 'pocos' (< 50), 'bajo_minimo', 'minimo' o
+    'recomendado'. Para llegar a un nivel hacen falta los puntos Y los borreguiles;
+    'faltan' cuenta lo que falta para el siguiente."""
+    n, nb = int(n or 0), int(n_borreguil or 0)
+    if n >= RECOMENDADO_PUNTOS[0] and nb >= RECOMENDADO_PUNTOS[1]:
+        nivel, meta = 'recomendado', None
+    elif n >= MINIMO_PUNTOS[0] and nb >= MINIMO_PUNTOS[1]:
+        nivel, meta = 'minimo', RECOMENDADO_PUNTOS
+    elif n < CURVA_PUNTOS_SN[0][0]:
+        nivel, meta = 'sin_referencia', MINIMO_PUNTOS
+    elif n < POCOS_PUNTOS:
+        nivel, meta = 'pocos', MINIMO_PUNTOS
+    else:
+        nivel, meta = 'bajo_minimo', MINIMO_PUNTOS
+    return {'nivel': nivel, 'auc': auc_esperado(n),
+            'faltan': max(0, meta[0] - n) if meta else 0,
+            'faltan_borreguiles': max(0, meta[1] - nb) if meta else 0}
+
 
 def codigos(nivel):
     """Correspondencia ESTABLE categoría → código entero para un nivel.
@@ -138,7 +208,7 @@ def codigos(nivel):
 # Por qué un punto no entra como muestra. La clave es estable (va a los ficheros);
 # el texto es lo que se enseña.
 MOTIVOS = {
-    'tipo_sin_revisar': 'borreguil con el tipo sin revisar',
+    'tipo_sin_revisar': 'borreguil con este nivel del tipo sin revisar',
     'sin_etiqueta': 'ni borreguil revisado ni ausencia de campo',
     'sin_si_no': 'nadie ha dicho si es borreguil (ni en campo ni revisando su tipo)',
     'dudoso': 'marcado como dudoso en campo',
@@ -150,7 +220,7 @@ MOTIVOS = {
     'sin_coordenadas': 'sin coordenadas válidas',
 }
 MOTIVOS_EN = {
-    'tipo_sin_revisar': 'borreguil whose type has not been reviewed',
+    'tipo_sin_revisar': 'borreguil whose type has not been reviewed at this level',
     'sin_etiqueta': 'neither a reviewed borreguil nor a field absence',
     'sin_si_no': 'nobody has said whether it is a borreguil (neither in the field nor '
                  'by reviewing its type)',
@@ -196,7 +266,8 @@ def _clasifica(r, nivel, incluir_ausencias, es_borreguil):
     muestra y de dónde sale, o el motivo por el que no entra."""
     if _num(r.get('lon')) is None or _num(r.get('lat')) is None:
         return None, None, 'sin_coordenadas'
-    revisado = bp.tipo_revisado(r)
+    revisados = bp.niveles_revisados(r)
+    revisado = bool(revisados)
     campo = bp._txt(r.get('Borreguil')).lower()
     if revisado and campo == 'no':
         return None, None, 'incoherente'
@@ -212,7 +283,9 @@ def _clasifica(r, nivel, incluir_ausencias, es_borreguil):
                 return AUSENCIA, ORIGEN_AUSENCIA, None
             return None, None, 'ausencia_no_incluida'
         return None, None, 'sin_si_no'
-    if revisado:
+    # Cada nivel cuenta por separado: entra si están revisados los niveles de los que
+    # sale su categoría (en uno combinado, todas sus partes).
+    if all(p in revisados for p in COMBINADOS.get(nivel, (nivel,))):
         valor = categoria(r, nivel)
         if valor in NIVELES[nivel]:
             return valor, ORIGEN_REVISADO, None
@@ -221,7 +294,7 @@ def _clasifica(r, nivel, incluir_ausencias, es_borreguil):
         if incluir_ausencias:
             return AUSENCIA, ORIGEN_AUSENCIA, None
         return None, None, 'ausencia_no_incluida'
-    if campo == 'si' or es_borreguil(bp._txt(r.get('decision'))):
+    if campo == 'si' or revisado or es_borreguil(bp._txt(r.get('decision'))):
         return None, None, 'tipo_sin_revisar'
     return None, None, 'sin_etiqueta'
 
@@ -235,6 +308,8 @@ def muestras(rows, nivel, incluir_ausencias=True, es_borreguil=None):
         `incluir_ausencias`.
     En el nivel de sí o no (NIVEL_SI_NO), un punto es «borreguil» si en campo se dijo
     que lo es (Borreguil = si) o si se ha revisado su tipo, aunque el tipo no se use.
+    En los niveles de tipo cuenta cada nivel por separado: basta con que esté revisado
+    ese nivel (en uno combinado, todas sus partes), aunque los demás no.
     No entra (y se dice por qué): tipo sin revisar, sin etiqueta, dudoso,
     incoherente, o repetido en el mismo píxel Sentinel-2 de 10 m (dos muestras en
     un píxel tendrían exactamente los mismos predictores: si coinciden en categoría
@@ -334,18 +409,27 @@ def muestras(rows, nivel, incluir_ausencias=True, es_borreguil=None):
     }
 
 
-def mensaje(item, en=False, traduce=None):
+def mensaje(item, en=False, traduce=None, nivel=None):
     """Texto de un error o aviso de `muestras()`, en español o en inglés.
-    `traduce` traduce el nombre de la categoría (los datos lo guardan en español)."""
+    `traduce` traduce el nombre de la categoría (los datos lo guardan en español).
+    `nivel`: el de las muestras; en el de sí o no, «sin muestras» dice cómo
+    conseguirlas en ese nivel (ahí no hace falta revisar el tipo)."""
     clave = item[0]
     if len(item) > 1 and isinstance(item[1], str) and traduce:
         item = (clave, traduce(item[1])) + tuple(item[2:])
     if clave == 'pocas_categorias':
+        if item[1] == 0 and nivel == NIVEL_SI_NO:
+            return ('There are no samples yet. Mark some points as verified borreguil and '
+                    'others as verified not-borreguil in the Review points tab, or add them by '
+                    'clicking on the map (Points map tab).' if en else
+                    'Todavía no hay ninguna muestra. Marca algunos puntos como borreguil '
+                    'verificado y otros como no borreguil verificado en la pestaña Revisar puntos, o '
+                    'añádelos pinchando en el mapa (pestaña Mapa de los puntos).')
         if item[1] == 0:
             return ('There are no samples yet. Review the type of some borreguiles in the '
-                    'Table tab: only reviewed points count.' if en else
+                    'Review points tab: only reviewed points count.' if en else
                     'Todavía no hay ninguna muestra. Revisa el tipo de algunos borreguiles '
-                    'en la pestaña Tabla: solo cuentan los puntos revisados.')
+                    'en la pestaña Revisar puntos: solo cuentan los puntos revisados.')
         return ('Only one category has samples; at least two are needed.' if en else
                 'Solo hay muestras de una categoría; hacen falta al menos dos.')
     if clave == 'pocas_muestras':
@@ -565,9 +649,17 @@ def calidad(tab):
     return out
 
 
-def mensaje_calidad(item, en=False):
-    """Texto de un hallazgo de `calidad()`."""
+def mensaje_calidad(item, en=False, nombre=None, num=None):
+    """Texto de un hallazgo de `calidad()`. `nombre` da el nombre legible de una
+    variable y `num(v, signo=…)` escribe un número (con coma en español); sin ellos,
+    el código de la variable y el número con punto."""
     k = item[0]
+    if nombre:
+        # las variables: la 1.ª de cada hallazgo y, en los de dos variables, la 2.ª
+        n_var = {'constante': 1, 'casi_constante': 1, 'duplicadas': 2, 'opuestas': 2,
+                 'correlacion': 2}.get(k, 0)
+        item = (k,) + tuple(nombre(x) if i < n_var else x for i, x in enumerate(item[1:]))
+    num = num or (lambda v, signo=False: f'{v:+.3f}' if signo else f'{v:.3f}')
     if k == 'constante':
         return (f'"{item[1]}" has the same value in every sample: it cannot help.' if en else
                 f'«{item[1]}» vale lo mismo en todas las muestras: no puede ayudar.')
@@ -583,8 +675,9 @@ def mensaje_calidad(item, en=False):
                 f'«{item[1]}» y «{item[2]}» son la misma variable con el signo cambiado: '
                 'aportan lo mismo.')
     if k == 'correlacion':
-        return (f'"{item[1]}" and "{item[2]}" move together (r = {item[3]:+.2f}).' if en else
-                f'«{item[1]}» y «{item[2]}» van juntas (r = {item[3]:+.2f}).')
+        return (f'"{item[1]}" and "{item[2]}" move together (r = {num(item[3], signo=True)}).'
+                if en else
+                f'«{item[1]}» y «{item[2]}» van juntas (r = {num(item[3], signo=True)}).')
     if k == 'mas_variables_que_muestras':
         return (f'There are more variables ({item[2]}) than samples ({item[1]}).' if en else
                 f'Hay más variables ({item[2]}) que muestras ({item[1]}).')
@@ -694,6 +787,97 @@ def elegir_por_vif(X, nombres, umbral=VIF_UMBRAL, fijas=VIF_FIJAS):
             'vif': {nombres[c]: (None if np.isnan(x) else float(x))
                     for c, x in zip(quedan, final)},
             'umbral': umbral, 'fijas': fijas,
+            'pocas_muestras': X.shape[0] < 2 * X.shape[1]}
+
+
+# Elegir variables con un PCA (24-11-2026), como en la comparación de la autora del
+# 22-10 (modelo_borreguil_sn2000m_v3/comparacion_variables): del PCA de la matriz de
+# correlación, los ejes con valor propio mayor que 1 (criterio de Kaiser); de cada eje,
+# entre las variables muy ligadas a él (|correlación| ≥ PCA_CARGA), la que mejor separa
+# las categorías por sí sola. Las fijas (la altitud) quedan fuera del PCA y se añaden
+# siempre. En Sierra Nevada, el PCA con la altitud dejó 4 variables con el mismo acierto
+# que el VIF con 14 (F1 0,861 frente a 0,865), pero cartografió un 38 % más de borreguil.
+# Allí se hizo con 30 000 píxeles de la zona; aquí, con las muestras, como el VIF.
+PCA_VALOR_PROPIO = 1.0
+PCA_CARGA = 0.65
+
+
+def separacion(x, y):
+    """Lo bien que separa la variable `x` sola las categorías `y`: con dos, |AUC − 0,5|
+    × 2 (0 no separa, 1 separa del todo); con más, la F del ANOVA. Solo sirve para
+    ordenar variables entre sí."""
+    import numpy as np
+    x, y = np.asarray(x, dtype=float), np.asarray(y)
+    clases = np.unique(y)
+    if len(clases) < 2 or np.nanstd(x) == 0:
+        return 0.0
+    if len(clases) == 2:
+        from sklearn.metrics import roc_auc_score
+        return float(abs(roc_auc_score(y == clases[1], x) - 0.5) * 2)
+    from sklearn.feature_selection import f_classif
+    f = f_classif(x.reshape(-1, 1), y)[0][0]
+    return float(f) if np.isfinite(f) else 0.0
+
+
+def elegir_por_pca(X, y, nombres, fijas=VIF_FIJAS, carga=PCA_CARGA,
+                   valor_propio=PCA_VALOR_PROPIO):
+    """Una variable por eje importante de un PCA (ver arriba). X: muestras × variables;
+    y: la categoría de cada muestra.
+
+    Devuelve un dict: quedan (en el orden de `nombres`), ejes [{eje, valor_propio,
+    varianza_pct, variables [{variable, carga, separa}], elegida}] de los ejes con valor
+    propio > `valor_propio`, varianza_pct (la de esos ejes juntos), carga, fijas,
+    sin_variar (las que no varían: fuera) y pocas_muestras (con menos del doble de
+    muestras que variables el PCA no es fiable)."""
+    import numpy as np
+    X = np.asarray(X, dtype=float)
+    nombres = list(nombres)
+    if X.ndim != 2 or X.shape[1] != len(nombres):
+        raise ValueError('la tabla y la lista de variables no casan')
+    if not np.isfinite(X).all():
+        raise ValueError('la tabla contiene valores no válidos (huecos o infinitos)')
+    carga = float(carga)
+    if not 0 < carga < 1:
+        raise ValueError('la correlación mínima con el eje tiene que estar entre 0 y 1')
+    fijas = [f for f in dict.fromkeys(fijas or ()) if f in nombres]
+    varia = X.std(axis=0) > 1e-12 * np.maximum(1.0, np.abs(X).max(axis=0))
+    sin_variar = [n for n, v in zip(nombres, varia) if not v and n not in fijas]
+    usar = [i for i, n in enumerate(nombres) if varia[i] and n not in fijas]
+    ejes, elegidas = [], []
+    total = 0.0
+    if len(usar) >= 2 and X.shape[0] >= 3:
+        Z = X[:, usar]
+        Z = (Z - Z.mean(axis=0)) / Z.std(axis=0)
+        val, vec = np.linalg.eigh(np.corrcoef(Z, rowvar=False))
+        orden = np.argsort(val)[::-1]
+        val, vec = np.clip(val[orden], 0, None), vec[:, orden]
+        cargas = vec * np.sqrt(val)            # correlación de cada variable con cada eje
+        sep = {nombres[i]: separacion(X[:, i], y) for i in usar}
+        for k in range(len(val)):
+            if not val[k] > valor_propio:
+                break
+            ligadas = sorted(
+                ({'variable': nombres[usar[j]], 'carga': float(cargas[j, k]),
+                  'separa': sep[nombres[usar[j]]]}
+                 for j in range(len(usar)) if abs(cargas[j, k]) >= carga),
+                key=lambda d: -abs(d['carga']))
+            libres = [d for d in ligadas if d['variable'] not in elegidas]
+            elegida = max(libres, key=lambda d: d['separa'])['variable'] if libres else None
+            if elegida:
+                elegidas.append(elegida)
+            ejes.append({'eje': k + 1, 'valor_propio': float(val[k]),
+                         'varianza_pct': float(100 * val[k] / val.sum()),
+                         'variables': ligadas, 'elegida': elegida})
+        total = float(sum(e['varianza_pct'] for e in ejes))
+        if not elegidas:
+            # ningún eje tiene variables tan ligadas: la más ligada al primero
+            j = int(np.argmax(np.abs(cargas[:, 0])))
+            elegidas.append(nombres[usar[j]])
+    elif len(usar) == 1:
+        elegidas = [nombres[usar[0]]]
+    quedan = [n for n in nombres if n in elegidas or n in fijas]
+    return {'quedan': quedan, 'ejes': ejes, 'varianza_pct': total, 'carga': carga,
+            'fijas': fijas, 'sin_variar': sin_variar,
             'pocas_muestras': X.shape[0] < 2 * X.shape[1]}
 
 
@@ -1571,10 +1755,6 @@ NO_DISPONIBLES = (
      'se descarga punto a punto; traerlo como mapa desde Earth Engine es código nuevo',
      'Sentinel-1, radar (5 variables)',
      'it is downloaded point by point; bringing it as a map from Earth Engine is new code'),
-    ('TWI, índice topográfico de humedad',
-     'Earth Engine no lo calcula; solo existe con el otro origen de datos',
-     'TWI, topographic wetness index',
-     'Earth Engine does not compute it; it only exists with the other data source'),
     ('GNDVI (2 variables)',
      'es el NDWI con el signo cambiado: tenerlas las dos sería repetir la misma variable',
      'GNDVI (2 variables)',

@@ -1,0 +1,32 @@
+name: Suggest a change / Sugerir un cambio
+description: A new variable, option or text, or an improvement / Una variable, opción o texto nuevo, o una mejora
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Please do not paste the coordinates of borreguiles: they are a sensitive
+        habitat.
+
+        Gracias. Por favor, no pegues coordenadas de borreguiles: son un hábitat sensible.
+  - type: input
+    id: version
+    attributes:
+      label: Version / Versión
+      description: If you know it / Si la sabes
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Your profile / Tu perfil
+      options:
+        - Student / Estudiante
+        - Manager / Gestor/a
+        - Researcher / Investigador/a
+        - Other / Otro
+  - type: textarea
+    id: what
+    attributes:
+      label: What you suggest, and why / Qué propones, y por qué
+      description: For a new variable, its reference (with DOI) if you know it / Para una variable nueva, su referencia (con DOI) si la sabes
+    validations:
+      required: true

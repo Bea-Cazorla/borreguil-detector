@@ -39,10 +39,13 @@ Antes de publicar nada, edita **`CITATION.cff`** y completa lo marcado como
 > fuente correspondiente**: mantener el repositorio público y enlazado desde la
 > Release es suficiente para cumplirlo.
 
-Decisión aparte: **¿publicas también `classification_v5.csv`** (los 796 puntos de
-entrenamiento)? Publicarlo hace el trabajo reproducible, pero contiene
-**localizaciones precisas de hábitats sensibles** dentro de un espacio protegido.
-Consúltalo con la dirección del Parque antes de subirlo.
+**La tabla de entrenamiento va dentro de la app** (decidido el 19-11-2026):
+`entrenamiento_sierra_nevada.csv`, los 796 puntos con los que aprendió el modelo de
+Sierra Nevada (de `All_borreguil_lagunas+500ptos`), para poder sumarles los puntos de
+quien usa la app. Contiene **localizaciones precisas de hábitats sensibles** dentro de
+un espacio protegido: quedan a la vista de quien tenga la app o vea el repositorio.
+Conviene comentarlo con la dirección del Parque antes de publicar la Release.
+(`classification_v7.csv`, la tabla completa, sigue fuera del repositorio.)
 
 ---
 

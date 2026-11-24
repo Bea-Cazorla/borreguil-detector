@@ -20,7 +20,7 @@ variable y cómo interpretar los resultados.
 8. [Las variables del modelo](#8-las-variables-del-modelo)
 9. [Resultados: las seis pestañas](#9-resultados-las-seis-pestañas)
 10. [Clasificación jerárquica del tipo](#10-clasificación-jerárquica-del-tipo)
-11. [Entrenar un modelo propio](#11-entrenar-un-modelo-propio)
+11. [Sumar tus puntos al modelo](#11-sumar-tus-puntos-al-modelo)
 12. [Rendimiento](#12-rendimiento)
 13. [Solución de problemas](#13-solución-de-problemas)
 14. [Limitaciones conocidas](#14-limitaciones-conocidas)
@@ -38,11 +38,11 @@ El proceso, para cada punto:
 Punto (lat, lon)
    ├─ Sentinel-2  → NDVI, NDWI, NDMI, EVI, albedo… (inicio y fin de verano, 2017-2025)
    ├─ Sentinel-1  → retrodispersión radar VV/VH (humedad del suelo)
-   ├─ DEM         → altitud, pendiente, curvatura, TWI (acumulación de agua)
+   ├─ DEM         → altitud, pendiente y curvatura
    ├─ Ortofoto    → textura, contraste, fracción verde, roca alrededor
-   └─ OSM         → distancia a cauces y lagunas
+   └─ OSM         → distancia a ríos y arroyos (para el tipo, no para el modelo)
                           ↓
-              Random Forest (50-66 variables)
+              Random Forest (27 variables; 32 con la ortofoto infrarroja)
                           ↓
               Probabilidad 0-1 → decisión → mapa
 ```
@@ -108,14 +108,20 @@ Español o inglés. Cambia toda la interfaz al instante.
 
 **Origen de los puntos**
 
-- **📁 Subir archivo** — tus candidatos en KML, GeoJSON o shapefile.
+- **📁 Subir archivo** — **Tus puntos**: los sitios en los que la app mira si hay
+  borreguil, en KML, GeoJSON, CSV (columnas `lon` y `lat`) o Shapefile. Un Shapefile
+  son varios ficheros: selecciona a la vez el .shp, el .dbf, el .shx y el .prj, o
+  súbelo en un .zip (si falta una parte, la app dice cuál).
 - **🎲 Generar aleatoriamente** — el programa los crea dentro del área:
   - *Nº puntos*: 30–1000.
   - *Estrategia*:
-    - `stratified_elev` — reparto equilibrado por franjas de altitud **(recomendado)**.
-    - `uniform` — aleatorio puro.
-    - `poisson_disc` — con **distancia mínima** entre puntos (evita duplicados).
-  - *Distancia mínima* (solo `poisson_disc`): metros entre puntos.
+    - **Repartidos por altitud** — el rango de altitud del área se divide en 5
+      franjas iguales y se toma el mismo número de puntos en cada una
+      **(recomendado; viene elegido)**.
+    - **Al azar** — sin ninguna regla.
+    - **Al azar, separados una distancia mínima** — ningún par de puntos queda más
+      cerca de esa distancia (evita puntos pegados).
+  - *Distancia mínima* (solo en la última): metros entre puntos.
   - *Elev. mín/máx*: filtro de altitud. Para borreguiles, **mín ≈ 2000 m** en
     Sierra Nevada; ajústalo a la altitud de tu macizo.
   - *Semilla*: fija el azar para poder **reproducir** exactamente el mismo
@@ -123,18 +129,22 @@ Español o inglés. Cambia toda la interfaz al instante.
   - *Lejos de tus puntos de campo (m)*: si subes tu verdad-terreno, los puntos al
     azar quedan al menos a esa distancia de tus puntos de campo. Así caen en sitios
     que todavía no has muestreado, para buscar allí **ausencias** (ver «Ausencias
-    fuera de tus puntos», en la pestaña 📋 Tabla). 0 = sin límite, que es como
+    fuera de tus puntos», en la pestaña Revisar puntos). 0 = sin límite, que es como
     viene.
 
 > Los puntos generados se ajustan al **centro del píxel Sentinel-2 (10 m)**, de
 > modo que las variables extraídas corresponden exactamente a ese píxel.
 
-**Verdad-terreno (opcional)** — tus puntos confirmados en campo. Ver
-[§5](#5-formato-de-los-ficheros-de-entrada) y [§11](#11-entrenar-un-modelo-propio).
+**Opcional: puntos de campo para comprobar el modelo** — sitios donde ya sabes si
+hay borreguil (por el campo o la ortofoto), **en un fichero aparte**. Sirven para
+medir cuánto acierta el modelo y, si quieres, para reentrenarlo. Si esa información
+ya va en *Tus puntos* (columna `presence`: 1 = borreguil, 0 = no), no subas nada
+aquí. Admite los mismos formatos que *Tus puntos*. Ver
+[§5](#5-formato-de-los-ficheros-de-entrada) y [§11](#11-sumar-tus-puntos-al-modelo).
 
-**Usar verdad-terreno solo para entrenar** — el modelo aprende de ellos pero **no
+**Usar los puntos de campo solo para medir y entrenar** — el modelo aprende de ellos pero **no
 se muestran** en mapa, tabla ni descargas. Útil cuando aportas muchos y no quieres
-que tapen a tus candidatos.
+que tapen a tus puntos.
 
 **Capa de lagunas (opcional)** — puntos de lagunas conocidas, para clasificar mejor
 el ambiente «laguna». Sin ella se usa la capa incluida de Sierra Nevada (65 lagunas).
@@ -159,8 +169,22 @@ Alta en GEE: ver [TUTORIAL §3](TUTORIAL.md#3-darte-de-alta-en-google-earth-engi
 El nombre del proyecto de Earth Engine se recuerda: cuando la conexión funciona
 una vez, la próxima aparece ya escrito.
 
+Los dos dan **los mismos números** en Sentinel-2 y el relieve: con Earth Engine, las
+variables de Sentinel-2 se calculan imitando lo que hace Planetary Computer, que es
+con lo que se entrenó el modelo de Sierra Nevada (ver la sección 8). La diferencia es
+el **radar (Sentinel-1)**: solo se lee con Earth Engine, en segundos. Con Planetary
+Computer la app usa una versión del modelo entrenada sin radar, que acierta algo menos
+(AUC 0,833 en lugar de 0,847 con el modelo base; ver la sección 6).
+
 ### Modelo de partida
-Ver [§6](#6-los-modelos).
+Ver [§6](#6-los-modelos). Es el que da la probabilidad de cada punto, **aunque tus
+puntos traigan etiquetas de campo**: con ellas la app mide cuántas acierta (recuadro
+«🧭 Modelo usado», debajo de los resultados).
+
+- **Sumar mis puntos a los del modelo y reentrenarlo** (sin marcar por defecto): la app vuelve a entrenar el modelo con
+  los 769 puntos de Sierra Nevada con los que se hizo MÁS todos tus puntos con
+  etiqueta (de campo, verificados en «Revisar puntos» o añadidos en el mapa): un solo modelo
+  con todos. Ver [§11](#11-sumar-tus-puntos-al-modelo).
 
 ### Opciones
 
@@ -169,11 +193,10 @@ Ver [§6](#6-los-modelos).
 - **Umbral RF** — ver [§7](#7-el-umbral-de-decisión).
 - **Fuente de imágenes** — ESRI (mundial, ~0,5 m) o PNOA/autonómica (España, 0,25 m).
 - **⚡ Modo rápido (vista previa)** — salta las descargas lentas punto a punto
-  (imágenes, Sentinel-1, CIR/Planet). Resultados **aproximados**: sirve para
-  iterar, no para resultados definitivos.
+  (imágenes aéreas y sus texturas, CIR/Planet). Resultados **aproximados**: sirve
+  para iterar, no para resultados definitivos.
 - **Saltar Sentinel-2** — mucho más rápido pero sin índices de vegetación.
   Prácticamente inutiliza el modelo.
-- **Usar OSM** — hidrografía e infraestructuras. El servicio Overpass falla a veces.
 - **PlanetScope 3 m** — requiere clave de pago `PL_API_KEY`.
 
 ---
@@ -183,17 +206,27 @@ Ver [§6](#6-los-modelos).
 Formatos aceptados: **KML**, **GeoJSON**, **shapefile** (`.shp`+`.shx`+`.dbf`+`.prj`,
 o un `.zip`), **GeoPackage**.
 
-### Solo presencias (lo más simple)
-Un fichero de puntos **sin ningún atributo**. Todos se toman como borreguil; las
-ausencias se generan solas (pseudo-ausencias alejadas de los positivos).
+### Puntos de campo: presencias y ausencias (recomendado)
+Usa la [plantilla de datos de campo](#plantilla-de-datos-de-campo): una fila por
+punto, con `presence` = `1` (borreguil) o `0` (no borreguil); el resto de columnas
+son opcionales. **Incluye ausencias**: los sitios donde has comprobado que no hay
+borreguil valen tanto como los borreguiles. Sin ellos no se mide bien cuánto acierta
+el modelo ni se puede hacer el mapa de borreguil sí o no: la app no se inventa
+ausencias.
 
-### Presencias + ausencias (recomendado si las tienes)
-Añade un **atributo de clase** a cada punto. Se reconocen (sin distinguir
-mayúsculas):
+Si tu fichero trae la etiqueta con otro nombre, también se reconoce, sin distinguir
+mayúsculas (se lee igual que en *Tus puntos*; ver «Etiquetas en tus puntos», abajo):
 
-- **Nombre del atributo**: `Borreguil`, `presencia`, `clase`, `tipo` o `label`.
-- **Presencia**: `si` · `1` · `presencia` · `borreguil`
-- **Ausencia**: `no` · `0` · `ausencia` · `no_borreguil`
+- **Nombre de la columna**: `presence`, `Borreguil`, `presencia`, `label`, `clase`,
+  `etiqueta`…
+- **Presencia**: `1` (o `1.0`) · `si` · `yes` · `true` · `presencia` · `borreguil`
+- **Ausencia**: `0` (o `0.0`) · `no` · `false` · `ausencia` · `no_borreguil`
+- Los **dudosos** (`doubtful` = `1`) entran como dudosos y no cuentan.
+
+Al subir el fichero, debajo aparece qué columna ha leído y cuántos borreguiles y no
+borreguiles hay. Si la columna existe pero sus valores no se entienden, no se usa
+ningún punto (mejor eso que tomar ausencias por borreguiles), y los puntos sin valor
+no se usan.
 
 Ejemplo GeoJSON:
 
@@ -203,22 +236,26 @@ Ejemplo GeoJSON:
   "features": [
     {"type": "Feature",
      "geometry": {"type": "Point", "coordinates": [-3.3117, 37.0534]},
-     "properties": {"Borreguil": "si"}},
+     "properties": {"presence": 1}},
     {"type": "Feature",
      "geometry": {"type": "Point", "coordinates": [-3.3201, 37.0489]},
-     "properties": {"Borreguil": "no"}}
+     "properties": {"presence": 0}}
   ]
 }
 ```
 
-En KML, dentro de cada `Placemark`:
-`<SimpleData name="Borreguil">no</SimpleData>`
+En KML, dentro de cada `Placemark`: `<SimpleData name="presence">0</SimpleData>`
 
-> Un punto **sin** atributo de clase se interpreta como **presencia**.
+### Solo presencias
+En *puntos de campo para comprobar el modelo*, un fichero **sin ninguna columna** de
+etiqueta: cada punto se toma como borreguil. Sirve para ver cuántos borreguiles
+acierta el modelo, pero no aporta ausencias. En *Tus puntos*, en cambio, un punto
+sin etiqueta es solo un sitio donde la app mira si hay borreguil.
+
 > Las coordenadas deben ser **geográficas (WGS84, EPSG:4326)**.
 
-### Etiquetas en los puntos candidatos
-Lo anterior es para la **verdad-terreno**. Los **puntos candidatos** también
+### Etiquetas en tus puntos
+Lo anterior es para los **puntos de campo**. **Tus puntos** también
 pueden traer ya su etiqueta (por ejemplo, tus puntos revisados o los de otra
 persona), y entonces el modelo de la pestaña «Mapa Modelo RF» los usa como muestras. La app
 la guarda en `Borreguil` (`si`/`no`) y la duda en `Duda` (`si`), pero al cargar el
@@ -228,6 +265,9 @@ fichero **traduce** otros nombres y valores:
 |---|---|---|
 | ¿Es borreguil? | `Borreguil`, `presencia`, `presence`, `presente`, `etiqueta`, `label`, `clase`, `class`, `target`, `verdad`, `truth` | sí: `si`, `sí`, `yes`, `1`, `true`, `presencia`, `presence`… · no: `no`, `0`, `false`, `ausencia`, `absence`… |
 | ¿Es dudoso? | `Duda`, `dudoso`, `dudosa`, `doubtful`, `doubt`, `uncertain`, `incierto` | los mismos |
+| ¿Quién lo revisó? | `observer`, `observador`, `observadora`, `revisor`, `revisora`, `reviewer` | texto |
+| Su perfil | `expertise`, `perfil`, `profile` | `student`, `manager`, `researcher` (o `estudiante`, `gestor/a`, `investigador/a`) |
+| Su certidumbre | `certainty`, `certidumbre`, `certeza`, `confianza`, `confidence` | `high`, `medium`, `low` (o `alta`, `media`, `baja`) |
 
 - Se usa la **primera** columna de la lista que tenga algún valor de sí o no.
   Una que no sea `Borreguil` solo se acepta si casi todos sus valores (≥ 90 %)
@@ -246,14 +286,24 @@ fichero **traduce** otros nombres y valores:
 
 ## 6. Los modelos
 
-Todos parten de las **mismas 50 variables base**. Las variantes añaden una fuente
-de muy alta resolución.
+Todos parten de las **mismas variables base**, y de cada grupo de variables que dicen
+lo mismo usan **una sola** (ver la sección 8). Las variantes añaden una fuente de muy
+alta resolución.
 
 | Modelo | Variables | AUC | Requiere | Cuándo usarlo |
 |---|---|---|---|---|
-| `rf_sierra_nevada.joblib` | 50 | **0,83** | nada | **Universal.** Cualquier zona del mundo. |
-| `rf_sierra_nevada_cir.joblib` | 56 | **0,93** | ortofoto IR (gratis) | **El mejor en España** con cobertura IR: Andalucía, Cataluña, Canarias. |
-| `rf_*_planet.joblib` | 60 | — | `PL_API_KEY` (pago) | Fuera de España, si tienes suscripción Planet. |
+| `rf_sierra_nevada.joblib` | 27 | **0,847** | nada | **Universal.** Cualquier zona del mundo. |
+| `rf_sierra_nevada_cir.joblib` | 32 | **0,945** | ortofoto IR (gratis) | **El mejor en España** con cobertura IR: Andalucía, Cataluña, Canarias. |
+
+Cada uno tiene además una **versión sin radar** (carpeta `sin_radar/`), que no sale en
+el desplegable: la app la usa **sola** cuando el radar no se ha leído (con Planetary
+Computer, o con «Saltar Sentinel-2»), y lo dice en «Modelo usado». Con validación por
+cuencas:
+
+| Modelo | Con radar | Sin radar: el mismo modelo | Sin radar: la versión sin radar |
+|---|---|---|---|
+| Base | 0,847 | 0,793 | **0,833** (22 variables) |
+| Con ortofoto IR | 0,945 | 0,927 | **0,937** (27 variables) |
 
 **AUC** (área bajo la curva ROC) mide la capacidad de distinguir borreguil de
 no-borreguil: 0,5 = azar, 1,0 = perfecto. Se midió con **validación espacial**
@@ -270,7 +320,7 @@ El modelo aprendió en Sierra Nevada. Funciona en macizos comparables, pero:
 - La **altitud** es una de las variables de más peso, y su rango absoluto cambia
   entre cordilleras (un borreguil pirenaico o alpino puede estar más bajo).
 - Las probabilidades **se recalibran** en cada zona → usa el umbral **Otsu**.
-- Para máxima precisión, [entrena con verdad-terreno local](#11-entrenar-un-modelo-propio).
+- Para máxima precisión, [suma tu verdad-terreno local al modelo](#11-sumar-tus-puntos-al-modelo).
 
 ---
 
@@ -315,21 +365,52 @@ El modelo da una **probabilidad** (0–1). El umbral la convierte en decisión:
 | `albedo_*` | Reflectividad (alta = roca o suelo desnudo). |
 | `wavi_*` | Índice adaptado a zonas húmedas. |
 
-Sufijos: `_early`/`_late` (inicio/fin de verano), `_mean`/`_min`/`_max`/`_sd`
-(estadísticos de junio a septiembre con todas las imágenes de todos los años
-juntas; en el mapa de tipos se calculan año a año, ver la sección 10).
+**El modelo no usa todas.** Muchas variables dicen lo mismo: por ejemplo, 13 índices
+de Sentinel-2 de verdor (NDVI, EVI, Clre, GNDVI, NDWI…) se parecen entre sí con una
+correlación de al menos 0,89. De cada grupo de variables en el que **todas las
+parejas** tienen una correlación de 0,8 o más, el modelo usa solo la que mejor separa
+borreguil de no borreguil por sí sola (del grupo del verdor, `ndvi_early`). Quedan
+**27 variables** en el modelo base y **32** en el `_cir`. Comprobado con tus 769
+puntos y validación por cuencas: el acierto no baja (AUC 0,827 → 0,838 y 0,934 →
+0,940) y la decisión es la misma en el 94 % y el 97 % de los puntos. La app sigue
+calculando todas: algunas sirven para proponer el tipo de borreguil. Después, el
+radar pasó a leerse de Earth Engine y los dos modelos se reentrenaron con las mismas
+variables (AUC 0,846 y 0,946), y el 20-11-2026 se quitó el **TWI** (índice
+topográfico de humedad): Earth Engine no lo calcula, así que la app lo rellenaba
+siempre con el valor típico, y sin él el modelo acierta lo mismo (AUC 0,847 y 0,945;
+la misma decisión en el 98,6 % y el 99,6 % de los puntos).
+
+Sufijos: `_early`/`_late` (inicio de verano, del 15 de junio al 25 de julio / fin
+de verano, del 1 de agosto al 30 de septiembre), `_mean`/`_min`/`_max`/`_sd`
+(estadísticos de esas imágenes de verano).
+
+Cómo se calculan, igual que cuando se entrenó el modelo de Sierra Nevada:
+
+- **Qué imagen.** De cada ventana y cada año se toma la **última imagen sin nubes**
+  sobre el punto (con menos del 30 % de nubes en la escena). Inicio y fin de verano
+  son la **mediana entre años**. Los estadísticos usan esas mismas imágenes, todos los
+  años juntos, quitando las que tienen nieve en el punto.
+- **Qué zona.** Cada valor es la **media de una ventana alrededor del punto**: 5 × 5
+  píxeles (50 m) en las bandas de 10 m y 3 × 3 píxeles (60 m) en las de 20 m. Son las
+  ventanas de muestreo que se pueden ver en el mapa.
+
+En el mapa de tipos se calculan de otra manera: año a año y en cada píxel (ver la
+sección 10).
 
 ### Topográficas (DEM Copernicus, 30 m)
 | Variable | Qué mide |
 |---|---|
 | `elev_dem_m` | Altitud. **Muy determinante**: los borreguiles son de alta montaña. |
 | `slope_deg` | Pendiente. Los borreguiles prefieren zonas llanas. |
-| `twi` | Índice topográfico de humedad: dónde se acumula el agua. |
 | `curvature` | Cóncavo (acumula agua) vs. convexo (drena). |
 
-### Radar (Sentinel-1 SAR)
+### Radar (Sentinel-1)
 `s1_vv_mean`, `s1_vh_mean`, `s1_ratio_mean`, `s1_*_sd` — sensibles a la humedad
-del suelo y atraviesan las nubes.
+del suelo y atraviesan las nubes. Media y variabilidad de todas las pasadas de junio
+a septiembre de 2019 a 2024, con el efecto del relieve corregido. **Solo se leen con
+Earth Engine** (en segundos); con Planetary Computer la app usa la versión del
+modelo entrenada sin radar (sección 6). Hasta noviembre de 2026 se leían de Planetary Computer: más de
+media hora con solo 20 puntos.
 
 ### Textura de imagen (ortofoto 0,25-0,5 m)
 `glcm_contrast`, `glcm_homog`, `edge_density`, `laplacian_var`, `frac_bgreen`,
@@ -337,7 +418,7 @@ del suelo y atraviesan las nubes.
 capturan que el borreguil es una **mancha verde compacta y homogénea** rodeada de
 roca.
 
-> En la pestaña **🔑 Variables** ves el peso real de cada una en el modelo activo.
+> En la pestaña **Peso de las variables** ves el peso real de cada una en el modelo activo.
 
 ---
 
@@ -348,24 +429,86 @@ se ejecuta la detección y se ven y revisan los puntos; **🌿 Mapa Modelo RF**,
 el mapa de tipos; y **📖 Documentación y recomendaciones**. Los resultados de una
 ejecución salen en la primera, repartidos en seis pestañas.
 
-### 🗺️ Mapa
+**Quién revisa y con qué certidumbre.** Encima de las seis pestañas puedes escribir
+tu nombre y elegir tu perfil (estudiante, gestor/a o investigador/a). Se apuntan en
+cada punto que verifiques en «Revisar puntos» o añadas en el mapa, junto con la
+**certidumbre** que indiques al hacerlo: **alta** (no hay duda), **media** (hay
+alguna duda) o **baja** (es lo más probable, pero hay bastante duda). Si no sabes
+decir si es borreguil, no lo verifiques; en el mapa, contesta **? No estoy seguro**
+y el punto queda como dudoso, que no cuenta. Todo es opcional: lo que no indiques se
+queda vacío. Va en las descargas con las columnas de la plantilla (`observer`,
+`expertise` y `certainty`) y, debajo del acierto del modelo, el desplegable
+**Acierto según la certidumbre y el perfil de quien revisa** separa los aciertos por
+grupos: si el modelo falla sobre todo en los puntos de certidumbre baja, puede que
+el error esté en la etiqueta y no en el modelo.
+
+### Mapa de los puntos
 Puntos coloreados por decisión (leyenda abajo a la izquierda). Clic en un punto →
 ficha y opción de **quitarlo** del análisis.
 
 Capas activables (control ▤ arriba a la derecha): píxel S2 de 10 m, ventanas de
 muestreo de 10 m y 20 m, y **Google Satélite** para más zoom.
 
-### 📋 Tabla
-Todos los puntos con coordenadas, probabilidad, decisión, tipo y variables.
-Seleccionar una fila centra el mapa y despliega el **📈 perfil espectral**, que
-compara el punto con el rango típico (p25–p75) de los borreguiles de referencia.
+**➕ Añadir puntos pinchando en el mapa.** Para quien conoce el sitio (por ejemplo,
+en un taller con los gestores). Con el interruptor encendido:
 
-Con varias filas seleccionadas puedes **marcarlas como borreguil verificado y
-reentrenar** (aprendizaje activo), **quitarlas del análisis** o, debajo, **marcarlas
-como no borreguil verificado y reentrenar**: quedan como «NO BORREGUIL VERIFICADO»,
-igual que las ausencias de tu verdad-terreno, y sirven de ausencias para el modelo y
-para el mapa de tipos. Si alguna tenía un tipo revisado, se le quita: un no
-borreguil no tiene tipo.
+Si marcas **Sumar mis puntos a los del modelo y reentrenarlo**, cada punto que
+añadas se suma a los 769 de los que aprendió el modelo y se reentrena con todos
+([§11](#11-sumar-tus-puntos-al-modelo)).
+
+1. Pincha en el mapa donde sepas si hay borreguil. Sale un círculo rojo y, debajo
+   del mapa, tres botones: **✓ Aquí hay borreguil**, **✗ Aquí no hay** y **? No estoy
+   seguro** (y **Cancelar**), y encima de ellos la **certidumbre** de tu respuesta
+   (opcional). Si pinchas encima de un punto que ya está, la app lo dice y no añade
+   otro.
+2. Al contestar, la app lee **solo ese punto** (con Earth Engine, unos segundos) y
+   dice qué opinaba el modelo **antes** de saber tu respuesta: su probabilidad y si
+   coincide contigo.
+3. El punto queda como un dato de campo más (`mapa_1`, `mapa_2`…, con borde blanco
+   en el mapa): borreguil o ausencia verificada, o dudoso. Cuenta en el acierto del
+   modelo y, con la casilla del modelo propio, también para entrenarlo. Va en las
+   descargas con las columnas de la plantilla: `method` = `local knowledge`, la
+   fecha, la **nota** si la escribes (`notes`) y, si los indicas, quién revisa
+   (`observer`), su perfil (`expertise`) y la certidumbre (`certainty`).
+
+Debajo del mapa, una tabla resume los puntos añadidos: qué dijo quien los marcó, la
+probabilidad que les daba el modelo y si coincidía («el modelo coincidía en 4 de
+5»). Los dudosos no cuentan. **↩ Quitar el último añadido** deshace el último.
+
+### Revisar puntos
+Todos los puntos con coordenadas, probabilidad, decisión, tipo y variables.
+Seleccionar una fila centra el mapa y despliega la ficha del punto:
+
+- **Lo que más pesa en el modelo**: el valor del punto en las 3 variables que más
+  pesan (una por grupo de variables parecidas, con el peso del grupo), y debajo la
+  altitud y la pendiente.
+- **📈 Este punto frente a los borreguiles verdaderos**: las 8 variables que más
+  pesan, una por grupo, de arriba abajo. En cada una, dónde cae el punto entre los
+  borreguiles con los que se entrenó el modelo, de 0 (más bajo que todos) a 100 (más
+  alto que todos); la franja **verde** es su mitad central y el punto sale **naranja**
+  si es más bajo o más alto que casi todos (fuera del 10–90). El **rombo gris** es el
+  **no borreguil típico** (la mediana de los no borreguiles verdaderos), en la misma
+  escala: si el punto está más cerca de él que de la franja verde, se parece más a un
+  no borreguil. Debajo, el valor del punto, el de la mitad central de los borreguiles
+  y el del no borreguil típico.
+
+Muchas variables son casi iguales: por ejemplo, 13 índices de verdor de Sentinel-2
+tienen una correlación de 0,89 o más entre sí. El modelo usa una de cada grupo (ver
+la sección 8), y la ficha enseña una de cada grupo: las demás dirían lo mismo.
+
+Con varias filas seleccionadas puedes **marcarlas como borreguil verificado**,
+**quitarlas del análisis** o, debajo, **marcarlas como no borreguil verificado**:
+quedan como «NO BORREGUIL VERIFICADO», igual que las ausencias de tu
+verdad-terreno, y sirven de ausencias para el mapa de tipos. Si alguna tenía un tipo
+revisado, se le quita: un no borreguil no tiene tipo. Al lado del número de puntos
+seleccionados está la **certidumbre** (alta, media o baja): se guarda en cada punto
+que marques, con quién revisa y su perfil (ver el principio de esta sección).
+
+Lo que verificas cuenta en el recuadro «🧭 Modelo usado» para medir cuánto acierta
+el modelo. Con el modelo de partida, la probabilidad de los demás puntos no cambia.
+Con la casilla **Sumar mis puntos a los del modelo y reentrenarlo** marcada, los
+botones dicen «… y reentrenar» y el modelo se vuelve a entrenar con lo verificado
+(aprendizaje activo), sumado a los puntos de Sierra Nevada.
 
 **Ausencias fuera de tus puntos.** El modelo solo sabe decir «no» en sitios
 parecidos a tus ausencias. Si todas están en la misma parte de la sierra, en las
@@ -374,12 +517,13 @@ tener ausencias repartidas por toda la zona:
 
 1. En el panel lateral, **🎲 Generar aleatoriamente en el área**, con el área de
    estudio (por ejemplo, el Espacio Natural por encima de 2000 m) y tu
-   verdad-terreno subida. Unos **200 puntos**, estrategia `poisson_disc` con
+   verdad-terreno subida. Unos **200 puntos**, estrategia **Al azar, separados una
+   distancia mínima**, con
    **500 m** de distancia mínima. *Lejos de tus puntos de campo* puede quedarse en
    0: algunos puntos caerán junto a los tuyos (en Sierra Nevada, unos 30 de cada 200),
    y basta con dejarlos sin marcar.
 2. Ejecuta el análisis.
-3. En **📋 Tabla**, mira cada punto `rand_…` con la ortofoto: si no es borreguil,
+3. En **Revisar puntos**, mira cada punto `rand_…` con la ortofoto: si no es borreguil,
    **✗ Marcar como no borreguil verificado**; si lo es, **✓ Marcar como borreguil
    verificado** y revisa su tipo. Lo que no tengas claro, déjalo sin marcar.
 4. Al terminar, descarga `puntos.geojson`: guarda todo lo que has marcado.
@@ -404,30 +548,32 @@ posterior recae sobre un punto que no has elegido.
 ejemplo, heredados del nombre de la capa: `all_borreguil_lagunas500ptos_epsg25830.41`),
 en la tabla se muestran abreviados conservando el final, que es lo que los
 distingue: `…epsg25830.41`. El nombre completo aparece al seleccionar el punto, en
-el mapa y en todas las descargas. Los números se muestran con **4 decimales** en la
-ficha del punto, en los globos del mapa y en el Excel; los ficheros guardan el
-valor completo.
+el mapa y en todas las descargas. Los números se muestran con **3 decimales** en la
+ficha del punto, en la tabla, en los globos del mapa y en el Excel (las coordenadas,
+con más, porque con 3 se moverían unos 100 m); los ficheros guardan el valor
+completo.
 
-### 📊 Histograma RF
+### Probabilidades
 Distribución de probabilidades. **Dos grupos separados** = el modelo discrimina
 bien. **Una sola masa central** = no está distinguiendo; revisa el modelo o aporta
 verdad-terreno.
 
-### 💾 Descargas
-- `classification.csv` y `Clasificacion_puntos.xlsx` — la tabla completa, con
-  todas las variables.
-- `puntos.geojson` — los puntos con sus **etiquetas** (decisión, verdad-terreno,
-  tipo y si está revisado), sin las variables. Es el fichero para **volver a
-  cargar tu trabajo** en otra sesión o abrirlo en QGIS.
-- `mapa.html` — mapa autónomo que se abre en cualquier navegador.
-- `area_estudio.geojson` — el polígono del área, si la definiste.
-
-### 🔑 Variables
+### Peso de las variables
 Ranking de importancia del modelo activo, con el rango típico de borreguil.
 
-### 📊 Distribuciones
+### Tipos y distribuciones
 Diagramas de caja por variable, dispersión altitud × NDVI, recuento por decisión y
 la **clasificación jerárquica**.
+
+### Descargas
+- `classification.csv` y `Clasificacion_puntos.xlsx` — la tabla completa, con
+  todas las variables.
+- `puntos.geojson` — los puntos con sus **etiquetas** (decisión, verdad-terreno y
+  tipo revisado, con las columnas de la plantilla de datos de campo), sin las
+  variables. Es el fichero para **volver a cargar tu trabajo** en otra sesión o
+  abrirlo en QGIS.
+- `mapa.html` — mapa autónomo que se abre en cualquier navegador.
+- `area_estudio.geojson` — el polígono del área, si la definiste.
 
 > 🌿 El **mapa de tipos** no es una de estas seis: tiene su propia pestaña,
 > **🌿 Mapa Modelo RF**, arriba del todo, junto a **📍 Verdad terreno**. Ver
@@ -441,23 +587,44 @@ Cada borreguil detectado se etiqueta en **tres niveles anidados**:
 
 ```
 AMBIENTE (dónde está)          HUMEDAD           PUREZA (qué hay en el píxel)
-├── arroyo   (cauce, TWI alto)   ├── húmedo        ├── puro
+├── arroyo   (junto a río)       ├── húmedo        ├── puro
 ├── laguna   (< 120 m de laguna) └── seco          ├── mixto-agua
 └── ladera   (resto)                               └── mixto-roca
 ```
 
-- **Ambiente** — por cercanía a lagunas conocidas, distancia a cauces OSM y
-  topografía (TWI alto o pendiente baja → arroyo, aunque no haya capa OSM).
-- **Humedad** — por NDMI (respaldo: TWI).
-- **Pureza** — **relativa a los borreguiles de esa ejecución**: se marca como
-  *mixto-agua* el ~15 % con más firma de agua (NDWI) y como *mixto-roca* el ~15 %
-  con más albedo o menos NDVI. El resto, *puro*.
+- **Ambiente** — **laguna** si está a menos de 120 m de una laguna conocida o se
+  ve agua cerca; si no, **arroyo** si está a 30 m o menos de un **río o arroyo de
+  OpenStreetMap** (`waterway` = `river` o `stream`; no cuentan las acequias, los
+  canales ni las fuentes); si no, **ladera**. Los ríos y arroyos de Sierra Nevada van
+  con la app (`cauces_sierra_nevada.geojson`), así que allí no hace falta internet;
+  en otras zonas se descargan de OpenStreetMap (servicio Overpass) al analizar. Si
+  no se pueden descargar, la app lo avisa y «arroyo» se decide solo por la pendiente
+  (menos de 7°), que se queda corta: junto a un arroyo suele haber pendiente.
+  Probado en los 372 borreguiles de Sierra Nevada (23-11-2026): de los que están
+  junto a un cauce de OpenStreetMap, la pendiente solo llamaba arroyo a uno de cada
+  siete, y los cauces deducidos del relieve de 30 m van en escalera y a veces se
+  separan de la vaguada.
+- **Humedad** — por NDMI.
+- **Pureza** — **igual que la pureza dentro del píxel del mapa**: la app estima
+  cuánto **verde** hay en el píxel de 10 m de Sentinel-2 que contiene el punto, con
+  su NDVI de inicio de verano: 0 % si vale 0,080 o menos, 100 % si vale 0,600 o más
+  (o la mediana de los puntos que has revisado como *puro*, si hay al menos 5) y en
+  proporción entre los dos. Es **puro** si llega al 75 %; si no, **mixto-agua** si
+  el píxel es agua o toca un píxel de agua (NDWI medio de junio a septiembre mayor
+  que 0), y **mixto-roca** en otro caso. Esos datos se leen con **Earth Engine**;
+  con Planetary Computer, o si la lectura falla, la pureza se queda sin propuesta
+  (—) y la pones tú al revisar.
 
-> ⚠️ **Por qué la pureza es relativa**: a 10 m de resolución **no se puede medir
-> la fracción real de agua o roca dentro del píxel**. Haría falta PlanetScope (3 m)
-> o CIR (0,25 m). Es una ordenación dentro de tu población, no una medida absoluta.
+> ℹ️ **Cuánto acierta.** Comparada con la ortofoto infrarroja de Andalucía de
+> 0,25 m en 372 borreguiles de campo de Sierra Nevada (24-11-2026), la propuesta
+> acierta la pureza en el **82 %** de los puntos. La manera de antes (relativa a los
+> borreguiles de cada ejecución) acertaba el 62 %, menos que decir «puro» a todos
+> (72 %), y se cambió por esta. Donde más falla es con el agua: casi nunca propone
+> mixto-agua. Sigue siendo una propuesta: la que cuenta para el modelo es la que
+> revisas tú.
 
-Umbrales ajustables en `borreguil_pipeline.py` → `HIER_THRESH`.
+Los umbrales del ambiente y la humedad se ajustan en `borreguil_pipeline.py` →
+`HIER_THRESH`; los de la pureza son los del mapa por defecto.
 
 ### Revisar el tipo: de propuesta de la app a dato revisado
 
@@ -469,19 +636,24 @@ revisarlo mirando el terreno.
 
 **Cómo se revisa**
 
-1. Pestaña **📋 Tabla** → selecciona uno o varios borreguiles.
+1. Pestaña **Revisar puntos** → selecciona uno o varios borreguiles.
 2. Mira el punto en el mapa de debajo (ortofoto y píxel de 10 m en amarillo) o
    usa tus datos de campo.
-3. En **🌿 Revisar el tipo de borreguil** elige ambiente, humedad y pureza. Deja
-   **(sin cambio)** en lo que la app ya proponía bien.
-4. **✓ Guardar tipo revisado**. El punto queda marcado como revisado, con su fecha.
+3. En **🌿 Revisar el tipo de borreguil** elige lo que hayas podido ver: ambiente,
+   humedad, pureza, o solo alguno. Junto a cada nivel se lee lo que propone la app;
+   para darlo por bueno, **elígelo**.
+4. **✓ Guardar tipo revisado**. Quedan revisados **los niveles elegidos**, con su
+   fecha, y se anota que se revisó con la ortofoto (`method = orthophoto`).
+
+**Cada nivel cuenta por separado.** Lo que dejes en **(sin cambio)** no se da por
+revisado: si solo sabes la humedad de un punto, elige la humedad; ese punto ya sirve
+para el modelo de humedad, aunque no para el de ambiente ni el de pureza. Un nivel ya
+revisado aparece elegido al volver al punto, y otro nivel se suma a los que había.
 
 **↩ Deshacer revisión** devuelve los puntos seleccionados a la propuesta de la app.
 
-Con **varios puntos** seleccionados solo cambian los niveles que elijas; el resto
-se confirma tal como estaba en cada punto. Es todo o nada: si a alguno le falta un
-nivel (la app no pudo proponerlo por falta de datos) y no lo eliges, no se guarda
-ninguno y se indica cuál es.
+Con **varios puntos** seleccionados, lo que elijas se guarda en todos; lo que dejes en
+«(sin cambio)» se queda como estaba en cada uno.
 
 **Criterios** — decide siempre con la misma regla para todos los puntos:
 
@@ -491,39 +663,89 @@ ninguno y se indica cuál es.
 | Humedad | húmedo · seco | Un único criterio para toda la campaña (anótalo) |
 | Pureza | puro · mixto-agua · mixto-roca | Qué hay **dentro del píxel de 10 m**: solo prado, agua, o roca/suelo desnudo |
 
-**Qué se guarda de cada punto**
+**Qué se guarda de cada punto** (en la sesión, en la tabla, el CSV y el Excel)
 
 | Columna | Contenido |
 |---|---|
 | `ambiente`, `humedad`, `pureza` | El valor vigente: el revisado si lo hay; si no, la propuesta |
 | `ambiente_regla`, `humedad_regla`, `pureza_regla` | Lo que propuso la app (se recalcula en cada ejecución) |
-| `tipo_revisado` | `si` cuando una persona ha revisado los tres niveles |
-| `tipo_revisado_fecha` | Cuándo se revisó |
+| `ambiente_revisado`, `humedad_revisado`, `pureza_revisado` | `si` en cada nivel que ha revisado una persona |
+| `tipo_revisado` | `si` cuando están revisados los tres |
+| `tipo_revisado_fecha` | Cuándo se revisó por última vez |
+| `ndvi_early_pixel`, `agua_pixel_vecinos` | Con lo que se propone la pureza: el NDVI de inicio de verano del píxel de 10 m del punto y `1` si ese píxel o uno de sus vecinos es agua |
+| `verde_estimado` | Cuánto verde hay en ese píxel, de 0 a 1, según su NDVI |
 
-Lo revisado **no se pisa nunca**: ni al reentrenar, ni en las iteraciones de
-auto-entrenamiento, ni aunque el modelo deje de clasificar el punto como borreguil.
+En la tabla, la columna **tipo revisado** dice «sí» con los tres niveles y, si no,
+cuáles («humedad»).
 
-Encima de la tabla hay un contador: cuántos borreguiles están revisados y en
-cuántos se **corrigió** la propuesta. Si revisas muchos y no corriges ninguno, la
-app lo avisa: un tipo aceptado sin mirar sigue siendo la regla de la app.
+Lo revisado **no se pisa nunca**: ni al reentrenar ni aunque el modelo deje de
+clasificar el punto como borreguil.
+
+Encima de la tabla hay un contador: cuántos borreguiles están revisados (y cuántos en
+cada nivel) y en cuántos se **corrigió** la propuesta. Si revisas muchos y no corriges
+ninguno, la app lo avisa: un tipo aceptado sin mirar sigue siendo la regla de la app.
 
 **Conservar la revisión entre sesiones** — descarga `puntos.geojson` y, la próxima
-vez, cárgalo como *puntos candidatos* o como *verdad-terreno*. Los tipos revisados
-vuelven con sus puntos. Si un punto llega marcado como revisado pero con una
-categoría que no existe (por ejemplo, editada a mano), la app lo avisa y no lo
-cuenta como revisado.
+vez, cárgalo en *Tus puntos* o en *puntos de campo para comprobar el modelo*. Va con las columnas de
+la [plantilla de datos de campo](#plantilla-de-datos-de-campo): `presence`,
+`doubtful` y, de cada nivel **revisado**, `environment`, `moisture` y `purity` (la
+propuesta de la app no se guarda: se recalcula), más `method`, `date` y, si se
+indicaron, `observer`, `expertise` y `certainty`. Al volver a
+cargarlo, cada nivel revisado vuelve como tal. Los ficheros guardados con versiones
+anteriores de la app (con `Borreguil` y `tipo_revisado`) se siguen leyendo igual. Si
+un punto llega marcado como revisado pero con una categoría que no existe (por
+ejemplo, editada a mano), la app lo avisa y ese nivel no cuenta como revisado.
+
+### Plantilla de datos de campo
+
+Para que los datos de distintos equipos se puedan juntar, la app propone una
+plantilla común, en la carpeta `plantilla` de la app:
+`field_points_template.xlsx` (la plantilla, con la explicación de cada columna),
+`example_sierra_nevada.csv` y `.geojson` (20 puntos de ejemplo) y
+`definitions_EN.md` (qué significa cada valor; **borrador**).
+
+Una fila por punto. Solo son obligatorios el punto y `presence`; el resto se rellena
+si se sabe:
+
+| Columna | Valores | ¿Obligatoria? |
+|---|---|---|
+| `lon`, `lat` | grados decimales, WGS84 | sí |
+| `presence` | `1` borreguil · `0` no borreguil | sí |
+| `id` | cualquiera (si falta, la app pone uno) | no |
+| `doubtful` | `1` si es dudoso | no |
+| `environment` | `stream` · `lake` · `slope` | no (solo si `presence` = 1) |
+| `moisture` | `wet` · `dry` | no (solo si `presence` = 1) |
+| `purity` | `pure` · `mixed-water` · `mixed-rock` | no (solo si `presence` = 1) |
+| `method` | `field` · `orthophoto` | recomendada |
+| `date` | `AAAA-MM-DD` | recomendada |
+| `observer` | texto: quién observó o revisó el punto | no |
+| `expertise` | `student` · `manager` · `researcher` | no |
+| `certainty` | `high` · `medium` · `low`: lo segura que es la respuesta de `presence` | no |
+| `notes` | texto | no |
+
+- Los valores del tipo valen también en español (`arroyo`, `laguna`, `ladera`,
+  `húmedo`, `seco`, `puro`, `mixto-agua`, `mixto-roca`) y la columna puede llamarse
+  `ambiente`, `humedad` o `pureza`. Al cargar, la app dice qué ha leído y avisa de
+  los valores que no entiende.
+- Cada nivel del tipo que traiga un punto cuenta como **revisado** en ese nivel. Lo
+  que traiga un punto con `presence` = 0 se ignora: lo que no es borreguil no tiene
+  tipo.
+- Se puede subir como CSV (columnas `lon` y `lat` en grados; separado por comas o por
+  punto y coma, y con coma decimal, como lo guarda Excel en español), GeoJSON,
+  GeoPackage, Shapefile o KML.
 
 ### Mapa de tipos con Random Forest
 
 La pestaña **🌿 Mapa Modelo RF** está arriba del todo, junto a **📍 Verdad
-terreno**, y lleva de los puntos revisados a un mapa de tipos. Antes de ejecutar un análisis
-solo explica qué hace falta. Después enseña, de arriba abajo:
+terreno**, y lleva de tus puntos al mapa de borreguiles y, si quieres, de su tipo.
+Antes de ejecutar un análisis solo explica qué hace falta. Después enseña, de arriba
+abajo:
 
 - **Qué quieres cartografiar**: viene elegido **borreguil sí o no**, el primer
   paso. Para el tipo, después, **ambiente y humedad**, que es el tipo completo
-  (arroyo, laguna o ladera y, dentro de cada uno, húmedo o seco), o un solo nivel:
-  ambiente, humedad o pureza. Lo que elijas vale para todos los pasos; hay un
-  modelo para cada opción.
+  (arroyo, laguna o ladera y, dentro de cada uno, húmedo o seco), o solo la
+  **humedad**. Lo que elijas vale para todos los pasos; hay un modelo para cada
+  opción.
 - **Una línea de estado**, con un rótulo por paso: hecho (verde), pendiente (gris)
   o algo que atender (naranja), siempre con su texto.
 - **Los pasos, cada uno en su pestaña**, en orden: **1 · Datos**, que responde a
@@ -531,15 +753,20 @@ solo explica qué hace falta. Después enseña, de arriba abajo:
   **3 · Modelo**, **4 · Mapa** y **5 · Peso**, que dice cuánto pesa cada variable en
   el modelo. Queda por llegar la exportación completa de cada ejecución.
 
-**¿Qué se puede cartografiar?** Cinco cosas, cada una con su modelo:
+**¿Qué se puede cartografiar?** Tres cosas, cada una con su modelo:
 
 | Opción | Categorías |
 |---|---|
 | **Borreguil sí o no** *(la que viene elegida)* | borreguil · no borreguil |
-| Ambiente | arroyo · laguna · ladera |
 | Humedad | húmedo · seco |
-| Pureza | puro · mixto-agua · mixto-roca |
 | **Ambiente y humedad** | arroyo, laguna o ladera y, dentro de cada uno, húmedo o seco: `arroyo · húmedo`, `arroyo · seco`, `laguna · húmedo`, `laguna · seco`, `ladera · húmedo`, `ladera · seco` |
+
+Desde el 24-11-2026 no se ofrecen el **ambiente** ni la **pureza** solos. En el
+ambiente solo, el modelo no ve dónde están las lagunas ni los cauces y podía poner
+«laguna» lejos de cualquier laguna; en «Ambiente y humedad» el ambiente sale de la
+cercanía a lagunas y cauces. La pureza sola repetía la **pureza dentro del píxel**
+que se añade al mapa en **4 · Mapa**, y en un mismo mapa salían dos purezas
+distintas.
 
 **El mapa en dos pasos: sí o no, y después el tipo.** El modelo de **borreguil sí o
 no** aprende de **todos los puntos marcados en campo** como borreguil o no
@@ -585,11 +812,11 @@ ambiente.
 
 | Entra como muestra | Con qué categoría |
 |---|---|
-| Un punto con el **tipo revisado** | La que dejó la persona en ese nivel (en **borreguil sí o no**, `borreguil`) |
+| Un punto con **ese nivel del tipo revisado** (los demás niveles pueden estar sin revisar; en un nivel combinado, revisadas sus dos partes) | La que dejó la persona en ese nivel (en **borreguil sí o no**, `borreguil`) |
 | En **borreguil sí o no**, un punto marcado en campo como borreguil (`Borreguil = si`), aunque no tenga el tipo revisado | `borreguil` |
 | Una **ausencia de campo** (`Borreguil = no`), si se incluye | `no borreguil` |
 
-El resto no entra, y se dice por qué: borreguil con el tipo sin revisar, punto sin
+El resto no entra, y se dice por qué: borreguil con ese nivel del tipo sin revisar, punto sin
 etiqueta de campo (lo que diga el modelo no cuenta), dudoso, ausencia de campo que
 además tiene un tipo revisado, o dos muestras en el mismo píxel de 10 m (si
 coinciden en categoría se queda una; si no, se apartan todas). **No se inventan
@@ -607,6 +834,27 @@ que tenga alguna muestra llegue a **5**; con menos de 30 por categoría la app a
 de que el resultado será poco fiable. Con seis categorías es más fácil que alguna
 se quede corta: la app dice cuál y cuántas muestras tiene.
 
+**¿Son bastantes puntos?** En **borreguil sí o no**, debajo del recuento, la app dice
+dónde están tus muestras en la curva de Sierra Nevada. Esa curva se hizo con los 948
+puntos revisados del mapa de Sierra Nevada (315 borreguiles) y este mismo
+procedimiento: se entrenó con 20, 30… hasta 682 puntos elegidos al azar y se midió el
+acierto en zonas que el modelo no había visto, 10 veces para cada número.
+
+| Puntos revisados | Borreguiles | AUC en zonas nuevas | |
+|---|---|---|---|
+| 20 | 7 | 0,896 | por debajo de 50, el acierto cambia mucho según qué puntos sean |
+| 50 | 17 | 0,930 | |
+| **100** | **33** | **0,951** | **mínimo**: a menos de 0,02 del de todos los puntos |
+| **250** | **83** | **0,961** | **recomendado**: a menos de 0,01 |
+| 682 (todos) | 226 | 0,969 | |
+
+Se llega a un nivel con los puntos **y** los borreguiles; si falta algo, la app dice
+cuánto. Es una referencia: en una montaña más variada pueden hacer falta más, y los
+puntos repartidos por toda la zona enseñan más que los concentrados en pocos valles.
+La curva, con su explicación, también está en **📖 Documentación y
+recomendaciones**. El cálculo está en `claude-borreguiles/curva_puntos/` (fuera de la
+app).
+
 > ⚠️ Sin clase `no borreguil`, el modelo solo distingue tipos: cualquier píxel que
 > se le dé recibirá uno de ellos. Por eso, para hacer el mapa con un modelo así, la
 > app exige una **máscara de zonas candidatas** (ver «El mapa», más abajo); por sí
@@ -615,8 +863,8 @@ se quede corta: la app dice cuál y cuántas muestras tiene.
 **¿Qué variables se pueden usar?** Solo las que existen como **mapa continuo**, que
 son las que luego permiten predecir sobre el territorio: 34, calculadas en Earth
 Engine a partir de Sentinel-2 (29) y del modelo de elevaciones (5). Vienen todas
-marcadas y se pueden quitar. Las texturas de la imagen aérea, el radar Sentinel-1 y
-el TWI, que el detector sí usa, no están porque hoy solo se calculan punto a punto.
+marcadas y se pueden quitar. Las texturas de la imagen aérea y el radar Sentinel-1,
+que el detector sí usa, no están porque hoy solo se calculan punto a punto.
 
 Las **estadísticas de junio a septiembre** (media, mínimo, máximo y variabilidad de
 WAVI, albedo, NDMI y NDWI) se calculan **en cada año** y después se hace la **media
@@ -627,18 +875,18 @@ años juntos, el mínimo y el máximo serían los de una sola imagen en nueve ve
 con las diferencias entre años. Una variabilidad necesita al menos dos imágenes
 válidas en el año; si no, ese año no cuenta para ella.
 
-> ℹ️ El **detector** (pestaña **📍 Verdad terreno**) sigue calculando esas mismas
-> estadísticas con todos los años juntos: sus modelos guardados se entrenaron así, y
-> cambiarlo sería darles números distintos de los que aprendieron. Por eso el valor
+> ℹ️ El **detector** (pestaña **📍 Verdad terreno**) calcula sus variables de otra
+> manera, la misma con la que se entrenó el modelo de Sierra Nevada (ver la sección
+> 8): cambiarla sería darle números distintos de los que aprendió. Por eso el valor
 > de, por ejemplo, `albedo_min` de un punto no es el mismo en la tabla del detector
 > que en la tabla de entrenamiento del mapa.
 
 **La tabla de entrenamiento.** El botón **📥 Leer las variables… en Earth Engine**
 lee el valor de cada variable en el **píxel de 10 m** de cada muestra. Es el mismo
 píxel que después se clasificará: por eso no se usan los valores que ya tienen los
-puntos, que son medias en un radio de 25 m. Necesita el nombre de tu proyecto de
-Earth Engine (la app lo recuerda de una vez para otra) y usa los años de Sentinel-2
-del panel lateral. Con 21 muestras y los años 2017-2025 tarda alrededor de un minuto.
+puntos, que son medias de una ventana de 50–60 m alrededor del punto. Usa el
+proyecto de Earth Engine y los años de Sentinel-2 del panel lateral (si allí está
+elegido Planetary Computer, el último proyecto con el que Earth Engine funcionó). Con 21 muestras y los años 2017-2025 tarda alrededor de un minuto.
 
 Lo leído se conserva mientras no cambien los años: añadir muestras solo lee las
 nuevas, y quitar o poner variables no obliga a leer nada. (Si una versión nueva de la
@@ -660,8 +908,14 @@ enseña:
 La tabla se descarga como `tabla_entrenamiento_<nivel>.csv`: una fila por muestra y
 una columna por variable, en el orden exacto que verá el modelo.
 
-**Variables repetidas (VIF).** Al final de **2 · Tabla de entrenamiento** hay una
-opción, desactivada de entrada, para **quitar las variables repetidas con el VIF**.
+**Variables repetidas (VIF o PCA).** En **1 · Datos**, debajo de las variables, está
+la opción **Quitar las variables repetidas**: *No quitar ninguna* (la que viene
+elegida), *Con el VIF* o *Con un PCA*, con sus ajustes y las variables que se quedan
+siempre. Se decide ahí, junto a las variables, pero se calcula en **2 · Tabla de
+entrenamiento**, cuando ya se han leído los valores de las muestras (la lectura trae
+siempre todas las variables).
+
+*Con el VIF.*
 El VIF de una variable dice qué parte de ella se puede adivinar con todas las demás
 juntas: 5 quiere decir el 80 %; 10, el 90 %; infinito, que se obtiene exactamente con
 otras (la caída del NDVI es el NDVI de inicio menos el de fin de verano). Con la
@@ -674,18 +928,45 @@ tabla.
 | Umbral del VIF | Se quitan variables mientras alguna lo pase. Cuanto más bajo, más se quitan | **10**; 5 para quedarte con menos |
 | Variables que se quedan siempre | No se quitan nunca, aunque pasen del umbral (sí cuentan en el VIF de las demás) | **La altitud**, que viene marcada |
 
-La app dice cuántas se quedan y enseña una tabla con cada variable, su VIF y qué
-pasa con ella: se queda, se queda siempre o se quita en tal paso. Desde ahí, el
+En **1 · Datos** dice cuántas se quedan («Con el VIF se quedan 14 de 34») y en
+**2 · Tabla** enseña una tabla con cada variable, su VIF y qué pasa con ella: se
+queda, se queda siempre o se quita en tal paso. Desde ahí, el
 modelo, el mapa y el peso usan **solo las que se quedan**, y la línea de estado lo
 dice: «2 · Tabla · … variables (VIF)». Si hay menos del doble de muestras que
 variables, avisa de que el VIF no es fiable. Con las 161 muestras del ejemplo y las
 34 variables, el umbral 10 deja 14; el 5, 12.
 
-El Random Forest no necesita el VIF para acertar: tolera bien las variables
+*Con un PCA.* El PCA de la matriz de correlación resume las variables en unos pocos
+ejes independientes. De cada eje con valor propio mayor que 1 (criterio de Kaiser) se
+queda **una variable**: entre las que tienen con él una correlación de al menos 0,65
+(en valor absoluto), la que mejor separa las categorías por sí sola (con dos
+categorías, por su AUC; con más, por la F del ANOVA). Las variables que se quedan
+siempre (la altitud) no entran en el PCA y se añaden. **2 · Tabla** enseña cada eje:
+su valor propio, su parte de la varianza, las variables ligadas a él y la que se
+queda; **1 · Datos** dice cuántas se quedan, y la línea de estado, «… variables
+(PCA)».
+
+| Control | Qué es | Recomendado |
+|---|---|---|
+| Correlación mínima con el eje | De cada eje se elige entre las variables que llegan a ella. Más alta, menos candidatas | **0,65** |
+| Variables que se quedan siempre | No entran en el PCA y se añaden | **La altitud** |
+
+Es el procedimiento de la comparación de Sierra Nevada del 22-10-2026
+(`modelo_borreguil_sn2000m_v3/comparacion_variables`), con una diferencia: allí el
+PCA se hizo con 30 000 píxeles de la zona y aquí con las muestras, como el VIF. Con
+las 948 muestras de aquel mapa, la app elige `ndwi_sd`, `albedo_sd` y `albedo_min`
+más la altitud (5 ejes, el 85 % de la varianza); con los píxeles salieron `ndwi_sd`,
+`wavi_sd` y `albedo_sd`. En aquella comparación, el PCA con la altitud (4 variables)
+acertó como el VIF (14): F1 0,861 frente a 0,865 y TSS 0,792 los dos, pero
+cartografió un 38 % más de borreguil (1392 ha frente a 1014). Sin la altitud, el PCA
+acertaba bastante menos (F1 0,768).
+
+El Random Forest no necesita el VIF ni el PCA para acertar: tolera bien las variables
 parecidas. Sirve para tener un modelo más sencillo y un peso de las variables que
 se lea mejor (dos variables que dicen lo mismo se reparten el peso y, sueltas,
 parecen pesar poco). Si con menos variables acierta igual, lo dice la comparación
-del final de **3 · Modelo**.
+del final de **3 · Modelo**, que enseña los modelos entrenados con todas las
+variables, con las del VIF y con las del PCA.
 
 > 💡 `gndvi` no está entre las variables del mapeo: es `ndwi` con el signo cambiado
 > (las dos se calculan con las mismas dos bandas), así que tenerlas ambas sería
@@ -799,7 +1080,7 @@ variables (por ejemplo, con todas y con las que deja el VIF), una tabla los comp
 las variables de cada uno, sus muestras y su **F1 medio** de la validación por zonas.
 El de ahora, el que hace el mapa, va marcado con ▶. Una diferencia de unas
 centésimas puede ser azar: con pocas muestras, una sola cambia la cifra. Para quedarte
-con otro, cambia la opción del VIF en **2 · Tabla de entrenamiento** y vuelve a
+con otro, cambia la opción de las variables repetidas en **1 · Datos** y vuelve a
 entrenar.
 
 **El mapa.** El paso **4 · Mapa** aplica el modelo final a todos los píxeles de
@@ -817,8 +1098,8 @@ a entrenar).
 | **El área de estudio** | Si la ejecución tenía un área de estudio. Solo se clasifica lo que cae dentro |
 | **Todo lo que cubre la máscara** | Si has subido una máscara |
 
-Antes de lanzarlo, la app dice **cuánta superficie es, cuántos bloques y cuánto
-tardará**. Earth Engine sirve unos 6 km² por minuto y no va más deprisa pidiendo
+Antes de lanzarlo, la app dice **cuánta superficie es y cuánto tardará** (y, en
+pequeño, en cuántos trozos se lee). Earth Engine sirve unos 6 km² por minuto y no va más deprisa pidiendo
 varios trozos a la vez, así que conviene **empezar por un rectángulo de 2 × 2 km**
 (un minuto), ver cómo sale y ampliar después. Como orientación: 100 km² son unos
 20 minutos y el Parque Nacional entero, más de dos horas. El máximo de una sola vez
@@ -917,20 +1198,21 @@ antes de hacer el mapa, están las distancias de la regla:
 |---|---|---|
 | Laguna: metros a una laguna de la capa | Distancia al punto de una laguna de la capa de la app (65 lagunas de Sierra Nevada). El punto es el centro de la laguna: sirve sobre todo para las pequeñas, que Sentinel-2 no ve | **120 m**, lo que usa la app al proponer el tipo de un punto |
 | Laguna: metros al agua que ve Sentinel-2 | Distancia a la orilla de una laguna que se ve: píxeles con NDWI medio de verano mayor de 0,05, en terreno casi llano (menos de 15°) y en manchas de 3 o más. Vale en cualquier sitio, aunque no haya capa | **100 m** |
-| Arroyo: metros a un cauce | Distancia a un cauce | **30 m**, lo que usa la app en los puntos. Con cauces del relieve no conviene bajar de ahí |
-| Cauces del relieve: hectáreas que vierten | Si no subes una capa de cauces, salen del relieve: es cauce la celda que recibe el agua de esta superficie o más | **8 ha**. Con menos salen más cauces y más arriba |
-| Capa de cauces propia | Un fichero de líneas (KML, GeoJSON, GeoPackage o shapefile) con los cauces. Si se sube, se usa en lugar de los del relieve | Súbela si tienes una de la que te fíes: es más precisa |
+| Arroyo: metros a un cauce | Distancia a un río o arroyo de OpenStreetMap (o de tu capa de cauces) | **30 m**, lo que usa la app en los puntos |
+| Capa de cauces propia | Un fichero de líneas (KML, GeoJSON, GeoPackage o shapefile) con los cauces. Si se sube, se usa en lugar de los de OpenStreetMap | No subir nada, salvo que tengas una red de cauces de la zona más completa |
 
-De dónde salen los **cauces del relieve**: se rellenan los hoyos del modelo de
-elevaciones (así el agua cruza una laguna y sigue por su desagüe), cada celda vierte a
-su vecina más baja y se cuenta cuánta superficie vierte a cada una. Para contar
-también el agua que entra de fuera, el relieve se lee con **1 km de margen** alrededor
-de la zona (una sola variable: son unos segundos).
+De dónde salen los **cauces**: son los **ríos y arroyos de OpenStreetMap**, los mismos
+que usa la app para el tipo de los puntos (`waterway` = `river` o `stream`; no
+cuentan las acequias, los canales ni las fuentes). Los de Sierra Nevada van con la
+app; en otras zonas se descargan al hacer el mapa, con unos 5 km de margen alrededor.
+Si OpenStreetMap no responde, los cauces se deducen del relieve, como se hacía antes
+del 24-11-2026 (es cauce la celda que recibe el agua de 8 ha o más), y el mapa lo
+dice debajo. Esos cauces del relieve son una aproximación: van en escalera y a veces
+se separan de la vaguada.
 
 Qué fiabilidad tiene. La laguna es lo más seguro: sale solo junto a una laguna de la
-capa o al agua que se ve. Los cauces del relieve son una **aproximación**: el relieve
-tiene 30 m de detalle, así que sitúa bien las vaguadas, no el hilo de agua, y en
-terreno llano puede errar. Por eso el mapa lleva una capa, **Lagunas y cauces**, con
+capa o al agua que se ve. Los cauces son los que hay dibujados en OpenStreetMap: en
+Sierra Nevada están bien, pero un arroyo que no esté dibujado no cuenta. Por eso el mapa lleva una capa, **Lagunas y cauces**, con
 lo que se ha tomado por laguna y por cauce: si ahí falta una laguna o sobra un cauce,
 el ambiente de alrededor saldrá mal. Todo lo que no queda cerca de una laguna ni de un
 cauce es **ladera**, también lo que el modelo dé por borreguil sin serlo.
@@ -1047,7 +1329,8 @@ segundos) y aquí solo se consulta. Se mide de dos maneras:
 Por ejemplo: si el F1 medio de la validación es 0.65 y una variable tiene 0.04, con
 esa variable desordenada el F1 se queda en 0.61. En los artículos, y en R, las dos
 medidas suelen llamarse *MeanDecreaseAccuracy* (aquí con el F1 medio, que trata igual
-a todas las categorías) y *MeanDecreaseGini*.
+a todas las categorías) y *MeanDecreaseGini*. La app no usa esos nombres: dice «lo que
+pierde el modelo sin ella» y «uso interno».
 
 Qué enseña la pestaña:
 
@@ -1083,59 +1366,76 @@ Cómo leerlo, y con qué cuidado:
 
 **La app no quita ninguna variable por su cuenta.** Para probar sin una, desmárcala
 en **1 · Datos** (no hay que volver a leer nada en Earth Engine), entrena otra vez y
-compara el F1 medio. Para quitar de golpe las repetidas está la opción del VIF, en
-**2 · Tabla de entrenamiento**, que tampoco viene activada. Las cifras son repetibles: mismos datos, mismos parámetros y
+compara el F1 medio. Para quitar de golpe las repetidas está la opción del VIF o
+del PCA, en **1 · Datos**, que tampoco viene activada. Las cifras son repetibles: mismos datos, mismos parámetros y
 misma semilla dan los mismos pesos.
 
 ---
 
-## 11. Entrenar un modelo propio
+## 11. Sumar tus puntos al modelo
 
-El modelo incluido aprendió en Sierra Nevada. En tu zona mejorará bastante si le
-das ejemplos locales.
+El modelo incluido aprendió en Sierra Nevada, con **769 puntos de campo** (372
+borreguiles y 397 no; además hay 27 dudosos que no entrenan). Su tabla de
+entrenamiento va con la app (`entrenamiento_sierra_nevada.csv`: coordenadas,
+etiqueta, cuenca y variables).
 
-### Requisitos
-| | Mínimo | Recomendado |
-|---|---|---|
-| Borreguiles confirmados | 30 | **80–150** |
-| Ausencias | 0 (se generan) | 30+ |
+**Por defecto la app usa el modelo tal cual**, aunque tus puntos traigan etiquetas
+de campo, y con ellas te dice cuántas acierta. Con la casilla **Sumar mis puntos a los del modelo y reentrenarlo** (panel,
+«Modelo de partida»), en cambio, **vuelve a entrenarlo con sus 769 puntos MÁS los
+tuyos**: un solo modelo con todos los puntos, no dos modelos aparte.
 
-Con menos de 30 positivos el programa avisa y sigue con el modelo preentrenado.
+### Qué puntos tuyos se suman
+Todos los que dicen si hay borreguil o no:
+- los de tu fichero de campo (o tus puntos con etiqueta);
+- los que verificas en **Revisar puntos** (borreguil o no borreguil verificado);
+- los que añades **pinchando en el mapa** (pestaña Mapa de los puntos, «➕ Añadir puntos…»).
+
+No se suman los dudosos. Si uno de tus puntos está en el mismo sitio (a menos de
+15 m) que uno de los de Sierra Nevada, cuenta el tuyo. Con la casilla, el modelo se
+reentrena al ejecutar y al verificar o añadir puntos, sin volver a ejecutar; tarda
+unos segundos. No hay pseudo-ausencias: las ausencias que
+faltan las ponen los 397 no borreguiles de Sierra Nevada.
+
+### Cuánto acierta con tus puntos de campo
+Si tus puntos traen etiquetas de campo (o has verificado puntos desde la tabla), el
+recuadro **🧭 Modelo usado**, debajo de los resultados, dice:
+
+| | Borreguiles de campo acertados | Ausencias de campo acertadas | AUC |
+|---|---|---|---|
+| Modelo de Sierra Nevada, sin tus puntos | 18 de 25 | 12 de 15 | 0,82 |
+| Sumando tus puntos (validación por zonas) ✓ | 21 de 25 | 13 de 15 | 0,88 |
+
+- La primera fila es el modelo tal cual; la segunda, solo con la casilla.
+- Un borreguil de campo está **acertado** si el modelo lo da por probable o posible
+  (con el umbral en uso); una ausencia, si no lo da por borreguil.
+- El **AUC** sale con 5 borreguiles y 5 ausencias o más.
+- Sumando tus puntos, el acierto **no hace trampa**: cada grupo de tus puntos (por
+  cuenca, o por cuadrados de unos 5 km) se predice con un modelo que no ha visto ni
+  esos puntos ni los de Sierra Nevada a menos de 500 m de ellos. Si todos tus puntos
+  están en la misma zona, no se puede medir así, y la app lo dice.
+- Solo cuenta lo que ha dicho una persona: no los dudosos.
+- Si tus puntos son de los que entrenaron el modelo de Sierra Nevada, su acierto en
+  la primera fila sale más alto de lo real.
 
 ### Procedimiento
-1. Marca borreguiles confirmados (campo o fotointerpretación).
-2. Guárdalos en KML/GeoJSON (ver [§5](#5-formato-de-los-ficheros-de-entrada)).
-3. Súbelos en **Opcional: verdad-terreno**.
-4. Ejecuta. Verás *«Modo: entrenado con tu verdad-terreno»*.
-5. En resultados, **💾 Guardar el modelo entrenado** con el nombre de tu espacio.
-6. Quedará disponible en «Modelo de partida» para las siguientes sesiones.
+1. Marca borreguiles confirmados y, si puedes, ausencias (campo o
+   fotointerpretación). Usa la [plantilla de datos de campo](#plantilla-de-datos-de-campo).
+2. Súbelos en **Opcional: puntos de campo para comprobar el modelo** (o en **Tus
+   puntos**, con etiqueta),
+   verifícalos en «Revisar puntos» o añádelos pinchando en el mapa.
+3. Marca **Sumar mis puntos a los del modelo y reentrenarlo** en el panel.
+4. En **🧭 Modelo usado** verás con cuántos puntos se ha entrenado (los de Sierra
+   Nevada y los tuyos) y cuánto acierta en los tuyos.
+5. Si quieres reutilizarlo, en resultados, **💾 Guardar el modelo entrenado** con el
+   nombre de tu espacio. Quedará disponible en «Modelo de partida» para las
+   siguientes sesiones.
 
-### Cómo entrena (presence-only)
-- **Positivos**: tus puntos `si`.
-- **Negativos**: candidatos sin etiqueta a **más de 250 m** de cualquier positivo
-  (pseudo-ausencias) más los marcados `no`.
-- **Excluidos**: candidatos a menos de 250 m de un positivo (ambiguos).
-- **Validación**: GroupKFold espacial por cuenca cuando hay grupos suficientes.
-
-### Evaluación recursiva (auto-entrenamiento)
-En cada iteración, los puntos que superan el **umbral de promoción** se convierten
-en verdad-terreno y el modelo se recalibra.
-
-- *Añadir*: el conjunto de positivos crece acumulativamente.
-- *Reemplazar*: se recalculan desde el último modelo, conservando tus verificados.
-
-**Lo que tú has etiquetado no se toca.** Una ausencia de campo (`Borreguil = no`)
-sigue entrenando como ausencia y un punto dudoso (`Duda = si`) sigue fuera del
-entrenamiento, y ninguno de los dos se promueve aunque el modelo le dé una
-probabilidad alta. Solo se promueven candidatos sin etiqueta de campo. Si marcas a
-mano un punto dudoso como *borreguil verificado*, la duda queda resuelta y el punto
-pasa a entrenar como positivo.
-
-Los puntos promovidos aparecen como `BORREGUIL (auto)`. En `puntos.geojson` **no**
-se guardan como verdad-terreno: al recargar el fichero solo vuelve como tal lo que
-verificó una persona.
-
-> ⚠️ Un umbral de promoción bajo propaga errores. Mantenlo **alto** (≥ 0,8).
+### Cómo entrena
+- **Puntos**: los 769 de Sierra Nevada (sin los que coinciden con tuyos) y los tuyos
+  con etiqueta.
+- **Variables**: las del modelo elegido (27, o 32 con el `_cir`).
+- **Parámetros**: los mismos con los que se entrenó el de Sierra Nevada (400
+  árboles, profundidad 12, clases equilibradas).
 
 ---
 
@@ -1149,9 +1449,9 @@ Tiempos orientativos para **150 puntos**:
 | GEE completo | 5-15 min |
 | Planetary Computer completo | 20-45 min |
 
-**Qué es lento y por qué**: las imágenes (ESRI/PNOA), Sentinel-1 y CIR/Planet se
-descargan **punto a punto en tu ordenador**, aunque uses GEE. Sentinel-2 y la
-topografía sí se calculan en los servidores de Google.
+**Qué es lento y por qué**: las imágenes (ESRI/PNOA) y CIR/Planet se descargan
+**punto a punto en tu ordenador**, aunque uses GEE. Sentinel-2, el radar
+(Sentinel-1) y la topografía se calculan en los servidores de Google.
 
 **Para acelerar**: usa GEE, marca **⚡ Modo rápido** para iterar, reduce el número
 de puntos y acota los años de Sentinel-2.
@@ -1168,10 +1468,11 @@ de puntos y acota los años de Sentinel-2.
 | El navegador no abre | — | Ir a **http://localhost:8501**. |
 | Muy lento | Backend MPC | Cambiar a GEE y/o **⚡ Modo rápido**. |
 | Error de autenticación GEE | Proyecto mal escrito o alta pendiente | Revisar `ee-tunombre` y volver a autenticar. |
-| Faltan texturas / SAR | **⚡ Modo rápido** activo | Desmarcarlo. |
+| Faltan texturas | **⚡ Modo rápido** activo | Desmarcarlo. |
+| El radar sale «omitida» | Backend Planetary Computer | El radar solo se lee con GEE. |
 | Histograma en una sola masa | El modelo no discrimina en esa zona | Aportar verdad-terreno local. |
 | No se puede resolver el WDPA ID | ID fuera del caché | Usar token de Protected Planet, backend GEE, o buscar por nombre. |
-| Overpass/OSM falla | Servicio caído | Desmarcar **Usar OSM** y reintentar. |
+| «No se han podido leer los ríos y arroyos de OpenStreetMap» | Fuera de Sierra Nevada, el servicio Overpass no responde | El análisis sigue, con «arroyo» por la pendiente. Repetirlo más tarde. |
 | No aparece mi modelo guardado | Guardado en otra carpeta | Comprobar `~/Borreguil` (ver [§3](#3-dónde-se-guardan-tus-datos)). |
 
 Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
@@ -1184,7 +1485,8 @@ Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
 - **Sesgo geográfico**: el modelo se entrenó en Sierra Nevada. Fuera de macizos
   comparables su fiabilidad baja; conviene verdad-terreno local.
 - **Resolución**: a 10 m, un borreguil menor de ~100 m² no se distingue con
-  fiabilidad. La *pureza* del píxel es relativa, no absoluta ([§10](#10-clasificación-jerárquica-del-tipo)).
+  fiabilidad. La *pureza* del píxel es una estimación con el NDVI: acierta en unos
+  8 de cada 10 borreguiles y ve mal el agua ([§10](#10-clasificación-jerárquica-del-tipo)).
 - **La altitud pesa mucho** y su rango absoluto cambia entre cordilleras.
 - **Dependencia de servicios externos**: Earth Engine, Planetary Computer, OSM e
   IGN pueden fallar o cambiar.
@@ -1196,9 +1498,17 @@ Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
 
 ## Créditos y cita
 
+**Manual en línea y sugerencias.** La [wiki del repositorio](https://github.com/Bea-Cazorla/borreguil-detector/wiki),
+en español e inglés, resume cómo usar la app. Para proponer un cambio o avisar de un
+fallo, usa el botón **💬 Sugerir un cambio o informar de un error**, al final del panel
+lateral y de la pestaña de Documentación: abre una *issue* en GitHub con la versión ya
+puesta. No pegues coordenadas de borreguiles: son un hábitat sensible.
+
 Si usas este programa en un trabajo científico, cítalo mediante el **DOI** de la
 versión utilizada (ver `CITATION.cff` y la página de Zenodo del repositorio).
 
 **Datos**: Copernicus Sentinel-1 y Sentinel-2 (ESA), Copernicus DEM,
 Microsoft Planetary Computer, Google Earth Engine, OpenStreetMap, PNOA/IGN,
-ESRI World Imagery, Protected Planet (WDPA).
+ESRI World Imagery, Protected Planet (WDPA). Los ríos y arroyos de
+`cauces_sierra_nevada.geojson` son © colaboradores de OpenStreetMap, con licencia
+ODbL (openstreetmap.org/copyright).

@@ -12,8 +12,8 @@ backends posibles:
   nube de Google (rápido, sin descargas).
 
 Un **Random Forest preentrenado en Sierra Nevada** (796 puntos verificados en
-campo; AUC con validación espacial por cuencas = **0,83** el modelo universal y
-**0,93** la variante con ortofoto infrarroja) sirve como modelo por defecto, y
+campo; AUC con validación espacial por cuencas = **0,847** el modelo universal y
+**0,945** la variante con ortofoto infrarroja) sirve como modelo por defecto, y
 puede **reentrenarse con tus propios puntos de campo** (modo *presence-only*:
 solo necesitas las coordenadas de borreguiles confirmados).
 
@@ -57,7 +57,7 @@ Se abre en `http://localhost:8501`.
 ## Cómo se usa
 
 1. **Origen de los puntos**:
-   - Subir un KML/Shapefile/GeoJSON con puntos candidatos, **o**
+   - Subir un KML/Shapefile/GeoJSON/CSV con tus puntos, **o**
    - Generar puntos aleatorios dentro del área de estudio.
 2. **Área de estudio** (recomendado), por tres vías:
    - **Subir un vector**: un único **KML / GeoJSON / GeoPackage**, o un
@@ -77,43 +77,18 @@ Se abre en `http://localhost:8501`.
    pseudo-ausencias.
 5. **Ejecutar** → mapa interactivo + tabla + descargas (CSV / Excel / mapa HTML).
 
-## Evaluación recursiva (auto-entrenamiento)
-
-Tras la primera estimación, en el panel **🔁 Evaluación recursiva** puedes
-refinar el modelo de forma iterativa (técnica de *self-training*):
-
-1. Los puntos de **posible borreguil** (probabilidad RF ≥ umbral de promoción,
-   por defecto 0,70) se convierten en verdad-terreno.
-2. Se **recalibra** el Random Forest y se vuelve a predecir sobre el resto.
-3. Eliges cómo incorporarlos:
-   - **Añadir (acumular)**: el conjunto de positivos crece en cada iteración.
-   - **Reemplazar (refrescar)**: se recalculan los pseudo-positivos desde el
-     último modelo, manteniendo siempre tus puntos verificados de campo.
-4. Se muestra el **historial de iteraciones** (positivos usados, nuevos
-   hallados, AUC) y, si una iteración no encuentra nuevos borreguiles, avisa de
-   **convergencia**. Puedes lanzar tantas iteraciones como quieras.
-
-Los nuevos borreguiles descubiertos automáticamente aparecen en el mapa en
-**verde azulado** (categoría `BORREGUIL (auto)`), distinguibles de los
-verificados en campo (verde oscuro).
-
-Las etiquetas de campo no se tocan: una **ausencia** (`Borreguil = no`) o un punto
-**dudoso** (`Duda = si`) no se promueven ni se borran, por alta que sea la
-probabilidad que les dé el modelo.
-
 ## Inspeccionar puntos y aportar verdad-terreno (aprendizaje activo)
 
-En la pestaña **Tabla**, **selecciona una o varias filas** (casillas a la izquierda):
+En la pestaña **Revisar puntos**, **selecciona una o varias filas** (casillas a la izquierda):
 - la **primera** seleccionada centra el mapa principal, abre un **mini-mapa con
-  zoom** sobre el punto y muestra su **imagen ESRI**, métricas (altitud, slope,
-  TWI, NDVI, Clre, EVI, patrón) y un enlace a Google Maps;
+  zoom** sobre el punto y muestra su **imagen ESRI**, las variables que más pesan
+  en el modelo, la altitud y la pendiente, y un enlace a Google Maps;
 - con una o varias seleccionadas, el botón **«✓ Marcar como borreguil verificado
   y reentrenar»** las añade a la verdad-terreno y **recalibra el modelo al
   instante** (las features ya están calculadas).
 
-Así puedes hacer **tantas iteraciones como quieras** combinando dos vías:
-auto-promoción (panel recursivo) y confirmación manual de puntos en la tabla.
-Cada confirmación mejora el modelo en tu zona.
+Con la casilla **«Sumar mis puntos a los del modelo y reentrenarlo»** marcada,
+cada confirmación se suma a los puntos del modelo y lo mejora en tu zona.
 
 Con borreguiles seleccionados aparece además el panel **«🌿 Revisar el tipo de
 borreguil»**: la app propone ambiente, humedad y pureza por reglas, y aquí una
@@ -126,9 +101,8 @@ en otra sesión. Detalles en el [manual](MANUAL.md#10-clasificación-jerárquica
 - **Modelo de partida** (sidebar): un desplegable lista todos los modelos `.joblib`
   de la carpeta de la app (empezando por `rf_sierra_nevada.joblib`). El elegido
   se usa para predecir cuando no hay verdad-terreno local suficiente.
-- **Guardar el modelo entrenado**: en el panel **🔁 Evaluación recursiva**, cuando
-  el modelo se ha entrenado con verdad-terreno local, aparece la opción de
-  guardarlo. El fichero se llama **`rf_<nombre del área protegida>.joblib`** (p. ej.
+- **Guardar el modelo entrenado**: en la pestaña de resultados, cuando el modelo
+  se ha reentrenado con tus puntos, aparece **«💾 Guardar el modelo reentrenado»**. El fichero se llama **`rf_<nombre del área protegida>.joblib`** (p. ej.
   `rf_parque_nacional_picos_de_europa.joblib`), donde el nombre se deriva
   automáticamente del área de estudio.
 
@@ -182,7 +156,7 @@ Genera puntos aleatorios y usa el modelo Sierra Nevada:
 | Archivo | Función |
 |---|---|
 | `app.py` | Interfaz Streamlit |
-| `borreguil_pipeline.py` | Pipeline (ESRI, OSM, DEM, S2, Random Forest) |
+| `borreguil_pipeline.py` | Pipeline (ESRI, ríos y arroyos de OSM, DEM, S2, Random Forest) |
 | `gee_backend.py` | Backend Google Earth Engine |
 | `study_area.py` | Resolución de área (vector / WDPA / nombre) |
 | `random_points.py` | Generación de puntos aleatorios |
@@ -201,8 +175,10 @@ y la configuración de Earth Engine con service account.
   Recomendado para deploy: **GEE** (cómputo en la nube, app ligera).
 - El periodo Sentinel-2 por defecto es **2017-2025** (más robusto frente a
   nubes y variabilidad interanual).
-- OSM (hidrografía/infraestructuras) está **desactivado por defecto** porque
-  el servicio Overpass es inestable; actívalo con la casilla si lo necesitas.
+- Los **ríos y arroyos de OpenStreetMap** (para el ambiente «arroyo») de Sierra
+  Nevada van con la app (`cauces_sierra_nevada.geojson`, © colaboradores de
+  OpenStreetMap, ODbL); en otras zonas se descargan del servicio Overpass al
+  analizar, y si falla, «arroyo» se decide por la pendiente.
 
 ## Cómo citar
 

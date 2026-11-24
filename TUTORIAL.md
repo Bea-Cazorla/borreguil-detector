@@ -189,7 +189,7 @@ deja **Microsoft Planetary Computer** y ármate de paciencia.
 
 ### Paso 5 · Modelo
 
-En **Modelo de partida** deja `rf_sierra_nevada.joblib` (universal, 50 variables).
+En **Modelo de partida** deja `rf_sierra_nevada.joblib` (universal, 27 variables).
 
 > En España peninsular con cobertura infrarroja (Andalucía, Cataluña, Canarias),
 > `rf_sierra_nevada_cir.joblib` es **más preciso**.
@@ -227,7 +227,7 @@ fila de arriba hay otra pestaña, **🌿 Mapa Modelo RF**: es un trabajo posteri
 que lleva de los puntos con el tipo revisado a un mapa de tipos; lo explica el
 manual.)
 
-### 🗺️ Mapa
+### Mapa de los puntos
 
 Cada punto es un candidato, coloreado por su decisión:
 
@@ -242,28 +242,35 @@ Cada punto es un candidato, coloreado por su decisión:
 Haz **clic en un punto** para ver su ficha y poder **quitarlo** del análisis.
 La **leyenda** está abajo a la izquierda.
 
-### 📋 Tabla
+### Revisar puntos
 
 Todos los puntos con sus coordenadas, probabilidad y variables. Al seleccionar una
-fila, el mapa se centra en ese punto y se despliega su **📈 perfil espectral**,
-que compara el punto con el rango típico de un borreguil variable a variable.
+fila, el mapa se centra en ese punto y se despliega su ficha: el valor de las
+variables que más pesan y la gráfica **📈 Este punto frente a los borreguiles
+verdaderos**, que dice en cada una dónde cae el punto entre los borreguiles con los
+que se entrenó el modelo.
 
 Si el punto es un borreguil, aparece el panel **🌿 Revisar el tipo de borreguil**:
 la app propone ambiente, humedad y pureza, y tú los confirmas o corriges mirando la
 ortofoto del mapa de debajo (el recuadro amarillo es el píxel de 10 m del punto).
 Pulsa **✓ Guardar tipo revisado** y el punto queda marcado como revisado.
 
-### 📊 Histograma RF
+Encima de las pestañas puedes poner **quién revisa** y su **perfil** (estudiante,
+gestor/a o investigador/a). Al marcar un punto como borreguil o no borreguil
+verificado, indica también la **certidumbre** (alta, media o baja). Todo se guarda en
+el punto y sale en las descargas.
+
+### Probabilidades
 
 Reparto de probabilidades. **Lo ideal son dos "montañas"** separadas: una baja
 (no-borreguiles) y otra alta (borreguiles). Si sale una sola masa central, el
 modelo no está distinguiendo bien en esa zona.
 
-### 🔑 Variables
+### Peso de las variables
 
 Qué pesa más en la decisión del modelo. Léelo de arriba abajo.
 
-### 📊 Distribuciones
+### Tipos y distribuciones
 
 Cajas y bigotes por variable, y la **clasificación jerárquica del tipo de
 borreguil**:
@@ -272,11 +279,12 @@ borreguil**:
 - **Humedad**: húmedo · seco
 - **Pureza**: puro · mixto-agua · mixto-roca
 
-> La *pureza* es **relativa** a los borreguiles detectados en esa ejecución: marca
-> como mixtos el ~15 % con más firma de agua o de roca. A 10 m de resolución no se
-> puede medir la fracción real dentro del píxel.
+> La *pureza* se propone como en el mapa: cuánto verde hay en el píxel de 10 m del
+> punto, según su NDVI de inicio de verano. Es **puro** si llega al 75 %; si no,
+> **mixto-agua** si el píxel es agua o toca agua, y **mixto-roca** si no. Necesita
+> Earth Engine; sin él, la pureza se queda sin propuesta (—).
 
-### 💾 Descargas
+### Descargas
 
 Excel, CSV, GeoJSON de los puntos y mapa HTML.
 
@@ -290,7 +298,7 @@ Excel, CSV, GeoJSON de los puntos y mapa HTML.
    enviarlo a alguien.
 
 > 💡 `puntos.geojson` guarda lo que has hecho a mano: los puntos verificados y los
-> tipos revisados. Para seguir otro día, cárgalo como *puntos candidatos* al
+> tipos revisados. Para seguir otro día, cárgalo en *Tus puntos* al
 > empezar y no tendrás que repetirlo.
 
 Tus modelos entrenados y las salidas se guardan en:
@@ -312,16 +320,11 @@ El modelo incluido aprendió en Sierra Nevada. En otras montañas funciona, pero
 1. Sal al campo (o fotointerpreta) y marca **borreguiles confirmados**.
 2. Guárdalos como KML o GeoJSON — **no hace falta ningún atributo**: cada punto se
    asume borreguil.
-3. Súbelos en **Opcional: verdad-terreno**.
+3. Súbelos en **Opcional: puntos de campo para comprobar el modelo**.
 4. Ejecuta de nuevo. Con **≥ 30** borreguiles (ideal 80–150) el programa entrena un
    modelo **propio de tu zona**.
 5. Guárdalo desde el panel de resultados: aparecerá en «Modelo de partida» para
    futuras sesiones.
-
-### Descubrir borreguiles progresivamente
-
-En **🔁 Evaluación recursiva**, los puntos muy probables se van convirtiendo en
-ejemplos de entrenamiento y el modelo se recalibra en cada vuelta.
 
 ---
 
@@ -335,7 +338,8 @@ ejemplos de entrenamiento y el modelo se recalibra en cada vuelta.
 | **Solo detecta 1 o 2 puntos** | Casi seguro tienes el umbral en **Manual**. Cámbialo a **Otsu**. |
 | Va lentísimo | Usa **GEE** en vez de MPC y marca **⚡ Modo rápido**. |
 | Error de Earth Engine | Revisa el identificador del proyecto y vuelve a **🔑 Autenticar GEE**. |
-| No aparecen texturas ni SAR | Es normal con **⚡ Modo rápido**: desmárcalo. |
+| No aparecen texturas | Es normal con **⚡ Modo rápido**: desmárcalo. |
+| El radar (Sentinel-1) sale «omitida» | Solo se lee con **GEE**; con Planetary Computer la app usa sola la versión del modelo sin radar. |
 
 ¿Sigue sin funcionar? Abre una *issue* en el repositorio indicando tu sistema
 operativo y **copiando el texto de la ventana de consola**.

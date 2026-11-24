@@ -185,7 +185,7 @@ def test_en_el_nivel_si_no_cuenta_lo_dicho_en_campo_aunque_no_haya_tipo():
 def test_sin_muestras_o_con_una_sola_categoria_no_se_puede_seguir():
     res = mr.muestras([punto(0), punto(1)], 'humedad', es_borreguil=es_borreguil)
     assert not res['listo'] and res['errores'] == [('pocas_categorias', 0)]
-    assert 'pestaña Tabla' in mr.mensaje(res['errores'][0])
+    assert 'pestaña Revisar puntos' in mr.mensaje(res['errores'][0])
     assert res['avisos'] == []               # sin muestras, sobran los demás avisos
     rows = [revisado(i, humedad='seco') for i in range(6)]
     res = mr.muestras(rows, 'humedad', es_borreguil=es_borreguil)
@@ -319,6 +319,35 @@ def test_mensajes_en_ingles_con_la_categoria_traducida():
         '«húmedo» tiene 1 muestra; el mínimo es 5.'
     assert '"lake"' in mr.mensaje(('categoria_sin_muestras', 'laguna'), en=True, traduce=tr)
     assert 'at least two' in mr.mensaje(('pocas_categorias', 1), en=True)
+
+
+def test_sin_muestras_en_si_o_no_no_pide_revisar_el_tipo():
+    # (24-11-2026) en «Borreguil sí o no» basta con borreguiles y no borreguiles
+    # verificados: el mensaje no habla del tipo
+    rows = [punto(0), punto(1)]
+    res = mr.muestras(rows, mr.NIVEL_SI_NO, es_borreguil=es_borreguil)
+    assert res['errores'] == [('pocas_categorias', 0)]
+    txt = mr.mensaje(res['errores'][0], nivel=mr.NIVEL_SI_NO)
+    assert 'verificado' in txt and 'pinchando en el mapa' in txt and 'tipo' not in txt
+    assert 'verified' in mr.mensaje(res['errores'][0], en=True, nivel=mr.NIVEL_SI_NO)
+    # en un nivel del tipo, sigue pidiendo revisar el tipo
+    assert 'Revisa el tipo' in mr.mensaje(('pocas_categorias', 0), nivel='humedad')
+
+
+def test_mensaje_de_calidad_con_nombres_legibles_y_coma():
+    nombre = {'ndmi_late': 'NDMI humedad fin', 'ndmi_mean': 'NDMI media'}.get
+
+    def coma(v, signo=False):
+        return (f'{v:+.3f}' if signo else f'{v:.3f}').replace('.', ',')
+
+    item = ('correlacion', 'ndmi_late', 'ndmi_mean', 0.9876)
+    assert mr.mensaje_calidad(item, nombre=nombre, num=coma) == \
+        '«NDMI humedad fin» y «NDMI media» van juntas (r = +0,988).'
+    # sin ellos, como antes: el código y el punto
+    assert mr.mensaje_calidad(item) == '«ndmi_late» y «ndmi_mean» van juntas (r = +0.988).'
+    # en los hallazgos de números, los números no se tocan
+    assert mr.mensaje_calidad(('mas_variables_que_muestras', 5, 9), nombre=nombre) == \
+        'Hay más variables (9) que muestras (5).'
 
 
 # ------------------------------------------------------------- exportación

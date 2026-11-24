@@ -1,0 +1,46 @@
+name: Report an error / Informar de un error
+description: Something of the app does not work as it should / Algo de la app no funciona como debería
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. You can paste or drag screenshots in the boxes below. Please do not paste the
+        coordinates of borreguiles: they are a sensitive habitat.
+
+        Gracias. Puedes pegar o arrastrar pantallazos en los cuadros de abajo. Por favor, no
+        pegues coordenadas de borreguiles: son un hábitat sensible.
+  - type: input
+    id: version
+    attributes:
+      label: Version / Versión
+      description: If you know it / Si la sabes
+  - type: dropdown
+    id: system
+    attributes:
+      label: Operating system / Sistema operativo
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other / Otro
+  - type: dropdown
+    id: source
+    attributes:
+      label: Satellite data source / Fuente de datos satelitales
+      options:
+        - Google Earth Engine
+        - Microsoft Planetary Computer
+        - I don't know / No lo sé
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened / Qué pasó
+      description: The message you saw, the text of the console window and screenshots / El mensaje que viste, el texto de la ventana de consola y pantallazos
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to repeat it / Cómo repetirlo
+      description: Which tab and step, and which options / Qué pestaña y paso, y qué opciones

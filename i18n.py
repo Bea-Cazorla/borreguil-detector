@@ -101,7 +101,6 @@ VALORES = {
     'NO BORREGUIL VERIFICADO': 'VERIFIED NON-BORREGUIL',
     'BORREGUIL PROBABLE': 'LIKELY BORREGUIL',
     'POSIBLE BORREGUIL': 'POSSIBLE BORREGUIL',
-    'BORREGUIL (auto)': 'BORREGUIL (auto)',
     'NO BORREGUIL': 'NOT A BORREGUIL',
     'INCIERTO': 'UNCERTAIN',
     'DUDOSO (campo)': 'DOUBTFUL (field)',
@@ -116,10 +115,9 @@ VALORES = {
     'mixto-agua': 'mixed-water',
     'mixto-roca': 'mixed-rock',
     # etiquetas de la leyenda del mapa
-    'Verificado (campo)': 'Verified (field)',
+    'Verificado': 'Verified',
     'Probable': 'Likely',
     'Posible': 'Possible',
-    'Auto (iteración)': 'Auto (iteration)',
     'Dudoso': 'Doubtful',
     'Incierto': 'Uncertain',
     'No borreguil': 'Not a borreguil',
@@ -144,7 +142,7 @@ COLUMNAS = {
     'mat_signature': 'pattern',
     'elev_dem_m': 'elevation_m',
     'slope_deg': 'slope_deg',
-    'dist_water_m': 'dist_water_m',
+    'dist_cauce_m': 'dist_stream_m',
 }
 
 
@@ -161,6 +159,20 @@ def tv(valor):
     if ' · ' in valor:
         return ' · '.join(VALORES.get(p.strip(), p.strip()) for p in valor.split(' · '))
     return valor
+
+
+def frase(texto):
+    """Texto normal en lugar de mayúsculas: «BORREGUIL VERIFICADO» → «Borreguil
+    verificado». Solo para verlo; el valor guardado no cambia."""
+    if not isinstance(texto, str) or not texto:
+        return texto
+    return texto[:1].upper() + texto[1:].lower()
+
+
+def tv_decision(valor):
+    """La decisión de un punto, traducida y en texto normal, para mostrarla. En los
+    puntos y las descargas sigue en mayúsculas: la app la lee así."""
+    return frase(tv(valor))
 
 
 def tcol(nombre):
@@ -191,8 +203,6 @@ EN = {
     "Decide con la ortofoto o con datos de campo, no por lo que propone la app. **Ambiente**: dónde está el prado (junto a un arroyo, junto a una laguna o en ladera). **Humedad**: aplica siempre el mismo criterio a todos los puntos. **Pureza**: «mixto-agua» si hay agua dentro del píxel de 10 m, «mixto-roca» si hay roca o suelo desnudo, «puro» si todo es prado. Deja «(sin cambio)» para confirmar la propuesta.":
         "Decide from the orthophoto or from field data, not from what the app proposes. **Environment**: where the meadow sits (by a stream, by a lake, or on a slope). **Moisture**: apply the same criterion to every point. **Purity**: «mixed-water» if there is water inside the 10 m pixel, «mixed-rock» if there is rock or bare soil, «pure» if it is all meadow. Leave «(no change)» to confirm the proposal.",
     "🌿 Borreguil / Wet Meadow Pipeline": "🌿 Borreguil / Wet Meadow Pipeline",
-    "Identificación automática de borreguiles en zonas de montaña — ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. [Documentación metodológica](Metodologia_borreguiles.docx)":
-        "Automatic detection of borreguiles (high-mountain wet meadows) — ESRI + OSM + Copernicus DEM + Sentinel-2 (MPC) + Random Forest. [Methodology documentation](Metodologia_borreguiles.docx)",
     "📍  Verdad terreno": "📍  Ground truth",
     "🌿  Mapa Modelo RF": "🌿  RF model map",
     "📖  Documentación y recomendaciones": "📖  Documentation & recommendations",
@@ -200,8 +210,8 @@ EN = {
     "Esta herramienta identifica **borreguiles** (cervunales higroturbosos / *mountain wet meadows*) combinando teledetección multi-fuente con un clasificador Random Forest, validado de forma **honesta** (GroupKFold por cuenca: entrena en unas cuencas y evalúa en otras nunca vistas).":
         "This tool identifies **borreguiles** (high-mountain peaty wet meadows / *mountain wet meadows*) by combining multi-source remote sensing with a Random Forest classifier, validated **honestly** (basin GroupKFold: trains on some basins and evaluates on others never seen).",
     "### 🧭 ¿Qué modelo elegir?": "### 🧭 Which model to choose?",
-    "Todos los modelos parten de las **mismas 50 variables base** (imagen aérea + topografía + Sentinel-2 + Sentinel-1). Las variantes añaden una fuente de **muy alta resolución** que sube el AUC. **La app extrae automáticamente la fuente extra** que el modelo elegido necesite — tú solo eliges el modelo.":
-        "All models start from the **same 50 base variables** (aerial imagery + topography + Sentinel-2 + Sentinel-1). The variants add a **very-high-resolution** source that raises the AUC. **The app automatically extracts the extra source** the chosen model needs — you only pick the model.",
+    "Todos los modelos parten de las **mismas variables base** (imagen aérea + topografía + Sentinel-2 + Sentinel-1); de cada grupo de variables que dicen lo mismo usan una sola (27 en el modelo base). Las variantes añaden una fuente de **muy alta resolución** que sube el AUC. **La app extrae automáticamente la fuente extra** que el modelo elegido necesite — tú solo eliges el modelo.":
+        "All models start from the **same base variables** (aerial imagery + topography + Sentinel-2 + Sentinel-1); from each group of variables that say the same they use only one (27 in the base model). The variants add a **very-high-resolution** source that raises the AUC. **The app automatically extracts the extra source** the chosen model needs — you only pick the model.",
     "- **El mejor resultado en Sierra Nevada es el modelo `_cir`, y es gratis** (0,914). Úsalo siempre que trabajes en Andalucía, Cataluña o Canarias.\n- **Fuera de España** (o en CCAA sin ortofoto infrarroja) usa `_planet`: cobertura mundial a 3 m, pero consume cuota de tu suscripción Planet.\n- El modelo `_combo` (66) es el más alto en términos absolutos, pero la mejora sobre `_cir` (+0,004) está dentro del ruido: **no compensa** la doble dependencia salvo casos límite.":
         "- **The best result in Sierra Nevada is the `_cir` model, and it is free** (0.914). Use it whenever you work in Andalusia, Catalonia or the Canary Islands.\n- **Outside Spain** (or in regions without infrared orthophoto) use `_planet`: worldwide coverage at 3 m, but it consumes quota from your Planet subscription.\n- The `_combo` model (66) is the highest in absolute terms, but its gain over `_cir` (+0.004) is within the noise: **not worth** the double dependency except in edge cases.",
     "### 🗺️ Cobertura de la ortofoto infrarroja (modelo `_cir`, gratis)":
@@ -222,8 +232,8 @@ EN = {
         "The last two rows are those used by the `_cir` / `_planet` models. The most informative variable of both is the **high-resolution NDVI texture/contrast** — precisely the sharp edge of the borreguil against the rocky substrate, which Sentinel-2 (10 m) averages out and loses.",
     "### 🔑 Qué variables pesan más y cómo leer las gráficas":
         "### 🔑 Which variables matter most and how to read the charts",
-    "El modelo es un **Random Forest**: cada variable recibe una **importancia** (0–100 %) según cuánto ayuda a separar *borreguil* de *no-borreguil*. En el panel **📈 Perfil espectral** de cada punto (pestaña **Tabla**) verás este mismo ranking arriba del todo: **léelo de arriba abajo** e interpreta primero las variables con más peso. A la derecha de cada barra está el **rango típico de los borreguiles** (p25–p75): si el valor del punto cae dentro de ese rango, se parece a un borreguil en esa variable.":
-        "The model is a **Random Forest**: each variable receives an **importance** (0–100 %) according to how much it helps separate *borreguil* from *non-borreguil*. In each point's **📈 Spectral profile** panel (the **Table** tab) you will see this same ranking at the very top: **read it top to bottom** and interpret the highest-weight variables first. To the right of each bar is the **typical borreguil range** (p25–p75): if the point's value falls within that range, it resembles a borreguil in that variable.",
+    "El modelo es un **Random Forest**: cada variable recibe una **importancia** (0–100 %) según cuánto ayuda a separar *borreguil* de *no-borreguil*. En el panel **📈 Perfil espectral** de cada punto (pestaña **Revisar puntos**) verás este mismo ranking arriba del todo: **léelo de arriba abajo** e interpreta primero las variables con más peso. A la derecha de cada barra está el **rango típico de los borreguiles** (p25–p75): si el valor del punto cae dentro de ese rango, se parece a un borreguil en esa variable.":
+        "The model is a **Random Forest**: each variable receives an **importance** (0–100 %) according to how much it helps separate *borreguil* from *non-borreguil*. In each point's **📈 Spectral profile** panel (the **Review points** tab) you will see this same ranking at the very top: **read it top to bottom** and interpret the highest-weight variables first. To the right of each bar is the **typical borreguil range** (p25–p75): if the point's value falls within that range, it resembles a borreguil in that variable.",
     "### ▶️ Flujo de trabajo": "### ▶️ Workflow",
     "1. **Define el área** (vector, WDPA ID o nombre) o sube tus puntos candidatos.\n2. Elige el **modelo** según la tabla de arriba y la **fuente de imágenes** (PNOA en España, ESRI fuera).\n3. Pulsa **Ejecutar pipeline**. La app descarga cada fuente, extrae las variables y predice.\n4. Revisa el **mapa** y la **tabla** de resultados; ajusta el umbral; descarga Excel/CSV/GeoJSON.\n5. *(Opcional)* marca borreguiles verificados en campo y **reentrena** en tu zona (presence-only, mínimo ~30 positivos) para un modelo propio.":
         "1. **Define the area** (vector, WDPA ID or name) or upload your candidate points.\n2. Choose the **model** according to the table above and the **image source** (PNOA in Spain, ESRI elsewhere).\n3. Click **Run pipeline**. The app downloads each source, extracts the variables and predicts.\n4. Review the results **map** and **table**; adjust the threshold; download Excel/CSV/GeoJSON.\n5. *(Optional)* mark field-verified borreguiles and **retrain** on your area (presence-only, minimum ~30 positives) for your own model.",
@@ -261,8 +271,6 @@ EN = {
         "🌍  Google Earth Engine (requires account) — faster",
     "🛰  Microsoft Planetary Computer (sin cuenta)":
         "🛰  Microsoft Planetary Computer (no account)",
-    "GEE calcula los índices en el servidor (mucho más rápido, sobre todo con el modelo de 45 variables). Si GEE no está disponible, la app usa MPC automáticamente.":
-        "GEE computes the indices on the server (much faster, especially with the 45-variable model). If GEE is unavailable, the app falls back to MPC automatically.",
     "Modelo de partida": "Starting model",
     "🧭 ¿Qué modelo elegir según tu zona? Mira la pestaña **📖 Documentación** (arriba) para la guía completa y las recomendaciones por parque.":
         "🧭 Which model to choose for your area? See the **📖 Documentation** tab (above) for the full guide and per-park recommendations.",
@@ -283,11 +291,9 @@ EN = {
     "PNOA IGN usa ortofoto autonómica cuando está disponible (Andalucía 2022, Aragón 2024, Cataluña vigente, Cantabria 2023, CyL 2020, Canarias) y cae en el PNOA-MA nacional para el resto de España. Fuera de España usa ESRI.":
         "PNOA IGN uses the regional orthophoto when available (Andalusia 2022, Aragón 2024, Catalonia current, Cantabria 2023, Castile-León 2020, Canary Islands) and falls back to the national PNOA-MA for the rest of Spain. Outside Spain it uses ESRI.",
     "⚡ Modo rápido (vista previa)": "⚡ Fast mode (preview)",
-    "Salta las descargas lentas que se hacen punto a punto en tu PC: imágenes ESRI/PNOA, Sentinel-1 (SAR) y CIR/Planet. Con backend GEE, el resto (topografía y Sentinel-2) se calcula en la nube en segundos. Da resultados APROXIMADOS (sin texturas ni SAR): ideal para iterar rápido y luego afinar desmarcando esta casilla.":
-        "Skips the slow per-point downloads done on your PC: ESRI/PNOA imagery, Sentinel-1 (SAR) and CIR/Planet. With the GEE backend, the rest (topography and Sentinel-2) is computed in the cloud in seconds. Gives APPROXIMATE results (no textures or SAR): ideal to iterate quickly and then refine by unchecking this box.",
+    "Salta las descargas lentas que se hacen punto a punto en tu ordenador: las imágenes aéreas (y sus texturas) y CIR/Planet. Con Earth Engine, el resto (relieve, Sentinel-2 y radar) se calcula en la nube en segundos. Da resultados APROXIMADOS (sin texturas): sirve para probar rápido y después afinar desmarcando esta casilla.":
+        "Skips the slow per-point downloads done on your computer: the aerial images (and their textures) and CIR/Planet. With Earth Engine, the rest (terrain, Sentinel-2 and radar) is computed in the cloud in seconds. Gives APPROXIMATE results (no textures): useful to try things quickly and then refine by unticking this box.",
     "Saltar Sentinel-2 (más rápido, sin NDVI)": "Skip Sentinel-2 (faster, no NDVI)",
-    "Usar OSM (hidrografía/infraestructuras) — Overpass puede fallar":
-        "Use OSM (hydrography/infrastructure) — Overpass may fail",
     "PlanetScope 3 m (8 bandas SR) — requiere PL_API_KEY":
         "PlanetScope 3 m (8 SR bands) — requires PL_API_KEY",
     "Pide imágenes PlanetScope vía Orders API (clip al área de los puntos). CONSUME CUOTA de tu suscripción Planet (km² pedidos) y tarda 10-30 min extra. Útil con el modelo variante rf_*_planet.joblib (60 variables). Configura PL_API_KEY como variable de entorno o en st.secrets.":
@@ -296,8 +302,8 @@ EN = {
     "▶ Ejecutar pipeline": "▶ Run pipeline",
     "**✅ Con WMS infrarrojo (0,25 m)**\n\n- **Andalucía** → Sierra Nevada\n- **Cataluña** → Aigüestortes, Pirineos\n- **Canarias** → Teide, Garajonay, Caldera de Taburiente":
         "**✅ With infrared WMS (0.25 m)**\n\n- **Andalusia** → Sierra Nevada\n- **Catalonia** → Aigüestortes, Pyrenees\n- **Canary Islands** → Teide, Garajonay, Caldera de Taburiente",
-    "**❌ Sin WMS infrarrojo** (usa `_planet` o las 50 base)\n\n- **Aragón** → Ordesa y Monte Perdido\n- **Cantabria / Castilla y León** → Picos de Europa\n- **Madrid / CyL** → Sierra de Guadarrama":
-        "**❌ Without infrared WMS** (use `_planet` or the 50 base)\n\n- **Aragón** → Ordesa y Monte Perdido\n- **Cantabria / Castile-León** → Picos de Europa\n- **Madrid / Castile-León** → Sierra de Guadarrama",
+    "**❌ Sin WMS infrarrojo** (usa `_planet` o el modelo base)\n\n- **Aragón** → Ordesa y Monte Perdido\n- **Cantabria / Castilla y León** → Picos de Europa\n- **Madrid / CyL** → Sierra de Guadarrama":
+        "**❌ Without infrared WMS** (use `_planet` or the base model)\n\n- **Aragón** → Ordesa y Monte Perdido\n- **Cantabria / Castile-León** → Picos de Europa\n- **Madrid / Castile-León** → Sierra de Guadarrama",
     "✓ Clave Planet **detectada**. El modelo `_planet` (y `_combo`) extraerá PlanetScope automáticamente al ejecutar el pipeline.":
         "✓ Planet key **detected**. The `_planet` (and `_combo`) model will extract PlanetScope automatically when running the pipeline.",
     "Aún **no hay clave Planet** configurada. Sigue los pasos de abajo.":
@@ -324,34 +330,23 @@ EN = {
     "stratified_elev: reparto equilibrado por bandas de altitud. uniform: aleatorio puro. poisson_disc: separación mínima entre puntos.":
         "stratified_elev: balanced distribution across elevation bands. uniform: pure random. poisson_disc: minimum spacing between points.",
     "Semilla": "Seed",
-    "ℹ ¿Cómo estructurar la verdad-terreno?": "ℹ How to structure the ground truth?",
-    "**Solo presencias** (lo más simple): un KML/GeoJSON/Shapefile con puntos de borreguiles confirmados, **sin ningún atributo**. Todos se toman como borreguil; las ausencias se generan solas (pseudo-ausencias lejanas).\n\n**Presencias + ausencias** (recomendado si las tienes): añade un **atributo de clase** a cada punto. La app reconoce, sin distinguir mayúsculas:\n- Atributo llamado `Borreguil`, `presencia`, `clase`, `tipo` o `label`.\n- Valor de **presencia**: `si` · `1` · `presencia` · `borreguil`.\n- Valor de **ausencia**: `no` · `0` · `ausencia` · `no_borreguil`.\n\nEjemplo GeoJSON (un punto presencia y uno ausencia):":
-        "**Presences only** (simplest): a KML/GeoJSON/Shapefile with confirmed borreguil points, **without any attribute**. All are taken as borreguil; absences are generated automatically (distant pseudo-absences).\n\n**Presences + absences** (recommended if you have them): add a **class attribute** to each point. The app recognises, case-insensitively:\n- An attribute named `Borreguil`, `presencia`, `clase`, `tipo` or `label`.\n- **Presence** value: `si` · `1` · `presencia` · `borreguil`.\n- **Absence** value: `no` · `0` · `ausencia` · `no_borreguil`.\n\nGeoJSON example (one presence point and one absence):",
-    "En KML, añade un `<SimpleData name=\"Borreguil\">no</SimpleData>` por Placemark. Un punto sin atributo de clase se toma como presencia.":
-        "In KML, add a `<SimpleData name=\"Borreguil\">no</SimpleData>` per Placemark. A point without a class attribute is taken as a presence.",
     "Polígono del área de estudio": "Study-area polygon",
     "Un único **KML / GeoJSON / GeoPackage**, o un **shapefile** (selecciona .shp + .shx + .dbf + .prj juntos, o sube un .zip).":
         "A single **KML / GeoJSON / GeoPackage**, or a **shapefile** (select .shp + .shx + .dbf + .prj together, or upload a .zip).",
     "Proyecto Google Earth Engine": "Google Earth Engine project",
     "Nombre del proyecto de Google Cloud con la Earth Engine API habilitada.":
         "Name of the Google Cloud project with the Earth Engine API enabled.",
-    "El cómputo S2 + topografía se hace en los servidores de Google (rápido, sin descargas). No se usa MPC.":
-        "The S2 + topography computation runs on Google's servers (fast, no downloads). MPC is not used.",
+    "Sentinel-2, el radar (Sentinel-1) y el relieve se calculan en los servidores de Google (rápido, sin descargas).":
+        "Sentinel-2, the radar (Sentinel-1) and the terrain are computed on Google's servers (fast, no downloads).",
     "Modelo base Random Forest": "Base Random Forest model",
     "Modelos .joblib de la carpeta de la app. Se usa para predecir cuando no hay suficiente verdad-terreno local. Tras entrenar en tu zona puedes guardarlo aquí (panel de resultados) para reutilizarlo.":
         ".joblib models from the app folder. Used to predict when there is not enough local ground truth. After training on your area you can save it here (results panel) to reuse it.",
     "No hay modelos .joblib en la carpeta.": "There are no .joblib models in the folder.",
-    "⚡ Vista previa: sin imágenes, sin Sentinel-1 ni CIR/Planet. Resultados aproximados.":
-        "⚡ Preview: no imagery, no Sentinel-1 or CIR/Planet. Approximate results.",
+    "⚡ Vista previa: sin imágenes aéreas ni CIR/Planet. Resultados aproximados.":
+        "⚡ Preview: no aerial images or CIR/Planet. Approximate results.",
     "Saltar imágenes (más rápido, sin texturas)": "Skip imagery (faster, no textures)",
     "PlanetScope desactivado: no hay PL_API_KEY en el entorno/secrets.":
         "PlanetScope disabled: no PL_API_KEY in the environment/secrets.",
-    "👈 Configura los inputs en el panel lateral y pulsa **Ejecutar pipeline**. Puedes subir tus puntos o generarlos aleatoriamente dentro del área.":
-        "👈 Configure the inputs in the sidebar and click **Run pipeline**. You can upload your points or generate them randomly within the area.",
-    "### Verdad-terreno: solo coordenadas (presence-only)":
-        "### Ground truth: coordinates only (presence-only)",
-    "El KML de borreguiles verificados **no necesita ningún atributo**: cada punto se asume borreguil. La clase negativa se genera sola.":
-        "The verified-borreguiles KML **needs no attribute**: every point is assumed to be a borreguil. The negative class is generated automatically.",
     "Resultados": "Results",
     "Total": "Total",
     "Mapa": "Map",
@@ -378,27 +373,11 @@ EN = {
         "Examples: `555512151` Sierra Nevada · `4514` Picos de Europa · `11` Yellowstone. Arbitrary IDs require a token or the GEE backend.",
     "🔑 Autenticar GEE": "🔑 Authenticate GEE",
     "✓ Probar conexión": "✓ Test connection",
-    "### 📍 Sin verdad-terreno": "### 📍 Without ground truth",
-    "- Se usa el modelo **preentrenado en Sierra Nevada**\n- AUC GroupKFold: **0,86**\n- Funciona en zonas comparables; precaución en climas distintos":
-        "- The model **pretrained on Sierra Nevada** is used\n- GroupKFold AUC: **0.86**\n- Works in comparable areas; use caution in different climates",
-    "### 🎯 Con verdad-terreno": "### 🎯 With ground truth",
-    "- **Presencias** (borreguiles) y, opcional, **ausencias**\n- Sin ausencias: se generan pseudo-ausencias solas\n- Atributo de clase `Borreguil`=si/no (ver panel lateral)\n- Mínimo: 30 positivos · Recomendado: 80-150":
-        "- **Presences** (borreguiles) and, optionally, **absences**\n- Without absences: pseudo-absences are generated automatically\n- Class attribute `Borreguil`=si/no (see sidebar)\n- Minimum: 30 positives · Recommended: 80-150",
-    "### 🛰 Backend": "### 🛰 Backend",
-    "- **MPC**: sin cuenta, descarga rásters (más lento)\n- **GEE**: requiere cuenta, cómputo en la nube (rápido)\n- Sentinel-2 por defecto **2017-2025**":
-        "- **MPC**: no account, downloads rasters (slower)\n- **GEE**: requires account, cloud computation (fast)\n- Sentinel-2 by default **2017-2025**",
-    "🔁 Evaluación recursiva (auto-entrenamiento)": "🔁 Recursive evaluation (self-training)",
-    "En cada iteración, los puntos de **posible borreguil** (probabilidad ≥ umbral de promoción) se convierten en verdad-terreno y se **recalibra** el Random Forest para volver a predecir sobre el resto. Útil para descubrir borreguiles no inventariados de forma progresiva.":
-        "At each iteration, the **possible borreguil** points (probability ≥ promotion threshold) become ground truth and the Random Forest is **recalibrated** to predict again over the rest. Useful for progressively discovering uninventoried borreguiles.",
     "### 💾 Guardar el modelo entrenado": "### 💾 Save the trained model",
-    "Mapa interactivo. Haz click en un marcador para ver sus detalles y poder **quitarlo** del análisis. Al seleccionar filas en la pestaña **Tabla**, el mapa se centra en el **último punto seleccionado**. La **leyenda de colores** está abajo a la izquierda.":
-        "Interactive map. Click a marker to see its details and be able to **remove it** from the analysis. When selecting rows in the **Table** tab, the map centres on the **last selected point**. The **colour legend** is at the bottom left.",
-    "Capas activables (control ▤ arriba a la derecha): **Píxel S2 (10 m)**, **ventana de muestreo 10 m** (S2 + Sentinel-1) y **20 m** (S2). Cambia a **Google Satélite** para más zoom. Sentinel-1 RTC comparte la rejilla de 10 m con Sentinel-2.":
-        "Toggleable layers (▤ control top right): **S2 pixel (10 m)**, **10 m sampling window** (S2 + Sentinel-1) and **20 m** (S2). Switch to **Google Satellite** for more zoom. Sentinel-1 RTC shares the 10 m grid with Sentinel-2.",
-    "Selecciona una o varias filas (casilla izquierda). El **último punto seleccionado** centra el mapa y muestra su imagen, sin perder los anteriores. Con varias seleccionadas puedes **marcarlas como borreguil verificado** y reentrenar.":
-        "Select one or several rows (left checkbox). The **last selected point** centres the map and shows its image, without losing the previous ones. With several selected you can **mark them as verified borreguil** and retrain.",
-    "Resultados generados (reflejan la última iteración):":
-        "Generated results (reflect the last iteration):",
+    "Mapa interactivo. Haz click en un marcador para ver sus detalles y poder **quitarlo** del análisis. Al seleccionar filas en la pestaña **Revisar puntos**, el mapa se centra en el **último punto seleccionado**. La **leyenda de colores** está abajo a la izquierda.":
+        "Interactive map. Click a marker to see its details and be able to **remove it** from the analysis. When selecting rows in the **Review points** tab, the map centres on the **last selected point**. The **colour legend** is at the bottom left.",
+    "Capas activables (control ▤ arriba a la derecha): **Píxel S2 (10 m)**, **ventana de muestreo 10 m** (S2 y radar) y **20 m** (S2). Cambia a **Google Satélite** para más zoom.":
+        "Toggleable layers (▤ control top right): **S2 pixel (10 m)**, **10 m sampling window** (S2 and radar) and **20 m** (S2). Switch to **Google Satellite** for more zoom.",
     "**Variables más decisivas del modelo Random Forest** usado en esta estimación — de arriba (más peso) a abajo. A la derecha, el **rango típico de borreguil** (p25–p75) cuando el modelo trae valores de referencia.":
         "**Most decisive variables of the Random Forest model** used in this estimation — from top (highest weight) to bottom. On the right, the **typical borreguil range** (p25–p75) when the model provides reference values.",
     "**Dispersión Altitud × NDVI** — separación entre clases. Pasa el ratón por un punto para ver su ID y probabilidad RF.":
@@ -407,7 +386,7 @@ EN = {
     "Nombre del área": "Area name",
     "Búsqueda en Nominatim (OSM). Cuanto más específico, mejor (incluir \"Parque Nacional/Natural\" suele ayudar).":
         "Nominatim (OSM) search. The more specific, the better (including \"Parque Nacional/Natural\" usually helps).",
-    "🇪🇸 Usa **PNOA Falso Color IR 0,25 m** (gratis). Cobertura WMS IR en Andalucía, Cataluña y Canarias; se extrae automáticamente (en otras zonas usa las 50 base).":
+    "🇪🇸 Usa **PNOA Falso Color IR 0,25 m** (gratis). Cobertura WMS IR en Andalucía, Cataluña y Canarias; se extrae automáticamente (en otras zonas, mejor el modelo base).":
         "🇪🇸 Uses **PNOA False-Colour IR 0.25 m** (free). IR WMS coverage in Andalusia, Catalonia and the Canary Islands; extracted automatically (elsewhere it uses the 50 base).",
     "Modelo universal (50 variables): no requiere fuentes extra ni claves.":
         "Universal model (50 variables): requires no extra sources or keys.",
@@ -415,15 +394,6 @@ EN = {
         "A valid study area is required to generate points.",
     "El modelo elegido usa PlanetScope 3 m pero no hay PL_API_KEY: esas 10 variables irán vacías y la predicción será menos precisa.":
         "The chosen model uses PlanetScope 3 m but there is no PL_API_KEY: those 10 variables will be empty and the prediction will be less accurate.",
-    "Umbral de promoción a borreguil (probabilidad RF)":
-        "Promotion-to-borreguil threshold (RF probability)",
-    "Sólo se promueven puntos muy probables, para limitar la propagación de errores.":
-        "Only highly probable points are promoted, to limit error propagation.",
-    "¿Cómo usar los posibles borreguiles?": "How to use the possible borreguiles?",
-    "Añadir (acumular a la verdad-terreno)": "Add (accumulate to the ground truth)",
-    "Reemplazar (refrescar desde el modelo actual)": "Replace (refresh from the current model)",
-    "Añadir: el conjunto de positivos crece en cada iteración.\nReemplazar: se recalculan los pseudo-positivos cada vez desde el último modelo, manteniendo siempre tus puntos verificados.":
-        "Add: the positive set grows at each iteration.\nReplace: pseudo-positives are recomputed each time from the latest model, always keeping your verified points.",
     "Aún no hay un modelo en memoria. Ejecuta el pipeline; para un modelo propio de tu zona, sube borreguiles verificados o marca filas en la tabla como borreguil y reentrena.":
         "There is no model in memory yet. Run the pipeline; for your own area model, upload verified borreguiles or mark table rows as borreguil and retrain.",
     "Nombre del área protegida (será el nombre del fichero)":
@@ -437,8 +407,6 @@ EN = {
     "Sin probabilidades RF disponibles.": "No RF probabilities available.",
     "El modelo actual no expone importancias de variables (reentrena o usa un modelo guardado con `train_v5.py`).":
         "The current model does not expose variable importances (retrain or use a model saved with `train_v5.py`).",
-    "Reglas sobre las variables ya calculadas (cercanía a lagunas, TWI, pendiente, NDMI, NDWI, roca/agua…). Arroyo se detecta por topografía (TWI alto o pendiente baja) cuando no hay capa OSM. La **pureza es relativa** a esta población: marca como mixto-agua/mixto-roca el ~15% con más firma de agua (NDWI) o roca (albedo/NDVI bajo), porque a 10 m no se mide la fracción sub-píxel absoluta (para eso harían falta PlanetScope o CIR). Umbrales en `borreguil_pipeline.py` (HIER_THRESH).":
-        "Rules over the already-computed variables (proximity to lakes, TWI, slope, NDMI, NDWI, rock/water…). Stream is detected by topography (high TWI or low slope) when there is no OSM layer. **Purity is relative** to this population: it marks as mixed-water/mixed-rock the ~15% with the strongest water (NDWI) or rock (albedo/low NDVI) signature, because at 10 m the absolute sub-pixel fraction is not measured (that would need PlanetScope or CIR). Thresholds in `borreguil_pipeline.py` (HIER_THRESH).",
     "No hay variables numéricas suficientes para los boxplots.":
         "Not enough numeric variables for the boxplots.",
     "Autenticación lanzada (revisa el navegador).": "Authentication launched (check your browser).",
@@ -446,8 +414,6 @@ EN = {
         "🌍 Uses **PlanetScope 3 m**. Key detected; extracted automatically (consumes Planet quota).",
     "🌍 Este modelo necesita **PlanetScope 3 m**, pero no hay `PL_API_KEY`. Sin ella, esas variables van vacías (predicción degradada). Configúrala o elige otro modelo.":
         "🌍 This model needs **PlanetScope 3 m**, but there is no `PL_API_KEY`. Without it, those variables are empty (degraded prediction). Set it up or choose another model.",
-    "✓ **Convergencia**: la última iteración no encontró nuevos borreguiles. Puedes detener el proceso.":
-        "✓ **Convergence**: the last iteration found no new borreguiles. You can stop the process.",
     "El modelo en memoria es **preentrenado** (no se ha reentrenado con tu verdad-terreno). Puedes guardarlo igualmente con otro nombre, aunque para tu zona conviene marcar borreguiles verificados y reentrenar antes de guardar.":
         "The model in memory is **pretrained** (it has not been retrained with your ground truth). You can still save it under another name, though for your area it is best to mark verified borreguiles and retrain before saving.",
     "💾 Guardar en la carpeta (local + git)": "💾 Save to the folder (local + git)",
