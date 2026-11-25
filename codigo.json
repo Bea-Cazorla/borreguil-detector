@@ -1,0 +1,120 @@
+{
+  "formato": 1,
+  "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
+  "version": "1.0.0",
+  "commit": "0268829585a12d27334da9debdb8bf31f11c261c",
+  "fecha": "2026-11-25",
+  "instalador_minimo": 1,
+  "ficheros": [
+    {
+      "ruta": "app.py",
+      "sha256": "b5590accc5ab962acb70f7c4079bf75c8873d49c55bcb3809d88519c469a9cbd",
+      "bytes": 575179
+    },
+    {
+      "ruta": "borreguil_pipeline.py",
+      "sha256": "d3136376f7ebe72871e381f793d33bae9b912e26bb406de8cbb7724cbd4833e0",
+      "bytes": 187751
+    },
+    {
+      "ruta": "point_profile.py",
+      "sha256": "3c98c0db116c0c339760c50f89ca44d2afef1038af57815dd1afd5607ca8660a",
+      "bytes": 58819
+    },
+    {
+      "ruta": "i18n.py",
+      "sha256": "16e501ff94870f84da98a2159a746c86961e088239e32f4108313cc5d29c719d",
+      "bytes": 41330
+    },
+    {
+      "ruta": "gee_backend.py",
+      "sha256": "7a9c1e0e01a6b085e85734ececb54d381696c80bc417103b0c791affef3f6121",
+      "bytes": 51686
+    },
+    {
+      "ruta": "random_points.py",
+      "sha256": "a8c87ee827d30232b5228ea4fdf5706178384584c328ee34ad7a3e86542e9c36",
+      "bytes": 13247
+    },
+    {
+      "ruta": "study_area.py",
+      "sha256": "79df631ddcdce4f7ba63396e6fdc9e25c00fcdbc83c1d1cd6a916c05ee90e53b",
+      "bytes": 15053
+    },
+    {
+      "ruta": "mapeo_rf.py",
+      "sha256": "79414547a9c5ab25db2934f470cc6bf4ce5e3298c0cde6aa223b8692bbc39cb6",
+      "bytes": 114497
+    },
+    {
+      "ruta": "mapeo_raster.py",
+      "sha256": "99ccccde135b740bf036fd96f961c7e75a7099f0004e99c30423b788f6b0a1fb",
+      "bytes": 72081
+    },
+    {
+      "ruta": "mapeo_tif.py",
+      "sha256": "9fdcbc118b3f17f47c0cb360e69e6199eeaad74438af1c507811959a438991d3",
+      "bytes": 22074
+    },
+    {
+      "ruta": "mapeo_ambiente.py",
+      "sha256": "35b5624e56886fd3ea0a77b985682e5f124c497728701d770bbba1d5497bde6b",
+      "bytes": 17480
+    },
+    {
+      "ruta": "modelos_remotos.py",
+      "sha256": "b407173a1fdf9daab23dcf1bc3012c2bc9fd1892cd514dca20915214f51efcbe",
+      "bytes": 10768
+    },
+    {
+      "ruta": "MANUAL.md",
+      "sha256": "953c8fdf171db26d45fbcc0728a53e62a17ccfae782f4375b9e76c5b10ca8aae",
+      "bytes": 110375
+    },
+    {
+      "ruta": "TUTORIAL.md",
+      "sha256": "a1a4c25052ada95c3cae3e1576e92d5fd610f83f64fb48ecff207314e7f07c48",
+      "bytes": 17211
+    },
+    {
+      "ruta": "CITATION.cff",
+      "sha256": "6c96dc9edc2f0bff5670d9dd22553d1331209ce5362c9e1d7082d349fa773abb",
+      "bytes": 3054
+    },
+    {
+      "ruta": "LICENSE",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "bytes": 35149
+    },
+    {
+      "ruta": "lagunas_sierra_nevada.kml",
+      "sha256": "dd6917cfebd9dd6c2f311193e377e8df87f3b84de71a18505219f2d1cfa8f55b",
+      "bytes": 30684
+    },
+    {
+      "ruta": "cauces_sierra_nevada.geojson",
+      "sha256": "624986eb838f2712fb4a6dae26f7a9e3c81cfd021fa81dd66ad980f6e7e11292",
+      "bytes": 5353392
+    },
+    {
+      "ruta": "plantilla/definitions_EN.md",
+      "sha256": "db3c2b26740e5ae15bf48f30744c2927eee9f4a064fefdaaf222dba08547b2c8",
+      "bytes": 4449
+    },
+    {
+      "ruta": "plantilla/example_sierra_nevada.csv",
+      "sha256": "3fc4bc3937e48e2006796f1a99eeec23d8737ccb9c31a3200201ca6036ed72b2",
+      "bytes": 845
+    },
+    {
+      "ruta": "plantilla/example_sierra_nevada.geojson",
+      "sha256": "eaab6d611de61aff079596343da7c4d802dee19fc9969b09b5a3c8492903fe97",
+      "bytes": 7325
+    },
+    {
+      "ruta": "plantilla/field_points_template.xlsx",
+      "sha256": "4945157c8e4d8dc22e7d8401e76be7dbeb4cc2b6ccaf9abe120e6ad64fc173cd",
+      "bytes": 7698
+    }
+  ]
+}
