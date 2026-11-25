@@ -90,9 +90,10 @@ Se abre en `http://localhost:8501`.
    de campo (Excel)» en la pantalla de inicio). **Incluye ausencias**: la app no se
    las inventa. Un fichero sin ninguna columna se toma como todo borreguil: sirve para
    medir cuántos acierta el modelo, pero no aporta ausencias.
-5. **▶ Ejecutar pipeline** → seis pestañas: Mapa de los puntos, Revisar puntos,
-   Probabilidades, Peso de las variables, Tipos y distribuciones y Descargas (Excel,
-   CSV, `puntos.geojson`, mapa HTML y área de estudio).
+5. **▶ Ejecutar pipeline** → cinco pestañas: Mapa de los puntos, Revisar puntos,
+   Resumen de los puntos (decisiones, probabilidades y tipos), Variables del modelo
+   (su peso y cómo cambian entre grupos) y Descargas (Excel, CSV, `puntos.geojson`,
+   mapa HTML y área de estudio).
 
 ## Revisar puntos y aportar puntos de campo
 

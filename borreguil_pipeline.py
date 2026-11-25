@@ -3636,7 +3636,10 @@ def nombres_de_punto(ids, punto='Punto'):
     pasan a 'Punto 663': la capa que más se repite entre los puntos se quita y queda
     su número. Los demás ID (cortos, o de otra capa) se quedan como están. Si al
     quitarla dos puntos distintos se llamaran igual, se dejan todos sin cambiar. El ID
-    de verdad no cambia: sigue completo en el punto, en la tabla y en las descargas."""
+    de verdad no cambia: sigue completo en el punto y en las descargas.
+
+    Con `punto=''` queda solo el número ('663'): así sale en la tabla de «Revisar
+    puntos» (25-11-2026, la autora: «deja solo el número»)."""
     import re
     from collections import Counter
     txt = ['' if x is None else str(x) for x in ids]
@@ -3645,7 +3648,8 @@ def nombres_de_punto(ids, punto='Punto'):
     if not capas:
         return txt
     capa = capas.most_common(1)[0][0]
-    cortos = [f'{punto} {m.group(2)}' if m and m.group(1) == capa else t
+    cortos = [(f'{punto} {m.group(2)}' if punto else m.group(2))
+              if m and m.group(1) == capa else t
               for t, m in zip(txt, partes)]
     return txt if len(set(cortos)) < len(set(txt)) else cortos
 

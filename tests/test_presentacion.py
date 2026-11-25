@@ -139,6 +139,8 @@ def test_en_el_globo_el_punto_se_llama_por_su_numero():
     dobles = [ids[0], 'Punto 1']
     assert bp.nombres_de_punto(dobles) == dobles
     assert bp.nombres_de_punto(['p1', 'p2']) == ['p1', 'p2']
+    # En la tabla de «Revisar puntos», solo el número
+    assert bp.nombres_de_punto(ids + ['SN_001'], punto='') == ['1', '21', '663', 'SN_001']
 
 
 def test_globo_con_las_variables_que_mas_pesan():
@@ -213,14 +215,25 @@ def test_grupos_para_comparar():
     import point_profile as pp
     rows = _puntos_vistas()
     g, orden, resto = pp.grupos_puntos(rows, 'borreguil', en=False)
-    assert [o[0] for o in orden] == ['Borreguil', 'No / resto'] and resto == 'No / resto'
+    assert [o[0] for o in orden] == ['Borreguil', 'No borreguil'] and resto == 'No borreguil'
     assert g.count('Borreguil') == 30
     g, orden, resto = pp.grupos_puntos(rows, 'humedad', en=False)
-    assert [o[0] for o in orden] == ['húmedo', 'seco', 'sin tipo', 'Resto']
-    assert g[0] == 'sin tipo' and g.count('húmedo') == 14 and g.count('Resto') == 30
+    assert [o[0] for o in orden] == ['húmedo', 'seco', 'sin tipo', 'No borreguil']
+    assert g[0] == 'sin tipo' and g.count('húmedo') == 14 and g.count('No borreguil') == 30
     g, orden, _ = pp.grupos_puntos(rows, 'ambiente', en=True,
                                    traduce={'arroyo': 'stream', 'ladera': 'slope'}.get)
-    assert [o[0] for o in orden] == ['stream', 'slope', 'Rest']
+    assert [o[0] for o in orden] == ['stream', 'slope', 'Not a borreguil']
+    # «No borreguil» es solo eso: los inciertos y los dudosos se quedan fuera
+    # (25-11-2026, la autora: «¿el resto aquí quiere decir no borreguil? Pon no borreguil»)
+    otros = rows + [{'decision': 'INCIERTO', 'elev_dem_m': 2000.0},
+                    {'decision': 'DUDOSO (campo)', 'elev_dem_m': 2000.0}]
+    for comparar in pp.COMPARAR:
+        g, orden, _ = pp.grupos_puntos(otros, comparar, en=False)
+        assert g[-2:] == [None, None] and None not in [o[0] for o in orden]
+        assert g.count('No borreguil') == 30
+    ch, _ = pp.chart_boxplots(otros, VARS_VISTAS, en=False)
+    clases = {x.get('clase') for ds in ch.to_dict()['datasets'].values() for x in ds}
+    assert clases == {'Borreguil', 'No borreguil'}, clases
     try:
         pp.grupos_puntos(rows, 'pureza')
         raise AssertionError('tenía que negarse')
@@ -261,7 +274,7 @@ def test_diferencias_en_desviaciones_tipicas():
     assert {x['grupo'] for x in f} == {'húmedo', 'seco'} and pp.MIN_GRUPO == 5
     d = pp.chart_densidades(rows, VARS_VISTAS, en=False, comparar='humedad').to_dict()
     assert {x['grupo'] for ds in d['datasets'].values() for x in ds} == {'húmedo', 'seco',
-                                                                         'Resto'}
+                                                                         'No borreguil'}
     assert 'sin tipo' not in str(d)                            # tampoco en la leyenda
     # sin puntos del resto no hay con qué comparar
     assert pp.tabla_diferencias(rows[:30], VARS_VISTAS, en=False) == []
@@ -438,3 +451,80 @@ if __name__ == '__main__':
             print(f'  FALLO  {nombre}: {type(e).__name__}: {e}')
     print(f'{len(pruebas) - fallos}/{len(pruebas)} pruebas correctas')
     sys.exit(1 if fallos else 0)
+
+
+def test_recuento_por_decision_en_texto_normal_y_con_los_colores_del_mapa():
+    """25-11-2026: el recuento va en «Resumen de los puntos», debajo de la
+    probabilidad; salía en mayúsculas y cortado («NO BORREGUIL V…»), con colores que no
+    eran los del mapa y ordenado por tamaño."""
+    import point_profile as pp
+    rows = ([{'decision': 'NO BORREGUIL VERIFICADO'}] * 5 + [{'decision': 'NO BORREGUIL'}]
+            + [{'decision': 'BORREGUIL PROBABLE'}] * 3 + [{'decision': 'BORREGUIL VERIFICADO'}])
+    d = pp.chart_decision_counts(rows).to_dict()
+    datos = [x for ds in d['datasets'].values() for x in ds]
+    # de más a menos borreguil, no por tamaño
+    assert [x['decision'] for x in datos] == ['Borreguil verificado', 'Borreguil probable',
+                                              'No borreguil', 'No borreguil verificado']
+    por = {x['decision']: x for x in datos}
+    assert por['Borreguil probable']['n'] == 3 and por['Borreguil probable']['texto'] == '3 (30 %)'
+    assert por['Borreguil probable']['color'] == bp.decision_color('BORREGUIL PROBABLE')
+    assert "'labelLimit': 0" in str(d)                  # el nombre entero, sin cortar
+    assert pp.chart_decision_counts([{'decision': 'INCIERTO'}] + [{'decision': 'NO BORREGUIL'}]
+                                    * 300).to_dict()['datasets']   # y «<1 %» no rompe nada
+    raros = [x for ds in pp.chart_decision_counts(
+        [{'decision': 'INCIERTO'}] + [{'decision': 'NO BORREGUIL'}] * 300).to_dict()[
+        'datasets'].values() for x in ds]
+    assert raros[0]['texto'] == '1 (<1 %)'
+
+
+def _muestras_categoria():
+    """Muestras de una tabla de entrenamiento del mapa (nivel «humedad»)."""
+    import random
+    azar = random.Random(3)
+    filas = []
+    for cat, base, n in (('húmedo', 0.4, 12), ('seco', 0.1, 10), ('no borreguil', -0.2, 15)):
+        for i in range(n):
+            filas.append({'ID': f'capa_de_prueba_larga.{len(filas) + 1}', 'categoria': cat,
+                          'ndmi_early': base + azar.gauss(0, 0.05),
+                          'ndvi_early': 0.5 + base + azar.gauss(0, 0.05)})
+    return filas
+
+
+def test_graficos_por_categoria_del_modelo_con_los_colores_del_mapa():
+    """25-11-2026, la autora: en «5 · Peso» de Mapa Modelo RF, «además de peso, podría
+    mostrar gráficos de las variables por tipo de borreguil como en los puntos de
+    verdad terreno»."""
+    import json
+    import mapeo_raster as mra
+    import point_profile as pp
+    filas = _muestras_categoria()
+    g, orden, resto = pp.grupos_puntos(filas, 'categoria', en=False)
+    # el orden del catálogo del mapa, y «no borreguil» al final: es con lo que se compara
+    assert [o[0] for o in orden] == ['húmedo', 'seco', 'no borreguil'] and resto == 'no borreguil'
+    assert [o[1] for o in orden] == [mra.color(c) for c in ('húmedo', 'seco', 'no borreguil')]
+    assert g.count('húmedo') == 12
+    g, orden, resto = pp.grupos_puntos(filas, 'categoria', en=True,
+                                       traduce={'húmedo': 'wet', 'seco': 'dry',
+                                                'no borreguil': 'not a borreguil'}.get)
+    assert [o[0] for o in orden] == ['wet', 'dry', 'not a borreguil']
+    vars_ = [('ndmi_early', 'NDMI'), ('ndvi_early', 'NDVI')]
+    for ch in (pp.chart_boxplots(filas, vars_, en=False, comparar='categoria')[0],
+               pp.chart_densidades(filas, vars_, en=False, comparar='categoria'),
+               pp.chart_diferencias(filas, vars_, en=False, comparar='categoria'),
+               pp.chart_dos_variables(filas, 'ndmi_early', 'ndvi_early', 'NDMI', 'NDVI',
+                                      en=False, comparar='categoria')):
+        d = json.dumps(ch.to_dict())
+        assert mra.color('húmedo') in d and mra.color('seco') in d
+    # las diferencias, frente a «no borreguil»: lo húmedo, por encima en NDMI
+    dif = {(x['variable'], x['grupo']): x['d'] for x in
+           pp.tabla_diferencias(filas, vars_, en=False, comparar='categoria')}
+    assert dif[('NDMI', 'húmedo')] > dif[('NDMI', 'seco')] > 0
+    # un nivel combinado: «ladera · seco», con su color, y traducido por partes
+    comb = [{'categoria': 'ladera · seco', 'x': 1.0}, {'categoria': 'arroyo · húmedo', 'x': 2.0}]
+    g, orden, resto = pp.grupos_puntos(comb, 'categoria', en=True,
+                                       traduce={'ladera': 'slope', 'seco': 'dry',
+                                                'arroyo': 'stream', 'húmedo': 'wet'}.get)
+    assert orden == [('stream · wet', mra.color('arroyo · húmedo')),
+                     ('slope · dry', mra.color('ladera · seco'))] and resto is None
+    # sin «no borreguil» no hay con qué comparar las diferencias
+    assert pp.chart_diferencias(comb * 5, [('x', 'x')], en=False, comparar='categoria') is None

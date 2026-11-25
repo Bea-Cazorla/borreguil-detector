@@ -1028,14 +1028,32 @@ def test_los_colores_de_los_ambientes_son_los_que_eligio_la_usuaria():
     for amb in mr.NIVELES['ambiente']:
         assert 80 <= tono(f'{amb} · húmedo') <= 250, amb
         assert 0 <= tono(f'{amb} · seco') <= 50, amb
-    # Nivel «ambiente» solo: el arroyo verde, la laguna azul y la ladera marrón (un
-    # marrón es un naranja oscuro), como pidió; y el marrón, más oscuro que el verde:
-    # con daltonismo se distinguen por la claridad, no por el tono.
-    pedido = {'arroyo': (90, 150), 'laguna': (200, 250), 'ladera': (15, 45)}
+    # Nivel «ambiente» solo: el arroyo verde, la laguna azul y la ladera amarillo
+    # verdoso, como pidió (25-11-2026; antes, marrón); y el amarillo verdoso, mucho más
+    # claro que el verde: con daltonismo se distinguen por la claridad, no por el tono.
+    pedido = {'arroyo': (90, 150), 'laguna': (200, 250), 'ladera': (50, 80)}
     assert set(pedido) == set(mr.NIVELES['ambiente'])
     for amb, (desde, hasta) in pedido.items():
         assert desde <= tono(amb) <= hasta, (amb, tono(amb))
-    assert luz('ladera') < luz('arroyo') - 30
+    assert luz('ladera') > luz('arroyo') + 30
+    # Y las gráficas usan los mismos colores que el mapa (25-11-2026, la autora: «que
+    # siempre sean los mismos cuando nombramos cada categoría en la app»)
+    import point_profile as pp
+    for cat in ('arroyo', 'laguna', 'ladera', 'húmedo', 'seco', 'puro', 'mixto-agua',
+                'mixto-roca'):
+        assert pp._COLOR_TIPO[cat] == mra.color(cat), cat
+    # «No borreguil», el mismo rojo oscuro en el mapa del RF, en el de los puntos y en
+    # las gráficas (25-11-2026, la autora: «iguala el color de no borreguil» → «en rojo»)
+    import borreguil_pipeline as bp
+    rojo = mra.color('no borreguil')
+    assert rojo == '#8E0000'
+    assert bp.decision_color('NO BORREGUIL') == bp.decision_color(
+        'NO BORREGUIL VERIFICADO') == rojo
+    assert pp.COL_NO == pp._COLOR_RESTO == rojo
+    for comparar in pp.COMPARAR:
+        filas = [{'decision': 'BORREGUIL PROBABLE', 'humedad': 'seco', 'ambiente': 'ladera'},
+                 {'decision': 'NO BORREGUIL'}]
+        assert dict(pp.grupos_puntos(filas, comparar, en=False)[1])['No borreguil'] == rojo
 
 
 def test_cuentas_metadatos_y_codigos():

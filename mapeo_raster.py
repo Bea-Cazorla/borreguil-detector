@@ -68,8 +68,14 @@ FICHEROS = {'clase': 'clase.tif', 'pmax': 'pmax.tif', 'prob': 'probabilidades.ti
 # Un color por categoría, el mismo en el ráster, en su leyenda y en los puntos. En la
 # humedad, tono frío para lo húmedo y cálido para lo seco (paleta de Okabe e Ito).
 # El nivel «ambiente» lleva los tonos que pidió la usuaria: el arroyo, verde; la
-# laguna, azul; la ladera, marrón (el marrón, más oscuro que el verde: con daltonismo
-# se distinguen por la claridad, no por el tono).
+# laguna, azul; la ladera, amarillo verdoso (25-11-2026, antes marrón). El amarillo
+# verdoso es mucho más claro que el verde del arroyo: con daltonismo se distinguen por
+# la claridad (OKLab × 100: 21,5 con visión normal, 16,4 con protanopía).
+# ESTE es el catálogo de colores de toda la app: las gráficas (point_profile) los
+# toman de aquí, para que cada categoría tenga siempre el mismo color (25-11-2026, la
+# autora). «No borreguil», rojo oscuro, el mismo que en el mapa de los puntos
+# (borreguil_pipeline.decision_color): antes aquí era gris; la autora vio los dos y
+# eligió el rojo (25-11-2026).
 # El nivel combinado lleva la paleta que eligió ella («Natural y contrastada»), tal
 # como venía en su imagen: en cada ambiente, lo húmedo en un tono frío (verde azulado,
 # azul, verde oliva) y lo seco en uno cálido (mostaza, naranja, teja). No se retoca sin
@@ -78,8 +84,8 @@ FICHEROS = {'clase': 'clase.tif', 'pmax': 'pmax.tif', 'prob': 'probabilidades.ti
 # separa es el mostaza del naranja (9,5), el verde azulado del oliva (11,0) y, con
 # protanopía, el oliva del teja (2,5).
 COLORES = {
-    'no borreguil': '#9E9E9E', 'borreguil': '#33A02C',
-    'arroyo': '#188C09', 'laguna': '#2D60A4', 'ladera': '#5E3806',
+    'no borreguil': '#8E0000', 'borreguil': '#33A02C',
+    'arroyo': '#188C09', 'laguna': '#2D60A4', 'ladera': '#B0B83A',
     'húmedo': '#009E73', 'seco': '#D55E00',
     'puro': '#009E73', 'mixto-agua': '#0072B2', 'mixto-roca': '#8C6D31',
     'arroyo · húmedo': '#168C73', 'arroyo · seco': '#D9AA37',

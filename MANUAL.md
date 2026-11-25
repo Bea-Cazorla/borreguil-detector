@@ -18,7 +18,7 @@ variable y cómo interpretar los resultados.
 6. [Los modelos](#6-los-modelos)
 7. [El umbral de decisión](#7-el-umbral-de-decisión)
 8. [Las variables del modelo](#8-las-variables-del-modelo)
-9. [Resultados: las seis pestañas](#9-resultados-las-seis-pestañas)
+9. [Resultados: las cinco pestañas](#9-resultados-las-cinco-pestañas)
 10. [Clasificación jerárquica del tipo](#10-clasificación-jerárquica-del-tipo)
 11. [Sumar tus puntos al modelo](#11-sumar-tus-puntos-al-modelo)
 12. [Rendimiento](#12-rendimiento)
@@ -193,7 +193,7 @@ Computer la app usa una versión del modelo entrenada sin radar, que acierta alg
 Ver [§6](#6-los-modelos). Es el que da la probabilidad de cada punto, **aunque tus
 puntos traigan etiquetas de campo**: con ellas la app mide cuántas acierta (recuadro
 «🧭 Modelo usado y acierto con tus puntos de campo», debajo del recuento de resultados
-y encima de las seis pestañas).
+y encima de las cinco pestañas).
 
 - **Sumar mis puntos a los del modelo y reentrenarlo** (sin marcar por defecto): la app vuelve a entrenar el modelo con
   los 769 puntos de Sierra Nevada con los que se hizo MÁS todos tus puntos con
@@ -461,18 +461,19 @@ un NDVI a 25 cm en los 25 m centrales del punto: su mediana, su percentil 90, su
 variabilidad, el infrarrojo cercano y el contraste con el anillo de alrededor. Es la
 variable que más pesa en ese modelo: el borde nítido del borreguil contra la roca.
 
-> En la pestaña **Peso de las variables** ves el peso real de cada una en el modelo activo.
+> En la pestaña **Variables del modelo** ves el peso real de cada una en el modelo activo.
 
 ---
 
-## 9. Resultados: las seis pestañas
+## 9. Resultados: las cinco pestañas
 
 Arriba del todo, la app tiene tres pestañas grandes: **📍 Verdad terreno**, donde
 se ejecuta la detección y se ven y revisan los puntos; **🌿 Mapa Modelo RF**, para
 el mapa de borreguiles (sí o no y, si quieres, su tipo); y **📖 Documentación y recomendaciones**. Los resultados de una
-ejecución salen en la primera, repartidos en seis pestañas.
+ejecución salen en la primera, repartidos en cinco pestañas: **Mapa de los puntos**,
+**Revisar puntos**, **Resumen de los puntos**, **Variables del modelo** y **Descargas**.
 
-**Quién revisa y con qué certidumbre.** Encima de las seis pestañas puedes escribir
+**Quién revisa y con qué certidumbre.** Encima de las cinco pestañas puedes escribir
 tu nombre y elegir tu perfil (estudiante, gestor/a o investigador/a). Se apuntan en
 cada punto que verifiques en «Revisar puntos» o añadas en el mapa, junto con la
 **certidumbre** que indiques al hacerlo: **alta** (no hay duda), **media** (hay
@@ -529,7 +530,7 @@ Seleccionar una fila centra el mapa y despliega la ficha del punto:
   pesan, una por grupo, de arriba abajo. En cada una, dónde cae el punto entre los
   borreguiles con los que se entrenó el modelo, de 0 (más bajo que todos) a 100 (más
   alto que todos); la franja **verde** es su mitad central y el punto sale **naranja**
-  si es más bajo o más alto que casi todos (fuera del 10–90). El **rombo gris** es el
+  si es más bajo o más alto que casi todos (fuera del 10–90). El **rombo rojo** es el
   **no borreguil típico** (la mediana de los no borreguiles verdaderos), en la misma
   escala: si el punto está más cerca de él que de la franja verde, se parece más a un
   no borreguil. Debajo, el valor del punto, el de la mitad central de los borreguiles
@@ -606,40 +607,88 @@ puedes cambiar a Google Satélite, que admite más zoom.
 Al **quitar puntos del análisis** la selección se vacía: así ninguna acción
 posterior recae sobre un punto que no has elegido.
 
-**Nombres largos y decimales.** Si los nombres de tus puntos son muy largos (por
-ejemplo, heredados del nombre de la capa: `all_borreguil_lagunas500ptos_epsg25830.41`),
-en la tabla se muestran abreviados conservando el final, que es lo que los
-distingue: `…epsg25830.41`. El nombre completo aparece al seleccionar el punto, en
-el mapa y en todas las descargas. Los números se muestran con **3 decimales** en la
-ficha del punto, en la tabla, en los globos del mapa y en el Excel (las coordenadas,
-con más, porque con 3 se moverían unos 100 m); los ficheros guardan el valor
-completo.
+**Nombres largos y decimales.** Si los nombres de tus puntos vienen del nombre de
+la capa (`all_borreguil_lagunas500ptos_epsg25830.41`), en la tabla y en los avisos
+salen solo con su número (`41`), y en el mapa y junto a él, como «Punto 41». Otros
+nombres muy largos se abrevian en la tabla conservando el final, que es lo que los
+distingue. El nombre completo está en todas las descargas. Los números se muestran
+con **3 decimales** en la ficha del punto, en la tabla, en los globos del mapa y en
+el Excel (las coordenadas, con 5, porque con 3 se moverían unos 100 m); los ficheros
+guardan el valor completo.
 
-### Probabilidades
-Distribución de probabilidades. **Dos grupos separados** = el modelo discrimina
-bien. **Una sola masa central** = no está distinguiendo; revisa el modelo o aporta
-verdad-terreno.
+**Las columnas de la tabla.** Además de la decisión, la probabilidad y el tipo, a la
+derecha están las **3 variables que más pesan en el modelo** (al pasar el ratón por
+su nombre se ve cuánto pesa cada una) y la pendiente. La cuenca no sale en la tabla:
+sigue en el punto, para la validación por zonas, y en las descargas.
 
-### Peso de las variables
-Ranking de importancia del modelo activo, con el rango típico de borreguil.
+### Resumen de los puntos
+Lo que ha encontrado la app en tus puntos, de arriba abajo (hasta el 25-11-2026 eran
+dos pestañas, «Probabilidades» y «Tipos y distribuciones»):
 
-### Tipos y distribuciones
-La **clasificación jerárquica** (los tipos de borreguil), el recuento por decisión y
-**las variables que más pesan en el modelo** usado: una por cada grupo de variables
-parecidas, de más a menos, con el peso del grupo junto al nombre («Altitud (m) · 8 %»).
+1. **Probabilidad de ser borreguil**: el histograma (ver abajo).
+2. **Recuento de puntos por categoría de decisión**: cuántos hay de cada decisión, de
+   más a menos borreguil (borreguil verificado, probable, posible, incierto, dudoso, no
+   borreguil, no borreguil verificado), con el número y el porcentaje al final de cada
+   barra. Cada barra lleva el color de esa decisión en «Mapa de los puntos».
+3. **🌿 Tipos de borreguil**: ver más abajo.
+
+**La probabilidad.** Histograma de la probabilidad de ser borreguil que da el Random
+Forest a cada punto, en tramos de 0,050. Debajo, la pestaña explica cómo leerlo
+(abierto por defecto):
+
+- **A la izquierda**, los puntos que el modelo ve claramente como no borreguil; **a la
+  derecha**, los que ve claramente como borreguil; **en el centro**, los dudosos.
+- **Forma de U** (dos grupos separados, centro casi vacío) = el modelo discrimina bien.
+  **Una joroba en el centro** = no está distinguiendo; revisa puntos y reentrena, o
+  aporta verdad-terreno.
+- **Rayas rojas**: el umbral en uso (por encima, borreguil) y 0,700, una referencia
+  fija de «muy probable».
+- **Cifras**: la mediana, cuántos puntos salen borreguil con tu umbral, cuántos pasan de
+  0,700 y el total.
+- **Para el umbral**: si cae en un valle vacío, moverlo apenas cambia nada; la pestaña
+  dice cuántos puntos, como mucho, cambiarían si lo movieras 0,150 arriba o abajo. Otsu
+  busca ese valle.
+- **Para revisar**: los puntos del centro son los primeros que conviene mirar en
+  «Revisar puntos».
+- Si el modelo se entrenó con esos mismos puntos, la U sale más limpia de lo que
+  saldría con puntos nuevos.
+
+**Los tipos.** Primero, tres gráficas de barras: cuántos borreguiles hay de cada
+**ambiente**, de cada **humedad** y de cada **pureza**, con el número al final de cada
+barra y las tres en la misma escala. Cada categoría lleva **su color, el mismo en toda
+la app** (gráficas y mapa): arroyo verde, laguna azul, ladera amarillo verdoso; húmedo
+verde azulado y seco naranja; puro verde azulado, mixto-agua azul y mixto-roca marrón;
+y **no borreguil, rojo oscuro**, también en el mapa del Random Forest.
+Los que no tienen propuesta en un nivel salen en gris como «sin propuesta (—)»; sin
+Earth Engine, por ejemplo, no hay pureza. Debajo, los **tres niveles juntos** (la
+clasificación jerárquica) y el recuento por combinación completa; esa vista solo sale
+si están los tres niveles. Al final, cómo propone la app cada nivel.
+
+### Variables del modelo
+En qué se fija el modelo (hasta el 25-11-2026, «Peso de las variables» y la parte de
+abajo de «Tipos y distribuciones»):
+
+1. **El peso de cada variable**: el ranking de importancia del modelo activo, con el
+   rango típico de borreguil.
+2. **Las que más pesan, grupo a grupo**: las variables que más pesan en el modelo
+   usado, una por cada grupo de variables parecidas, de más a menos, con el peso del
+   grupo junto al nombre («Altitud (m) · 8 %»), comparadas entre grupos de puntos.
+
 Encima del gráfico se elige:
 
 | Control | Opciones |
 |---|---|
-| **Cómo verlo** | **Cajas** (mediana, cuartiles p25–p75, bigotes y atípicos) · **Curvas de distribución** (cómo se reparten los valores de cada grupo: si apenas se tocan, la variable separa bien) · **Diferencias de un vistazo** (cuánto se aparta la mediana de cada grupo de la del resto, en desviaciones típicas: a la derecha, más; a la izquierda, menos) · **Dos variables a la vez** (cada punto en el plano de dos variables) |
-| **Comparar** | **Borreguil frente al resto** · **Por humedad** (húmedo, seco y el resto) · **Por ambiente** (arroyo, laguna, ladera y el resto) |
+| **Cómo verlo** | **Cajas** (mediana, cuartiles p25–p75, bigotes y atípicos) · **Curvas de distribución** (cómo se reparten los valores de cada grupo: si apenas se tocan, la variable separa bien) · **Diferencia estandarizada de medianas** (cuánto se aparta la mediana de cada grupo de la de los no borreguiles, en desviaciones típicas: a la derecha, más; a la izquierda, menos) · **Dos variables a la vez** (cada punto en el plano de dos variables) |
+| **Comparar** | **Borreguil frente a no borreguil** · **Por humedad** (húmedo, seco y no borreguil) · **Por ambiente** (arroyo, laguna, ladera y no borreguil) |
 | **Cuántas variables** | 4, 8 (de entrada) o 12 |
 
 En **Dos variables a la vez** se eligen los dos ejes entre **todas** las variables de los
 puntos: primero las del modelo, de más a menos peso, y después las que el modelo no usa.
 De entrada, las dos que más pesan. Al pasar el ratón por cualquier gráfico salen sus
 cifras con 3 decimales. En las curvas y en las diferencias no se dibujan los grupos con
-menos de 5 puntos: su mediana o su forma engañarían.
+menos de 5 puntos: su mediana o su forma engañarían. El grupo **No borreguil** tiene
+solo los puntos que la app da como no borreguil (verificados o no); los inciertos y los
+dudosos no se dibujan, y debajo del selector se dice cuántos son.
 
 ### Descargas
 - `classification.csv` y `Clasificacion_puntos.xlsx` — la tabla completa, con
@@ -651,7 +700,7 @@ menos de 5 puntos: su mediana o su forma engañarían.
 - `mapa.html` — mapa autónomo que se abre en cualquier navegador.
 - `area_estudio.geojson` — el polígono del área, si la definiste.
 
-> 🌿 El **mapa de borreguiles** no es una de estas seis: tiene su propia pestaña,
+> 🌿 El **mapa de borreguiles** no es una de estas cinco: tiene su propia pestaña,
 > **🌿 Mapa Modelo RF**, arriba del todo, junto a **📍 Verdad terreno**. Ver
 > [Mapa de tipos con Random Forest](#mapa-de-tipos-con-random-forest).
 
@@ -1491,6 +1540,16 @@ Qué enseña la pestaña:
   verano, estadísticas de junio a septiembre, topografía).
 - **Todas las variables**, con las dos medidas y su puesto en cada una. Se descarga
   como `peso_variables_<nivel>.csv`.
+- **Las que más pesan, categoría a categoría** (desde el 25-11-2026): las variables
+  que más pesan en este modelo (lo que pierde sin ellas), en las muestras de la tabla
+  de entrenamiento, separadas por las **categorías que aprende el modelo** (por
+  ejemplo, húmedo, seco y no borreguil). Son los mismos gráficos que «Las que más
+  pesan, grupo a grupo» de **Variables del modelo** en Verdad terreno: **Cajas**,
+  **Curvas de distribución**, **Diferencia estandarizada de medianas** (frente a «no borreguil»;
+  sin esa categoría en el nivel no hay con qué comparar) y **Dos variables a la vez**.
+  Cada categoría lleva su color del mapa. Sirve para ver por qué el modelo separa (o
+  no) las categorías: si las cajas de húmedo y seco no se tocan en el NDMI, esa
+  variable las distingue.
 
 Cómo leerlo, y con qué cuidado:
 
@@ -1546,7 +1605,7 @@ faltan las ponen los 397 no borreguiles de Sierra Nevada.
 
 ### Cuánto acierta con tus puntos de campo
 Si tus puntos traen etiquetas de campo (o has verificado puntos desde la tabla), el
-recuadro **🧭 Modelo usado y acierto con tus puntos de campo**, encima de las seis
+recuadro **🧭 Modelo usado y acierto con tus puntos de campo**, encima de las cinco
 pestañas, dice:
 
 | | Borreguiles de campo acertados | Ausencias de campo acertadas | AUC |

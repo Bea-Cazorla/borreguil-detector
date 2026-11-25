@@ -669,7 +669,8 @@ def _nombre_columna(c):
         'cuenca_id': ('Cuenca', 'Basin'),
         'source': ('Fuente', 'Source'),
         'origin': ('Origen', 'Origin'),
-        'Borreguil': ('Borreguil (tu etiqueta)', 'Borreguil (your label)'),
+        # (25-11-2026, la autora: «no entiendo borreguil (tu etiqueta)» → «mejor revisado»)
+        'Borreguil': ('¿Borreguil? (revisado)', 'Borreguil? (reviewed)'),
         'decision': ('Decisión', 'Decision'),
         'rf_proba': ('Probabilidad', 'Probability'),
         'ambiente': ('Ambiente', 'Environment'),
@@ -694,14 +695,29 @@ def _texto_ids(ids, n_max=5):
     return txt
 
 
+def _nombres_cortos(ids, punto=''):
+    """Los nombres de unos puntos como en la tabla: los ID heredados del nombre de
+    la capa ('all_…_epsg25830.17'), con su número ('17', o 'Punto 17' con `punto`);
+    los demás, igual. Se calculan con todos los puntos (y estos), para que un número
+    no pueda ser de dos capas a la vez."""
+    ids = [str(i) for i in ids]
+    todos = [str(r.get('ID')) for r in (st.session_state.get('rows') or [])]
+    todos += [i for i in ids if i not in set(todos)]
+    mapa = dict(zip(todos, bp.nombres_de_punto(todos, punto=punto)))
+    return [mapa.get(i, i) for i in ids]
+
+
 def _msg_puntos(ids, es_1, es_n, en_1, en_n):
-    """Aviso tras verificar o quitar puntos: «SN_005 marcado como …» con uno, o «3
-    puntos marcados como …: SN_005, SN_006, SN_007» con varios."""
+    """Aviso tras verificar o quitar puntos: «Punto 17 marcado como …» con uno, o «3
+    puntos marcados como …: 1, 17, 289» con varios (los ID heredados del nombre de la
+    capa, con su número, como en la tabla; los demás, como son: «SN_005»)."""
     ids = list(ids)
     if len(ids) == 1:
-        return i18n.pick(f'{ids[0]} {es_1}.', f'{ids[0]} {en_1}.')
-    return i18n.pick(f'{len(ids)} puntos {es_n}: {_texto_ids(ids)}.',
-                     f'{len(ids)} points {en_n}: {_texto_ids(ids)}.')
+        _uno = _nombres_cortos(ids, i18n.pick('Punto', 'Point'))[0]
+        return i18n.pick(f'{_uno} {es_1}.', f'{_uno} {en_1}.')
+    _varios = _texto_ids(_nombres_cortos(ids))
+    return i18n.pick(f'{len(ids)} puntos {es_n}: {_varios}.',
+                     f'{len(ids)} points {en_n}: {_varios}.')
 
 
 def _num(v, nd=3, signo=False):
@@ -3156,12 +3172,15 @@ with tab_analisis:
 
         # Tabs
         # Nombres y orden de la autora (24-11): Descargas, al final.
-        tab1, tab2, tab3, tab5, tab6, tab4 = st.tabs([
+        # «Probabilidades», «Peso de las variables» y «Tipos y distribuciones» se unen
+        # en dos (25-11-2026, la autora): lo que ha encontrado la app en los puntos
+        # (decisiones, probabilidades y tipos) y en qué se fija el modelo (el peso de
+        # cada variable y cómo cambian entre grupos).
+        tab1, tab2, tab3, tab5, tab4 = st.tabs([
             i18n.pick('Mapa de los puntos', 'Points map'),
             i18n.pick('Revisar puntos', 'Review points'),
-            i18n.pick('Probabilidades', 'Probabilities'),
-            i18n.pick('Peso de las variables', 'Variable weights'),
-            i18n.pick('Tipos y distribuciones', 'Types and distributions'),
+            i18n.pick('Resumen de los puntos', 'Points summary'),
+            i18n.pick('Variables del modelo', 'Model variables'),
             i18n.pick('Descargas', 'Downloads')])
 
         with tab1:
@@ -3329,14 +3348,16 @@ with tab_analisis:
                 '**último punto seleccionado** y, a su lado, su revisión en dos pasos: '
                 '**¿es borreguil?** y, si lo es, **su tipo**, con un solo botón para '
                 'guardarlo todo (con varias filas, se aplica a todas). Si has marcado «Sumar '
-                'mis puntos a los del modelo y reentrenarlo», al cambiar el sí o el no se '
-                'reentrena el modelo.',
+                'mis puntos a los del modelo y reentrenarlo» (panel de la izquierda, en '
+                '«Modelo de partida»), al cambiar el sí o el no se reentrena el modelo. '
+                'Debajo de la tabla se explica qué variables salen y por qué.',
                 'Select one or several rows (left checkbox). Below appears the map of the '
                 '**last selected point** and, next to it, its review in two steps: **is it '
                 'a borreguil?** and, if it is, **its type**, with a single button to save '
                 'it all (with several rows, it applies to all of them). If you ticked "Add '
-                'my points to the model\'s and retrain it", the model is retrained when the '
-                'yes or no changes.'))
+                'my points to the model\'s and retrain it" (left panel, under "Modelo de '
+                'partida"), the model is retrained when the yes or no changes. Below the '
+                'table it says which variables appear and why.'))
             _aviso_rev = st.session_state.pop('_rev_msg', None)
             if _aviso_rev:
                 st.success(_aviso_rev)
@@ -3375,12 +3396,16 @@ with tab_analisis:
             # (vacío con Earth Engine; desde el 20-11-2026 los modelos no lo usan) y el
             # «patrón», un código interno.
             _rs_tab = load_ref_stats(MODEL_PATH)
-            _vars_tab = [k['feat'] for k in pp.variables_clave(
+            _clave_tab = pp.variables_clave(
                 (_rs_tab or {}).get('importances'),
-                set((_rs_tab or {}).get('model_features') or []) or None, 3)]
+                set((_rs_tab or {}).get('model_features') or []) or None, 3)
+            _vars_tab = [k['feat'] for k in _clave_tab]
             if 'slope_deg' not in _vars_tab:
                 _vars_tab.append('slope_deg')
-            cols_show = (['ID', 'cuenca_id', 'source', 'origin', 'Borreguil', 'decision',
+            # (Sin la cuenca: para revisar no aporta y salía vacía en los puntos que no
+            # la traen; quitada el 25-11-2026 a petición de la autora. Sigue en el
+            # punto, para la validación por zonas, y en las descargas.)
+            cols_show = (['ID', 'source', 'origin', 'Borreguil', 'decision',
                           'rf_proba', 'ambiente', 'humedad', 'pureza', 'tipo_revisado']
                          + _vars_tab + ['dist_cauce_m', 'lat', 'lon'])
             df = pd.DataFrame(rows)
@@ -3394,6 +3419,20 @@ with tab_analisis:
             # Los valores del pipeline son españoles; se traducen SOLO para
             # mostrarlos (df_show), sin tocar `rows`, del que depende la lógica.
             df_show = df[cols_show].copy()
+            # Las variables que llegan como texto (de un CSV, p. ej. «0.10313319351…»),
+            # como números: si no, la tabla las enseñaba con todos sus decimales en vez
+            # de con 3 (25-11-2026). Solo si todo lo que hay en la columna es un número.
+            for _c in df_show.columns:
+                if _c == 'ID' or pd.api.types.is_numeric_dtype(df_show[_c]):
+                    continue
+                _llenos = [v for v in df_show[_c]
+                           if not (v is None or (isinstance(v, float) and v != v)
+                                   or (isinstance(v, str) and v.strip().lower()
+                                       in ('', 'none', 'nan')))]
+                if _llenos and not any(isinstance(v, bool) for v in _llenos):
+                    _num_c = pd.to_numeric(pd.Series(_llenos), errors='coerce')
+                    if _num_c.notna().all():
+                        df_show[_c] = pd.to_numeric(df_show[_c], errors='coerce')
             # Celdas sin dato en las columnas de texto: vacías, no «None» (la columna
             # «Borreguil» de los puntos sin etiqueta de campo lo enseñaba así).
             # (las de texto no siempre son «object»: con pandas 3 son «str», y lo que
@@ -3408,6 +3447,12 @@ with tab_analisis:
                 df_show['Borreguil'] = df_show['Borreguil'].map(
                     lambda v: {'si': i18n.pick('sí', 'yes'), 'no': 'no'}.get(
                         bp._txt(v).lower(), ''))
+            if 'source' in df_show.columns:
+                # «truth» era un nombre interno: los puntos de campo que no coincidían
+                # con ninguno de los tuyos (25-11-2026)
+                df_show['source'] = df_show['source'].map(
+                    lambda v: {'truth': i18n.pick('campo', 'field'),
+                               'mapa': i18n.pick('mapa', 'map')}.get(bp._txt(v), bp._txt(v)))
             for _c in ('decision', 'ambiente', 'humedad', 'pureza', 'tipo_borreguil'):
                 if _c in df_show.columns:
                     # la decisión, en texto normal («Borreguil verificado»)
@@ -3425,26 +3470,208 @@ with tab_analisis:
             # es lo que los distingue; si no, la columna se come el ancho y hay que
             # desplazarse para ver la decisión y el tipo. Además queda fija al
             # desplazar la tabla hacia la derecha.
+            # Y los heredados del nombre de la capa ('all_…_epsg25830.17'), solo con
+            # su número ('17'), como en el globo del mapa (25-11-2026, la autora).
             _cfg_tabla = {}
             if 'ID' in df_show.columns:
-                df_show['ID'] = bp.abreviar_ids(df_show['ID'].tolist())
-                _cfg_tabla['ID'] = st.column_config.Column(pinned=True, help=i18n.pick(
+                _ids_t = [str(x) for x in df_show['ID'].tolist()]
+                _cortos_t = bp.nombres_de_punto(_ids_t, punto='')
+                df_show['ID'] = bp.abreviar_ids(_cortos_t)
+                _cfg_tabla['ID'] = st.column_config.Column(pinned=True, help=(i18n.pick(
+                    'El número del punto: el nombre de la capa de la que viene se ha '
+                    'quitado para que se lea mejor. El nombre completo sale en las '
+                    'descargas.',
+                    'The number of the point: the name of the layer it comes from has '
+                    'been removed so that it reads better. The full name is in the '
+                    'downloads.') if _cortos_t != _ids_t else i18n.pick(
                     'Los nombres largos se muestran abreviados («…»). El nombre '
                     'completo aparece al seleccionar el punto y en las descargas.',
                     'Long names are shown abbreviated ("…"). The full name appears '
-                    'when you select the point and in the downloads.'))
+                    'when you select the point and in the downloads.')))
             # Cabeceras legibles («Decisión», «Altitud (m)»…), no los nombres internos
             df_show = df_show.rename(columns={c: _nombre_columna(c) for c in df_show.columns})
             # Los números, con 3 decimales; las coordenadas con 5 (con 3 se moverían
             # unos 100 m). Solo cambia lo que se ve: `rows` conserva el valor completo.
             _coords = {_nombre_columna('lat'), _nombre_columna('lon')}
+            # Al pasar el ratón por el nombre de una de las 3 variables que más pesan,
+            # se dice por qué está en la tabla y cuánto pesa.
+            _peso_tab = {_nombre_columna(k['feat']): k['peso'] for k in _clave_tab}
             for _c in df_show.columns:
-                if _c not in _cfg_tabla and pd.api.types.is_float_dtype(df_show[_c]):
+                if _c in _peso_tab:
+                    _p = _peso_tab[_c]
+                    _p_es = '' if _p is None else f' ({100 * _p:.0f} % del peso)'
+                    _p_en = '' if _p is None else f' ({100 * _p:.0f} % of the weight)'
+                    _cfg_tabla[_c] = st.column_config.NumberColumn(help=i18n.pick(
+                        f'Una de las 3 variables que más pesan en el modelo{_p_es}.',
+                        f'One of the 3 variables that weigh most in the model{_p_en}.'))
+                elif _c not in _cfg_tabla and pd.api.types.is_float_dtype(df_show[_c]):
                     _cfg_tabla[_c] = st.column_config.NumberColumn()
+            # «Decisión», al pasar el ratón: si el punto tiene etiqueta, manda ella; si no,
+            # la probabilidad (25-11-2026, la autora: «¿por qué pone decisión borreguil
+            # verificado?» → «Sí, explícalo»). Con los cortes de bp.decide().
+            _col_dec = _nombre_columna('decision')
+            if _col_dec in df_show.columns:
+                _d = i18n.tv_decision
+                _corte = bp.corte_borreguil(threshold)
+                _posible = _corte < 0.7 - 1e-9
+                _cfg_tabla[_col_dec] = st.column_config.TextColumn(help=i18n.pick(
+                    'Si el punto está revisado (en la app o ya en tu fichero), manda lo '
+                    f'revisado: «sí» → «{_d("BORREGUIL VERIFICADO")}», «no» → '
+                    f'«{_d("NO BORREGUIL VERIFICADO")}» y dudoso → «{_d("DUDOSO (campo)")}». '
+                    'Los puntos sin revisar los decide el modelo con su probabilidad: '
+                    + (f'desde {_n3(_corte)} (el umbral), «{_d("POSIBLE BORREGUIL")}», y '
+                       if _posible else '')
+                    + f'desde {_n3(0.7)}, «{_d("BORREGUIL PROBABLE")}»; hasta {_n3(0.2)}, '
+                    f'«{_d("NO BORREGUIL")}»; entre medias, «{_d("INCIERTO")}». La '
+                    'probabilidad se calcula siempre, también en los revisados.',
+                    'If the point is reviewed (in the app or already in your file), the '
+                    f'review decides: "yes" → "{_d("BORREGUIL VERIFICADO")}", "no" → '
+                    f'"{_d("NO BORREGUIL VERIFICADO")}" and doubtful → '
+                    f'"{_d("DUDOSO (campo)")}". Points not reviewed are decided by the '
+                    'model with its probability: '
+                    + (f'from {_n3(_corte)} (the threshold), "{_d("POSIBLE BORREGUIL")}", and '
+                       if _posible else '')
+                    + f'from {_n3(0.7)}, "{_d("BORREGUIL PROBABLE")}"; up to {_n3(0.2)}, '
+                    f'"{_d("NO BORREGUIL")}"; in between, "{_d("INCIERTO")}". The '
+                    'probability is always computed, also for reviewed points.'))
+            # Las demás columnas, al pasar el ratón por su nombre (25-11-2026, la autora:
+            # «que explique cada campo de la tabla al pasar el ratón por encima»). Las 3
+            # variables que más pesan ya llevan la suya (arriba).
+            _ayudas = {
+                'source': (
+                    'De dónde viene el punto. Vacío: de tu fichero «Tus puntos». «campo»: de '
+                    'tu fichero de puntos de campo, en un sitio donde no había ninguno de tus '
+                    'puntos. «mapa»: lo añadiste pinchando en el mapa.',
+                    'Where the point comes from. Empty: from your "Your points" file. '
+                    '"field": from your field points file, at a place where none of your '
+                    'points was. "map": you added it by clicking on the map.'),
+                'origin': (
+                    'Si se revisó en la app. «verificado»: una persona lo revisó aquí o lo '
+                    'añadió en el mapa. «dudoso»: lo marcó como dudoso. Vacío: no se ha '
+                    'revisado en la app; si sale revisado, venía así en tu fichero.',
+                    'Whether it was reviewed in the app. "verificado": a person reviewed it '
+                    'here or added it on the map. "dudoso": marked as doubtful. Empty: not '
+                    'reviewed in the app; if it shows as reviewed, it came so in your file.'),
+                'Borreguil': (
+                    'Lo que ha comprobado una persona: «sí», es borreguil; «no», no lo es. '
+                    'Viene de tu fichero (columna presence o Borreguil), de tu revisión en '
+                    'esta pestaña o de un punto añadido en el mapa. Vacío: sin revisar, y '
+                    'entonces decide el modelo.',
+                    'What a person has checked: "yes", it is a borreguil; "no", it is not. '
+                    'It comes from your file (presence or Borreguil column), from your review '
+                    'in this tab or from a point added on the map. Empty: not reviewed, so '
+                    'the model decides.'),
+                'rf_proba': (
+                    'Probabilidad de que sea borreguil según el modelo, de 0 a 1. Se calcula '
+                    'siempre, también en los puntos revisados, para comparar.',
+                    'Probability of being a borreguil according to the model, from 0 to 1. '
+                    'It is always computed, also for reviewed points, to compare.'),
+                'ambiente': (
+                    'Dónde está el borreguil. laguna: a menos de 120 m de una laguna conocida '
+                    'o con agua cerca en la imagen; arroyo: a 30 m o menos de un río o arroyo '
+                    'de OpenStreetMap; ladera: el resto. Es la propuesta de la app, salvo que '
+                    'lo hayas revisado.',
+                    'Where the borreguil is. lake: less than 120 m from a known lake or with '
+                    'water nearby in the image; stream: 30 m or less from an OpenStreetMap '
+                    'river or stream; slope: the rest. It is the app\'s proposal unless you '
+                    'reviewed it.'),
+                'humedad': (
+                    'húmedo si el NDMI (humedad de la vegetación) de junio a septiembre pasa '
+                    'de 0,100; si no, seco. Es la propuesta de la app, salvo que lo hayas '
+                    'revisado.',
+                    'wet if the NDMI (vegetation moisture) from June to September is above '
+                    '0.100; otherwise dry. It is the app\'s proposal unless you reviewed it.'),
+                'pureza': (
+                    'Cuánto verde hay en el píxel de 10 m del punto: puro si llega al 75 %; '
+                    'si no, mixto-agua si el píxel es agua o toca agua, y mixto-roca si no. Se '
+                    'lee con Earth Engine: sin él, sale «—».',
+                    'How much green there is in the 10 m pixel of the point: pure if it '
+                    'reaches 75 %; otherwise mixed-water if the pixel is water or touches '
+                    'water, and mixed-rock if not. It is read with Earth Engine: without it, '
+                    'it shows "—".'),
+                'tipo_revisado': (
+                    '«sí» si una persona ha revisado los tres niveles del tipo; si solo '
+                    'algunos, cuáles. Vacío: el tipo es la propuesta de la app.',
+                    '"yes" if a person reviewed the three levels of the type; if only some, '
+                    'which ones. Empty: the type is the app\'s proposal.'),
+                'slope_deg': (
+                    'Pendiente del terreno, en grados, del Copernicus DEM. Va siempre, como '
+                    'referencia del terreno.',
+                    'Terrain slope, in degrees, from the Copernicus DEM. It is always there, '
+                    'as a reference for the terrain.'),
+                'dist_cauce_m': (
+                    'Metros al río o arroyo de OpenStreetMap más cercano. Con 30 m o menos, '
+                    'el ambiente propuesto es «arroyo».',
+                    'Metres to the nearest OpenStreetMap river or stream. With 30 m or less, '
+                    'the proposed environment is "stream".'),
+                'lat': ('Latitud del punto, en grados (WGS84), con 5 decimales: '
+                        'alrededor de 1 m.',
+                        'Latitude of the point, in degrees (WGS84), with 5 decimals: '
+                        'about 1 m.'),
+                'lon': ('Longitud del punto, en grados (WGS84), con 5 decimales: '
+                        'alrededor de 1 m.',
+                        'Longitude of the point, in degrees (WGS84), with 5 decimals: '
+                        'about 1 m.'),
+            }
+            for _k, (_a_es, _a_en) in _ayudas.items():
+                _c = _nombre_columna(_k)
+                if _c not in df_show.columns or _c in _peso_tab:
+                    continue
+                _ayuda = i18n.pick(_a_es, _a_en)
+                if pd.api.types.is_numeric_dtype(df_show[_c]):
+                    _cfg_tabla[_c] = st.column_config.NumberColumn(help=_ayuda)
+                else:
+                    _cfg_tabla[_c] = st.column_config.TextColumn(help=_ayuda)
             event = st.dataframe(_con_coma(df_show, decimales={c: 5 for c in _coords}),
                                  hide_index=True, width='stretch',
                                  on_select='rerun', selection_mode='multi-row',
                                  column_config=_cfg_tabla, key='results_table')
+            # Por qué salen esas variables, en una frase junto a la tabla (25-11-2026, la
+            # autora: «que eso se explique brevemente cerca de la tabla»). El peso, sin
+            # decimales, como al pasar el ratón por la columna.
+            _lista_tab = [k for k in _clave_tab
+                          if _nombre_columna(k['feat']) in df_show.columns]
+            if _lista_tab:
+                def _con_peso(k):
+                    if k['peso'] is None:
+                        return _nombre_columna(k['feat'])
+                    _np = k['parecidas']
+                    _par = ('' if not _np else
+                            i18n.pick(f", con {_np} parecida{'' if _np == 1 else 's'}",
+                                      f", with {_np} similar one{'' if _np == 1 else 's'}"))
+                    return f"{_nombre_columna(k['feat'])} ({100 * k['peso']:.0f} %{_par})"
+                _nombres_tab = [_con_peso(k) for k in _lista_tab]
+                _y = i18n.pick(' y ', ' and ')
+                _txt_vars = (_nombres_tab[0] if len(_nombres_tab) == 1 else
+                             ', '.join(_nombres_tab[:-1]) + _y + _nombres_tab[-1])
+                _con_pesos = all(k['peso'] is not None for k in _lista_tab)
+                _cir_tab = any(str(k['feat']).startswith('cir_') for k in _lista_tab)
+                st.caption(i18n.pick(
+                    '**Por qué salen estas variables:** '
+                    + (f'son las {len(_lista_tab)} que más pesan en el modelo que usas, una '
+                       'por cada grupo de variables que dicen casi lo mismo (el peso es el del '
+                       f'grupo): {_txt_vars}. ' if _con_pesos else
+                       f'{_txt_vars}: el modelo no trae el peso de sus variables, así que '
+                       'salen las que más separan los borreguiles en Sierra Nevada. ')
+                    + 'La pendiente va siempre, como referencia del terreno. Si cambias de '
+                    'modelo, cambian.'
+                    + (' Las CIR salen de la ortofoto en falso color infrarrojo a 0,25 m, de '
+                       'un recorte de 50 × 50 m alrededor de cada punto.' if _cir_tab else '')
+                    + ' El modelo del mapa (🌿 Mapa Modelo RF) usa otras: solo las que '
+                    'existen como mapa de toda la zona.',
+                    '**Why these variables:** '
+                    + (f'they are the {len(_lista_tab)} that weigh most in the model in use, '
+                       'one for each group of variables that say almost the same thing (the '
+                       f'weight is the group\'s): {_txt_vars}. ' if _con_pesos else
+                       f'{_txt_vars}: the model does not carry the weight of its variables, '
+                       'so these are the ones that best separate borreguiles in Sierra '
+                       'Nevada. ')
+                    + 'The slope is always there, as a reference for the terrain. If you '
+                    'change the model, they change.'
+                    + (' The CIR ones come from the false-colour infrared orthophoto at '
+                       '0.25 m, from a 50 × 50 m clip around each point.' if _cir_tab else '')
+                    + ' The map model (🌿 RF model map) uses others: only those that exist '
+                    'as a map of the whole area.'))
             sel_rows = []
             if event is not None and getattr(event, 'selection', None):
                 _selo = event.selection
@@ -3527,17 +3754,21 @@ with tab_analisis:
                         "line-height:1.3;overflow-wrap:anywhere;'>"
                         f"{bp.nombre_html(_nombres_sel[idx])}</h4>",
                         unsafe_allow_html=True)
+                    # Lo que dice la app del punto, en grande como antes de unir la
+                    # revisión (25-11-2026, la autora): la decisión, el tipo y la
+                    # probabilidad como cifra destacada.
+                    st.markdown(f"**{i18n.tv_decision(sel.get('decision') or '—')}**")
+                    if sel.get('tipo_borreguil'):
+                        st.markdown(
+                            f"🌿 {i18n.tv(sel['tipo_borreguil'])} — "
+                            + (i18n.pick('**revisado**', '**reviewed**')
+                               if bp.tipo_revisado(sel)
+                               else i18n.pick('propuesta de la app, sin revisar',
+                                              "app's proposal, not reviewed")))
                     rfp = sel.get('rf_proba')
-                    _rf_txt = (f' ({rfp * 100:.0f} %)' if isinstance(rfp, (int, float))
-                               and not _m.isnan(rfp) else '')
-                    st.caption(i18n.pick('El modelo dice: ', 'The model says: ')
-                               + f"**{i18n.tv_decision(sel.get('decision') or '—')}**{_rf_txt}"
-                               + (f" · {i18n.tv(sel['tipo_borreguil'])} — "
-                                  + (i18n.pick('tipo **revisado**', 'type **reviewed**')
-                                     if bp.tipo_revisado(sel) else
-                                     i18n.pick('propuesta de la app, sin revisar',
-                                               "app's proposal, not reviewed"))
-                                  if sel.get('tipo_borreguil') else ''))
+                    if isinstance(rfp, (int, float)) and not _m.isnan(rfp):
+                        st.metric(i18n.pick('Probabilidad RF', 'RF probability'),
+                                  f'{rfp * 100:.0f} %')
                     import hashlib as _hl
                     # La clave de los controles depende de QUÉ puntos hay seleccionados
                     # (por ID: al quitar uno las posiciones se corren) y de cuántas veces
@@ -3617,17 +3848,39 @@ with tab_analisis:
                         '"pure" if it is all meadow. Each level counts separately: what you '
                         'leave at "I couldn\'t see it" does not count as reviewed.'))
                     _snap = st.session_state.get('_rev_deshacer')
+                    # Si al guardar se reentrena o no, y dónde se elige: la casilla está
+                    # en el panel de la izquierda y desde aquí no se veía (25-11-2026, la
+                    # autora: «no sé dónde se selecciona eso»).
+                    if st.session_state.get('entrenar_propio'):
+                        st.caption(i18n.pick(
+                            '🔁 **«Sumar mis puntos a los del modelo y reentrenarlo»** está '
+                            'marcada: si cambias el sí o el no, al guardar el modelo se '
+                            'reentrena con tus puntos (unos segundos).',
+                            '🔁 **"Add my points to the model\'s and retrain it"** is ticked: '
+                            'if you change the yes or no, saving retrains the model with your '
+                            'points (a few seconds).'))
+                    else:
+                        st.caption(i18n.pick(
+                            'Lo que guardes queda en el punto y sirve para medir cuánto '
+                            'acierta el modelo, pero no lo reentrena. Para eso, marca '
+                            '**«Sumar mis puntos a los del modelo y reentrenarlo»** en el '
+                            'panel de la izquierda, en «Modelo de partida».',
+                            'What you save stays in the point and is used to measure how '
+                            'well the model does, but it does not retrain it. For that, tick '
+                            '**"Add my points to the model\'s and retrain it"** in the left '
+                            'panel, under "Modelo de partida" (Starting model).'))
                     _guardar = st.button(
                         i18n.pick('💾 Guardar la revisión', '💾 Save the review'),
                         type='primary', key='rev_guardar', width='stretch',
                         help=i18n.pick(
                             'Guarda a la vez si es borreguil, la certidumbre, quién revisa y '
                             'el tipo. Si has marcado «Sumar mis puntos a los del modelo y '
-                            'reentrenarlo» y cambia el sí o el no, el modelo se reentrena.',
+                            'reentrenarlo» (panel de la izquierda, en «Modelo de partida») y '
+                            'cambia el sí o el no, el modelo se reentrena.',
                             'Saves at once whether it is a borreguil, the certainty, who '
                             'reviews and the type. If you ticked "Add my points to the '
-                            "model's and retrain it\" and the yes or no changes, the model "
-                            'is retrained.'))
+                            "model's and retrain it\" (left panel, under \"Modelo de "
+                            'partida") and the yes or no changes, the model is retrained.'))
                     _b1, _b2 = st.columns(2)
                     with _b1:
                         _deshacer = st.button(
@@ -3752,8 +4005,11 @@ with tab_analisis:
                                     ' Type reviewed: ' + ', '.join(
                                         bp.COLUMNA_TIPO_EN[n] for n in _elegidos) + '.')
                             elif _sin_tipo:
-                                _extra = i18n.pick(' Se le ha quitado el tipo revisado.',
-                                                   ' Its reviewed type was removed.')
+                                _extra = (i18n.pick(' Se le ha quitado el tipo revisado.',
+                                                    ' Its reviewed type was removed.')
+                                          if len(sel_ids) == 1 else
+                                          i18n.pick(' Se les ha quitado el tipo revisado.',
+                                                    ' Their reviewed type was removed.'))
                             st.session_state['_rev_msg'] = (
                                 _msg_puntos(sel_ids, *_que) + _extra
                                 + (_reentrenado if (info2 or {}).get('sumado') else ''))
@@ -3810,8 +4066,13 @@ with tab_analisis:
                         if isinstance(r.get('rf_proba'), (int,float)) and not _m.isnan(r.get('rf_proba'))]
             if rf_vals:
                 import altair as alt
-                st.markdown('Distribución de probabilidad Random Forest '
-                            '(nº de puntos por intervalo de probabilidad):')
+                st.markdown(i18n.pick('#### Probabilidad de ser borreguil',
+                                      '#### Probability of being a borreguil'))
+                st.markdown(i18n.pick(
+                    'Distribución de probabilidad Random Forest (nº de puntos por intervalo '
+                    'de probabilidad):',
+                    'Random Forest probability distribution (no. of points per probability '
+                    'interval):'))
                 dfh = pd.DataFrame({'rf_proba': rf_vals})
                 # Histograma real: agrupa las probabilidades en bins de 0,05 y cuenta
                 # cuántos puntos caen en cada uno (antes pintaba una barra por punto).
@@ -3830,12 +4091,152 @@ with tab_analisis:
                 st.altair_chart((graf_hist + rules).properties(height=320),
                                 width='stretch')
                 _med = sorted(rf_vals)[len(rf_vals)//2]
+                # «N ≥» cuenta con el umbral que se usa (la raya roja), no con un 0,5 fijo:
+                # con Otsu o con la verdad-terreno el umbral puede ser otro.
+                _n_borr = sum(1 for v in rf_vals if v >= threshold)
+                _n_muy = sum(1 for v in rf_vals if v >= 0.7)
                 st.markdown(i18n.pick('**Mediana**', '**Median**') + f': {_n3(_med)}  ·  '
-                             f'**N** ≥ {_n3(0.5)}: {sum(1 for v in rf_vals if v>=0.5)}  ·  '
-                             f'**N** ≥ {_n3(0.7)}: {sum(1 for v in rf_vals if v>=0.7)}  ·  '
-                             f'**Total**: {len(rf_vals)}')
+                            + i18n.pick(f'**Borreguil** (≥ {_n3(threshold)}, tu umbral): {_n_borr}',
+                                        f'**Borreguil** (≥ {_n3(threshold)}, your threshold): {_n_borr}')
+                            + '  ·  '
+                            + i18n.pick(f'**Muy probable** (≥ {_n3(0.7)}): {_n_muy}',
+                                        f'**Very likely** (≥ {_n3(0.7)}): {_n_muy}')
+                            + f'  ·  **Total**: {len(rf_vals)}')
+                # 25-11-2026, la autora: «como se interpreta esto y para que es util» → la
+                # explicación, abierta, debajo de la gráfica. «Si mueves el umbral 0,15» cuenta
+                # los puntos que podrían cambiar de lado: los que están a menos de 0,15 de él.
+                _margen = 0.15
+                _n_cerca = sum(1 for v in rf_vals
+                               if threshold - _margen <= v < threshold + _margen)
+                with st.expander(i18n.pick('ℹ ¿Cómo se lee esta gráfica y para qué sirve?',
+                                           'ℹ How to read this chart and what it is for'),
+                                 expanded=True):
+                    st.markdown(i18n.pick(
+                        f'Cada barra cuenta los puntos cuya probabilidad de ser borreguil, '
+                        f'según el Random Forest, cae en ese tramo de {_n3(0.05)}.\n\n'
+                        f'- **A la izquierda** (cerca de 0) están los puntos que el modelo ve '
+                        f'claramente como **no** borreguil; **a la derecha** (cerca de 1), los '
+                        f'que ve claramente como borreguil; **en el centro**, los que le hacen '
+                        f'dudar.\n'
+                        f'- **Forma de U**, con el centro casi vacío: el modelo separa bien los '
+                        f'dos grupos. **Una joroba en el centro**: duda en muchos puntos, por '
+                        f'ejemplo porque la zona es distinta de aquella con la que se entrenó; '
+                        f'conviene revisar puntos y reentrenar.\n'
+                        f'- **Rayas rojas**: {_n3(threshold)} es el umbral que usas (por encima, '
+                        f'el punto cuenta como borreguil; se elige en el panel de la izquierda). '
+                        f'{_n3(0.7)} es una referencia fija: lo que pasa de ahí es *muy '
+                        f'probable*.\n'
+                        f'- **Para el umbral**: si cae en un valle con pocas barras, moverlo un '
+                        f'poco apenas cambia nada; si cae donde hay muchas, un cambio pequeño '
+                        f'cambia muchos puntos. El umbral automático por Otsu busca ese valle. '
+                        f'Ahora, si lo mueves hasta {_n3(_margen)} arriba o abajo, cambian como '
+                        f'mucho **{_n_cerca}** de tus {len(rf_vals)} puntos.\n'
+                        f'- **Para revisar**: los puntos del centro son los primeros que conviene '
+                        f'mirar en «Revisar puntos»; son los que más enseñan al modelo cuando lo '
+                        f'reentrenas.\n'
+                        f'- Si el modelo se entrenó con estos mismos puntos, la U sale más limpia '
+                        f'de lo que saldría con puntos nuevos.',
+                        f'Each bar counts the points whose probability of being borreguil, '
+                        f'according to the Random Forest, falls in that {_n3(0.05)} band.\n\n'
+                        f'- **On the left** (near 0) are the points the model clearly sees as '
+                        f'**not** borreguil; **on the right** (near 1), the ones it clearly sees '
+                        f'as borreguil; **in the middle**, the ones it is unsure about.\n'
+                        f'- **A U shape**, with an almost empty middle: the model separates the '
+                        f'two groups well. **A hump in the middle**: it is unsure about many '
+                        f'points, for example because the area differs from the one it was '
+                        f'trained on; review points and retrain.\n'
+                        f'- **Red lines**: {_n3(threshold)} is the threshold in use (above it, '
+                        f'a point counts as borreguil; it is chosen in the left panel). '
+                        f'{_n3(0.7)} is a fixed reference: anything above it is *very '
+                        f'likely*.\n'
+                        f'- **For the threshold**: if it falls in a valley with few bars, moving '
+                        f'it a little barely changes anything; if it falls where there are many, '
+                        f'a small change moves many points. The automatic Otsu threshold looks '
+                        f'for that valley. Right now, moving it up to {_n3(_margen)} up or down '
+                        f'changes at most **{_n_cerca}** of your {len(rf_vals)} points.\n'
+                        f'- **For reviewing**: the points in the middle are the first ones to '
+                        f'check in «Review points»; they teach the model the most when you '
+                        f'retrain it.\n'
+                        f'- If the model was trained on these same points, the U looks cleaner '
+                        f'than it would with new points.'))
             else:
                 st.info('Sin probabilidades RF disponibles.')
+
+            # Debajo de la probabilidad (25-11-2026, la autora: «esta quiero que salga
+            # debajo de probabilidad de ser borreguil, y si se te ocurre otra manera de
+            # mostrarla más bonita, mejor»): de más a menos borreguil, con el color de
+            # cada decisión en el mapa de los puntos, su número y su porcentaje.
+            st.divider()
+            st.markdown(i18n.pick('#### Recuento de puntos por categoría de decisión',
+                                  '#### Point count by decision category'))
+            dc = pp.chart_decision_counts(rows)
+            if dc is not None:
+                st.altair_chart(dc, width='stretch')
+                st.caption(i18n.pick(
+                    'Cada color es el del punto en «Mapa de los puntos». De arriba abajo, '
+                    'de más a menos borreguil.',
+                    'Each colour is that of the point in «Points map». From top to '
+                    'bottom, from most to least borreguil.'))
+
+            st.divider()
+            st.markdown(i18n.pick('#### 🌿 Tipos de borreguil', '#### 🌿 Borreguil types'))
+            # Tipos de borreguil. Primero, cuántos hay de cada ambiente, humedad y pureza:
+            # barras con su número, como el recuento por categoría de decisión (25-11-2026,
+            # la autora: «esta me gustaría que estuviera para los tipos de borreguil, antes
+            # había gráficos de barras con el n»). Salen siempre que haya borreguiles,
+            # aunque falte un nivel (sin Earth Engine no hay pureza); la vista anidada de
+            # debajo necesita los tres y, si falta uno, no sale.
+            _tipos_ch, _n_tipos = pp.chart_type_counts(rows)
+            hier_chart, n_hier = pp.chart_hierarchy(rows)
+            if _tipos_ch:
+                st.markdown(i18n.pick(
+                    f'Cuántos de los {_n_tipos} borreguiles hay de cada **ambiente**, de '
+                    f'cada **humedad** y de cada **pureza**. Cada categoría lleva su color, '
+                    f'el mismo en toda la app.',
+                    f'How many of the {_n_tipos} borreguiles there are of each '
+                    f'**environment**, each **moisture** and each **purity**. Each category '
+                    f'has its colour, the same throughout the app.'))
+                # Una debajo de otra y a todo lo ancho, como el recuento por decisión: en
+                # tres columnas no cabían los nombres ni las barras.
+                for _tit, _ch in _tipos_ch:
+                    st.markdown(f'**{_tit}**')
+                    st.altair_chart(_ch, width='stretch')
+                _rsd = bp.resumen_revision(rows, pp.is_borreguil_decision)
+                st.caption(i18n.pick(
+                    f"{_rsd['n_revisados']} de {_rsd['n_borreguil']} tienen el tipo revisado "
+                    f"por una persona; en el resto se muestra la propuesta de la app.",
+                    f"{_rsd['n_revisados']} of {_rsd['n_borreguil']} have their type "
+                    f"reviewed by a person; the rest show the app's proposal."))
+            if hier_chart is not None:
+                st.markdown(i18n.pick(
+                    f'**Los tres niveles juntos** (clasificación jerárquica de los {n_hier} '
+                    f'detectados): **ambiente** → **humedad** → **pureza**. Cada columna es '
+                    f'una humedad; cada fila, un ambiente; el color reparte la pureza.',
+                    f'**The three levels together** (hierarchical classification of the '
+                    f'{n_hier} detected): **environment** → **moisture** → **purity**. Each '
+                    f'column is a moisture; each row, an environment; the colour splits the '
+                    f'purity.'))
+                st.altair_chart(hier_chart)
+                hier_df = pp.hierarchy_table(rows)
+                if hier_df is not None:
+                    st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')
+                    st.dataframe(hier_df, hide_index=True, width='stretch')
+            if _tipos_ch or hier_chart is not None:
+                st.caption(i18n.pick(
+                    'Cómo se propone el tipo: el **ambiente**, por la cercanía a lagunas y a '
+                    'los ríos y arroyos de OpenStreetMap (arroyo: a 30 m o menos); la '
+                    '**humedad**, por el NDMI; la **pureza**, igual que en el mapa: cuánto '
+                    'verde hay en el píxel de 10 m del punto, estimado con su NDVI de inicio '
+                    'de verano (puro si llega al 75 %; si no, mixto-agua si el píxel es agua '
+                    'o toca agua, y mixto-roca si no). La pureza se lee con Earth Engine: sin '
+                    'él, se queda sin propuesta (—).',
+                    'How the type is proposed: the **environment**, from the closeness to '
+                    'lakes and to the OpenStreetMap rivers and streams (stream: 30 m or '
+                    'less); the **moisture**, from the NDMI; the **purity**, as in the map: '
+                    'how much green there is in the 10 m pixel of the point, estimated from '
+                    'its early-summer NDVI (pure if it reaches 75 %; otherwise mixed-water if '
+                    'the pixel is water or touches water, and mixed-rock if not). Purity is '
+                    'read with Earth Engine: without it, there is no proposal (—).'))
 
         with tab4:
             st.markdown(i18n.pick(
@@ -3878,10 +4279,15 @@ with tab_analisis:
                     _c2.markdown(que)
 
         with tab5:
-            st.markdown('**Variables más decisivas del modelo Random Forest** usado en esta '
-                        'estimación — de arriba (más peso) a abajo. A la derecha, el **rango '
-                        'típico de borreguil** (p25–p75) cuando el modelo trae valores de '
-                        'referencia.')
+            st.markdown(i18n.pick('#### El peso de cada variable',
+                                  '#### The weight of each variable'))
+            st.markdown(i18n.pick(
+                'Las variables más decisivas del modelo Random Forest usado en esta '
+                'estimación, de arriba (más peso) a abajo. A la derecha, el **rango típico '
+                'de borreguil** (p25–p75) cuando el modelo trae valores de referencia.',
+                'The most decisive variables of the Random Forest model used in this '
+                'estimate, from top (most weight) to bottom. On the right, the **typical '
+                'borreguil range** (p25–p75) when the model carries reference values.'))
             # Prioriza el modelo recién reentrenado (en sesión); si no, el de partida.
             _mb = st.session_state.get('model_bundle')
             rs_imp = None
@@ -3900,47 +4306,11 @@ with tab_analisis:
                     'This model does not carry the weight of its variables, so it cannot '
                     'be shown.'))
 
-        with tab6:
-            n_borr = sum(1 for r in rows if pp.is_borreguil_decision(r.get('decision', '')))
-
-            # Clasificación jerárquica del tipo de borreguil (vista anidada)
-            hier_chart, n_hier = pp.chart_hierarchy(rows)
-            if hier_chart is not None:
-                st.markdown(f'**🌿 Tipos de borreguil** (clasificación jerárquica de los '
-                            f'{n_hier} detectados): **ambiente** → **humedad** → **pureza**. '
-                            f'Cada columna es una humedad; cada fila, un ambiente; el color '
-                            f'reparte la pureza.')
-                st.altair_chart(hier_chart)
-                _rsd = bp.resumen_revision(rows, pp.is_borreguil_decision)
-                st.caption(i18n.pick(
-                    f"{_rsd['n_revisados']} de {_rsd['n_borreguil']} tienen el tipo revisado "
-                    f"por una persona; en el resto se muestra la propuesta de la app.",
-                    f"{_rsd['n_revisados']} of {_rsd['n_borreguil']} have their type "
-                    f"reviewed by a person; the rest show the app's proposal."))
-                hier_df = pp.hierarchy_table(rows)
-                if hier_df is not None:
-                    st.markdown('Recuento por **combinación completa** (ambiente · humedad · pureza):')
-                    st.dataframe(hier_df, hide_index=True, width='stretch')
-                st.caption(i18n.pick(
-                    'Cómo se propone el tipo: el **ambiente**, por la cercanía a lagunas y a '
-                    'los ríos y arroyos de OpenStreetMap (arroyo: a 30 m o menos); la '
-                    '**humedad**, por el NDMI; la **pureza**, igual que en el mapa: cuánto '
-                    'verde hay en el píxel de 10 m del punto, estimado con su NDVI de inicio '
-                    'de verano (puro si llega al 75 %; si no, mixto-agua si el píxel es agua '
-                    'o toca agua, y mixto-roca si no). La pureza se lee con Earth Engine: sin '
-                    'él, se queda sin propuesta (—).',
-                    'How the type is proposed: the **environment**, from the closeness to '
-                    'lakes and to the OpenStreetMap rivers and streams (stream: 30 m or '
-                    'less); the **moisture**, from the NDMI; the **purity**, as in the map: '
-                    'how much green there is in the 10 m pixel of the point, estimated from '
-                    'its early-summer NDVI (pure if it reaches 75 %; otherwise mixed-water if '
-                    'the pixel is water or touches water, and mixed-rock if not). Purity is '
-                    'read with Earth Engine: without it, there is no proposal (—).'))
-                st.divider()
+            st.divider()
 
             # ---- Las variables que más pesan en el modelo usado, vistas de cuatro
-            # maneras y comparando borreguil con el resto, o los borreguiles por su
-            # humedad o su ambiente con el resto (25-11-2026, la autora: «aquí deberían
+            # maneras y comparando borreguil con no borreguil, o los borreguiles por su
+            # humedad o su ambiente con los no borreguiles (25-11-2026, la autora: «aquí deberían
             # mostrarse las que más peso tienen en el modelo y que lo indique», «podríamos
             # hacer un desplegable para que elijan distintos tipos de gráficos», «sí,
             # hazlo con comparar por tipo»). Antes: 9 variables fijas en cajas y una
@@ -3948,20 +4318,24 @@ with tab_analisis:
             _rs_box = load_ref_stats(MODEL_PATH)
             _imp_box = (_rs_box or {}).get('importances')
             _disp_box = set((_rs_box or {}).get('model_features') or []) or None
-            st.markdown(i18n.pick('#### Las variables que más pesan en el modelo',
-                                  '#### The variables that weigh most in the model'))
+            st.markdown(i18n.pick('#### Las que más pesan, grupo a grupo',
+                                  '#### The ones that weigh most, group by group'))
             _vistas = {'cajas': i18n.pick('Cajas', 'Boxes'),
                        'curvas': i18n.pick('Curvas de distribución', 'Distribution curves'),
-                       'diferencias': i18n.pick('Diferencias de un vistazo',
-                                                'Differences at a glance'),
+                       'diferencias': i18n.pick('Diferencia estandarizada de medianas',
+                                                'Standardized median difference'),
                        'dos': i18n.pick('Dos variables a la vez', 'Two variables at once')}
+            # (El grupo con el que se compara es «No borreguil» y tiene solo eso; antes
+            # se llamaba «Resto» y llevaba también los inciertos y los dudosos.
+            # 25-11-2026, la autora: «¿el resto aquí quiere decir no borreguil?».)
             _comp_txt = {
-                'borreguil': i18n.pick('Borreguil frente al resto',
-                                       'Borreguil versus the rest'),
-                'humedad': i18n.pick('Por humedad (húmedo, seco y el resto)',
-                                     'By moisture (wet, dry and the rest)'),
-                'ambiente': i18n.pick('Por ambiente (arroyo, laguna, ladera y el resto)',
-                                      'By environment (stream, lake, slope and the rest)')}
+                'borreguil': i18n.pick('Borreguil frente a no borreguil',
+                                       'Borreguil versus not a borreguil'),
+                'humedad': i18n.pick('Por humedad (húmedo, seco y no borreguil)',
+                                     'By moisture (wet, dry and not a borreguil)'),
+                'ambiente': i18n.pick('Por ambiente (arroyo, laguna, ladera y no borreguil)',
+                                      'By environment (stream, lake, slope and not a '
+                                      'borreguil)')}
             _c1, _c2, _c3 = st.columns([1.1, 1.4, 0.9])
             _vista = _c1.selectbox(i18n.pick('Cómo verlo', 'How to see it'), list(_vistas),
                                    format_func=_vistas.get, key='dist_vista')
@@ -3971,6 +4345,10 @@ with tab_analisis:
             from collections import Counter as _Cnt
             _cnt = _Cnt(_grp)
             _cuantos = ' · '.join(f'{g}: {_cnt[g]}' for g, _ in _ord)
+            if _cnt.get(None):
+                _cuantos += i18n.pick(
+                    f' (y {_cnt[None]} inciertos o dudosos, que no se dibujan)',
+                    f' (and {_cnt[None]} uncertain or doubtful, not drawn)')
             if _vista != 'dos':
                 _n_vars = _c3.selectbox(i18n.pick('Cuántas variables', 'How many variables'),
                                         [4, 8, 12], index=1, key='dist_n')
@@ -4012,15 +4390,16 @@ with tab_analisis:
                 _ch = pp.chart_diferencias(rows, _vars_box, comparar=_comparar,
                                            traduce=i18n.tv)
                 _como = i18n.pick(
-                    'Cada punto dice cuánto se aparta la mediana del grupo de la del resto, '
-                    'en desviaciones típicas de todos los puntos: a la derecha, más que el '
-                    'resto; a la izquierda, menos. Pasar de 1 (o de −1) es una diferencia '
-                    f'clara. Los grupos con menos de {pp.MIN_GRUPO} puntos no se dibujan.',
+                    'Cada punto dice cuánto se aparta la mediana del grupo de la de los no '
+                    'borreguiles, en desviaciones típicas de todos los puntos: a la '
+                    'derecha, más que los no borreguiles; a la izquierda, menos. Pasar de 1 '
+                    '(o de −1) es una diferencia clara. Los grupos con menos de '
+                    f'{pp.MIN_GRUPO} puntos no se dibujan.',
                     'Each dot says how far the median of the group is from that of the '
-                    'rest, in standard deviations of all the points: to the right, more '
-                    'than the rest; to the left, less. Beyond 1 (or −1) is a clear '
-                    f'difference. Groups with fewer than {pp.MIN_GRUPO} points are not '
-                    'drawn.')
+                    'points that are not a borreguil, in standard deviations of all the '
+                    'points: to the right, more than those; to the left, less. Beyond 1 '
+                    f'(or −1) is a clear difference. Groups with fewer than {pp.MIN_GRUPO} '
+                    'points are not drawn.')
             else:
                 _lv = pp.lista_variables(rows, _imp_box, todas=list(pp.FEATURE_LABELS))
                 _et_lv = dict(_lv)
@@ -4067,15 +4446,9 @@ with tab_analisis:
             else:
                 st.info(i18n.pick(
                     'No hay datos suficientes para este gráfico (por ejemplo, sin puntos '
-                    'del resto no hay con qué comparar).',
+                    'que no sean borreguil no hay con qué comparar).',
                     'There is not enough data for this chart (for instance, without points '
-                    'of the rest there is nothing to compare with).'))
-
-            st.divider()
-            st.markdown('**Recuento de puntos por categoría de decisión.**')
-            dc = pp.chart_decision_counts(rows)
-            if dc is not None:
-                st.altair_chart(dc, width='stretch')
+                    'that are not a borreguil there is nothing to compare with).'))
 
         # --- Guardar el modelo reentrenado ---
         # Solo cuando se ha reentrenado sumando los puntos de la sesión: el de partida
@@ -5261,6 +5634,13 @@ with tab_tipos:
                     i18n.pick('Muestras', 'Samples'): c['n_antes'],
                     i18n.pick('En la tabla', 'In the table'): c['n']}
                     for c in _tab['clases']]), hide_index=True, width='stretch')
+                # El ID, con solo su número, como en «Revisar puntos» (25-11-2026, la
+                # autora: «aquí también debería poner id 1,2,3»). El completo sigue en el
+                # CSV que se descarga.
+                _ids_tab = ([str(f['ID']) for f in _tab['filas']]
+                            + [str(a['ID']) for a in _tab['apartadas']])
+                _corto_tab = dict(zip(_ids_tab, bp.abreviar_ids(
+                    bp.nombres_de_punto(_ids_tab, punto=''))))
                 if _tab['apartadas']:
                     _cuenta = Counter(a['motivo'] for a in _tab['apartadas'])
                     st.warning(i18n.pick('**Muestras que no entran en la tabla:**',
@@ -5269,7 +5649,7 @@ with tab_tipos:
                                          for k, n in _cuenta.most_common()))
                     with st.expander(i18n.pick('Ver cuáles son', 'See which ones')):
                         st.dataframe(pd.DataFrame([{
-                            'ID': a['ID'],
+                            'ID': _corto_tab.get(str(a['ID']), str(a['ID'])),
                             i18n.pick('categoría', 'category'): i18n.tv(a['categoria']),
                             i18n.pick('motivo', 'reason'): mr.motivo_tabla(a['motivo'], _en),
                             i18n.pick('variables sin dato', 'variables without data'):
@@ -5316,11 +5696,50 @@ with tab_tipos:
 
                 with st.expander(i18n.pick('Ver la tabla de entrenamiento',
                                            'See the training table')):
+                    # Qué variables salen, según el caso: todas, las que dejó el VIF o el
+                    # PCA, o las marcadas a mano (25-11-2026, la autora: «y en la otra que
+                    # muestra las 34, las del vif, o las del pca pues que en algún sitio lo
+                    # diga según el caso»).
+                    _n_pred, _n_todas = len(_tab['predictores']), len(mr.PREDICTORES)
+                    _ant_t = st.session_state.get('mrf_vars_antes')
+                    if _ant_t and set(_tab['predictores']) == set(_ant_t['resultado']):
+                        _met_t = (i18n.pick('el VIF', 'the VIF') if _ant_t['metodo'] == 'vif'
+                                  else i18n.pick('el PCA', 'the PCA'))
+                        _cuales = i18n.pick(
+                            f"Salen las **{_n_pred} variables que dejó {_met_t}**, de las "
+                            f"{len(_ant_t['vars'])} que había marcadas (se aplicó en "
+                            '«1 · Datos»).',
+                            f"These are the **{_n_pred} variables {_met_t} kept**, out of the "
+                            f"{len(_ant_t['vars'])} that were selected (applied under "
+                            '"1 · Data").')
+                    elif _n_pred == _n_todas:
+                        _cuales = i18n.pick(
+                            f'Salen **las {_n_todas} variables**: no se ha quitado ninguna, ni '
+                            'con el VIF ni con el PCA.',
+                            f'These are **all {_n_todas} variables**: none has been removed, '
+                            'neither with the VIF nor with the PCA.')
+                    else:
+                        _cuales = i18n.pick(
+                            f'Salen las **{_n_pred} variables que tienes marcadas** en «1 · '
+                            f'Datos», de las {_n_todas} que hay. No las ha elegido el VIF ni '
+                            'el PCA.',
+                            f'These are the **{_n_pred} variables you have selected** under '
+                            f'"1 · Data", out of the {_n_todas} there are. Neither the VIF nor '
+                            'the PCA chose them.')
+                    st.caption(_cuales + i18n.pick(
+                        ' Cada fila es una muestra: el número del punto, su categoría, el '
+                        'código que aprende el modelo y el valor de cada variable en su píxel '
+                        'de 10 m. Es justo lo que recibe el Random Forest; las coordenadas no '
+                        'van, porque no son variables.',
+                        ' Each row is a sample: the point number, its category, the code the '
+                        'model learns and the value of each variable in its 10 m pixel. It is '
+                        'exactly what the Random Forest receives; the coordinates are left '
+                        'out, because they are not variables.'))
                     _dft = pd.DataFrame(_tab['filas'])
                     if len(_dft):
                         # solo lo que es la tabla X/y: las coordenadas no son variables
                         _dft = _dft.drop(columns=['indice', 'lon', 'lat'])
-                        _dft['ID'] = bp.abreviar_ids(_dft['ID'].tolist())
+                        _dft['ID'] = [_corto_tab.get(str(i), str(i)) for i in _dft['ID']]
                         _dft['categoria'] = _dft['categoria'].map(i18n.tv)
                         st.dataframe(_con_coma(_dft.rename(columns={
                             **{v: _var(v) for v in _tab['predictores']},
@@ -8091,6 +8510,125 @@ with tab_tipos:
                         'una. Los números van con seis decimales.',
                         'One row per variable, with both measures and its rank in each. '
                         'The numbers have six decimals.'))
+
+                # ---- Cómo son las que más pesan en cada categoría del modelo, con los
+                # mismos gráficos que «Variables del modelo» de Verdad terreno y los
+                # colores del mapa (25-11-2026, la autora: «además de peso, podría
+                # mostrar gráficos de las variables por tipo de borreguil como en los
+                # puntos de verdad terreno»). Con las muestras de la tabla de
+                # entrenamiento: sus categorías son las que aprende el modelo.
+                if _tab and _tab.get('filas'):
+                    st.divider()
+                    st.markdown(i18n.pick(
+                        '#### Las que más pesan, categoría a categoría',
+                        '#### The ones that weigh most, category by category'))
+                    _pred_tab = set(_tab.get('predictores') or [])
+                    _orden_m = [v['variable'] for v in sorted(_vs, key=lambda v: v['orden'])
+                                if v['variable'] in _pred_tab]
+                    _vistas_m = {
+                        'cajas': i18n.pick('Cajas', 'Boxes'),
+                        'curvas': i18n.pick('Curvas de distribución', 'Distribution curves'),
+                        'diferencias': i18n.pick('Diferencia estandarizada de medianas',
+                                                 'Standardized median difference'),
+                        'dos': i18n.pick('Dos variables a la vez', 'Two variables at once')}
+                    _m1, _m2 = st.columns([1.4, 0.9])
+                    _vista_m = _m1.selectbox(i18n.pick('Cómo verlo', 'How to see it'),
+                                             list(_vistas_m), format_func=_vistas_m.get,
+                                             key='mrf_dist_vista')
+                    _filas_m = _tab['filas']
+                    _grp_m, _ord_m, _rest_m = pp.grupos_puntos(_filas_m, 'categoria', None,
+                                                               i18n.tv)
+                    from collections import Counter as _CntM
+                    _cnt_m = _CntM(_grp_m)
+                    _cuantos_m = ' · '.join(f'{g}: {_cnt_m[g]}' for g, _ in _ord_m)
+                    _ch_m, _como_m = None, ''
+                    if _vista_m != 'dos':
+                        _n_m = _m2.selectbox(i18n.pick('Cuántas variables',
+                                                       'How many variables'),
+                                             [4, 8, 12], index=1, key='mrf_dist_n')
+                        _vars_m = [(f, _var(f)) for f in _orden_m[:_n_m]]
+                        st.caption(i18n.pick(
+                            f'Las {len(_vars_m)} variables que más pesan en este modelo '
+                            '(lo que pierde sin ellas), de más a menos, en las muestras de la '
+                            'tabla de entrenamiento, cada categoría con su color del mapa. '
+                            f'Muestras: {_cuantos_m}.',
+                            f'The {len(_vars_m)} variables that weigh most in this model '
+                            '(what it loses without them), from most to least, in the '
+                            'samples of the training table, each category with its map '
+                            f'colour. Samples: {_cuantos_m}.'))
+                        if _vista_m == 'cajas':
+                            _ch_m, _ = pp.chart_boxplots(_filas_m, _vars_m, comparar='categoria',
+                                                         traduce=i18n.tv)
+                            _como_m = i18n.pick(
+                                'Cada caja va del p25 al p75, con la mediana en blanco; los '
+                                'bigotes llegan hasta los valores normales y los puntos '
+                                'sueltos son atípicos. Si las cajas de dos categorías no se '
+                                'tocan, esa variable las separa bien.',
+                                'Each box goes from p25 to p75, with the median in white; the '
+                                'whiskers reach the normal values and the loose dots are '
+                                'outliers. If the boxes of two categories do not touch, that '
+                                'variable separates them well.')
+                        elif _vista_m == 'curvas':
+                            _ch_m = pp.chart_densidades(_filas_m, _vars_m, comparar='categoria',
+                                                        traduce=i18n.tv)
+                            _como_m = i18n.pick(
+                                'Cada curva muestra cómo se reparten los valores de una '
+                                'categoría; todas encierran la misma área. Si apenas se '
+                                'tocan, esa variable separa bien las categorías. Las de '
+                                f'menos de {pp.MIN_GRUPO} muestras no se dibujan.',
+                                'Each curve shows how the values of a category are spread; '
+                                'they all enclose the same area. If they hardly touch, that '
+                                'variable separates the categories well. Those with fewer '
+                                f'than {pp.MIN_GRUPO} samples are not drawn.')
+                        else:
+                            _ch_m = pp.chart_diferencias(_filas_m, _vars_m,
+                                                         comparar='categoria',
+                                                         traduce=i18n.tv)
+                            _como_m = i18n.pick(
+                                'Cada punto dice cuánto se aparta la mediana de la categoría '
+                                'de la de «no borreguil», en desviaciones típicas de todas '
+                                'las muestras: a la derecha, más; a la izquierda, menos. '
+                                'Pasar de 1 (o de −1) es una diferencia clara.',
+                                'Each dot says how far the median of the category is from '
+                                'that of "not a borreguil", in standard deviations of all '
+                                'the samples: to the right, more; to the left, less. Beyond '
+                                '1 (or −1) is a clear difference.')
+                    elif len(_orden_m) >= 2:
+                        _d1m, _d2m = st.columns(2)
+                        _vxm = _d1m.selectbox(i18n.pick('Eje horizontal', 'Horizontal axis'),
+                                              _orden_m, index=0, format_func=_var,
+                                              key='mrf_dist_x')
+                        _vym = _d2m.selectbox(i18n.pick('Eje vertical', 'Vertical axis'),
+                                              _orden_m, index=1, format_func=_var,
+                                              key='mrf_dist_y')
+                        st.caption(i18n.pick(
+                            'Las variables de este modelo, de más a menos peso; de entrada, '
+                            f'las dos que más pesan. Muestras: {_cuantos_m}.',
+                            "This model's variables, from most to least weight; by "
+                            f'default, the two that weigh most. Samples: {_cuantos_m}.'))
+                        _ch_m = pp.chart_dos_variables(
+                            _filas_m, _vxm, _vym, _var(_vxm), _var(_vym),
+                            comparar='categoria', traduce=i18n.tv,
+                            nombres=bp.nombres_de_punto([f.get('ID') for f in _filas_m],
+                                                        i18n.pick('Punto', 'Point')))
+                        _como_m = i18n.pick(
+                            'Cada punto es una muestra de la tabla, colocada según las dos '
+                            'variables. Si las nubes de colores se separan, combinar esas '
+                            'dos variables ayuda a distinguir las categorías.',
+                            'Each dot is a sample of the table, placed by the two variables. '
+                            'If the coloured clouds separate, combining those two variables '
+                            'helps to tell the categories apart.')
+                    if _ch_m is not None:
+                        st.altair_chart(_ch_m, width='stretch')
+                        st.caption(_como_m)
+                    else:
+                        st.info(i18n.pick(
+                            'No hay datos suficientes para este gráfico (por ejemplo, sin '
+                            'muestras de «no borreguil» en este nivel no hay con qué '
+                            'comparar las diferencias).',
+                            'There is not enough data for this chart (for instance, without '
+                            '"not a borreguil" samples at this level the differences have '
+                            'nothing to be compared with).'))
 
         # ------------------------------------------------ por dónde va el trabajo
         # Un rótulo por paso, con icono y texto además del color.

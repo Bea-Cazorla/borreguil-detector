@@ -16,7 +16,9 @@ PCTS = [('p10', 10), ('p25', 25), ('p50', 50), ('p75', 75), ('p90', 90)]
 COL_BORR = '#2e7d32'   # verde: rango de borreguiles
 COL_PT = '#1565c0'     # azul: este punto (dentro del rango)
 COL_OUT = '#e65100'    # naranja: el punto cae fuera del rango habitual
-COL_NO = '#757575'     # gris: el no borreguil típico (mediana de los no borreguiles)
+COL_NO = '#8E0000'     # rojo oscuro: el no borreguil típico (mediana de los no
+#                        borreguiles), el mismo «no borreguil» de toda la app (25-11-2026)
+COL_GRIS = '#757575'   # gris neutro: líneas de referencia
 
 # Etiquetas legibles de TODAS las variables del modelo (para el ranking de importancia)
 FEATURE_LABELS = {
@@ -244,7 +246,7 @@ def chart_punto_vs_borreguiles(sel, ref_stats, n=8):
     parecidas, de arriba abajo por peso). Eje común de 0 a 100: la posición del punto
     entre los borreguiles (50 = como el borreguil mediano); franja verde = la mitad
     central de los borreguiles (25–75). Punto azul dentro del 10–90 y naranja fuera.
-    Rombo gris: el NO borreguil típico (la mediana de los no borreguiles verdaderos),
+    Rombo rojo oscuro: el NO borreguil típico (la mediana de los no borreguiles verdaderos),
     en la misma escala, para ver si el punto se parece más a uno o a otro (añadido el
     24-11-2026). A la derecha, el valor del punto y el rango habitual de los
     borreguiles (p25–p75), con 3 decimales. Devuelve (chart|None, recs)."""
@@ -407,7 +409,7 @@ def chart_curva_puntos(curva, n=None, marcas=(), en=None):
                  x=x, y=y, tooltip=tip)]
     tope = df['auc'].iloc[-1]
     capas.append(alt.Chart(pd.DataFrame({'auc': [tope]})).mark_rule(
-        color=COL_NO, strokeDash=[4, 3]).encode(y='auc:Q'))
+        color=COL_GRIS, strokeDash=[4, 3]).encode(y='auc:Q'))
     if marcas:
         dm = df[df['n'].isin([m for m, _ in marcas])].copy()
         dm['txt'] = dm['n'].map(dict(marcas)) + ': ' + dm['n'].astype(str) + (
@@ -555,45 +557,62 @@ def vars_boxplots(importances, disponibles=None, n=8):
 # ============================================================
 # Comparar grupos de puntos («Tipos y distribuciones», 25-11-2026, la autora: «sí, hazlo
 # con comparar por tipo»): borreguil frente al resto, o los borreguiles por su humedad
-# o por su ambiente frente al resto. Los colores del tipo son los del mapa de tipos
-# (mapeo_raster); el resto va en gris cuando se comparan tipos, para que destaquen
-# los borreguiles.
+# o por su ambiente frente al resto. Los colores son los del catálogo de toda la app
+# (mapeo_raster.COLORES), también el rojo oscuro de «no borreguil».
 # ============================================================
 COMPARAR = ('borreguil', 'humedad', 'ambiente')
 _ORDEN_TIPO = {'humedad': ('húmedo', 'seco'), 'ambiente': ('arroyo', 'laguna', 'ladera')}
-_COLOR_TIPO = {'húmedo': '#009E73', 'seco': '#D55E00', 'arroyo': '#188C09',
-               'laguna': '#2D60A4', 'ladera': '#8C6D31'}
-_COLOR_RESTO = '#9e9e9e'
+# Los colores de cada categoría, del catálogo de toda la app (mapeo_raster.COLORES):
+# laguna azul, arroyo verde, ladera amarillo verdoso… siempre los mismos (25-11-2026,
+# la autora: «que siempre sean los mismos cuando nombramos cada categoría en la app»).
+from mapeo_raster import COLORES as _COLORES_APP
+_COLOR_TIPO = {k: _COLORES_APP[k] for k in
+               ('húmedo', 'seco', 'arroyo', 'laguna', 'ladera',
+                'puro', 'mixto-agua', 'mixto-roca')}
+# «No borreguil», el rojo oscuro de toda la app (antes, gris al comparar tipos)
+_COLOR_RESTO = _COLORES_APP['no borreguil']
 # Por debajo, un grupo no se dibuja en las curvas ni en las diferencias: la mediana o
 # la forma de 1 o 2 puntos engañan (en las cajas sí sale, con su nº de puntos).
 MIN_GRUPO = 5
 _COLOR_SIN_TIPO = '#d0cfc8'
 
 
+def es_no_borreguil(r):
+    """True si la app dice que el punto NO es borreguil (verificado o por el modelo).
+    Los inciertos, los dudosos y los que no tienen predicción no son ni una cosa ni
+    otra."""
+    return 'no borreguil' in str(r.get('decision') or '').lower()
+
+
 def grupos_puntos(rows, comparar='borreguil', en=None, traduce=None):
     """El grupo de cada punto para comparar, y los grupos en orden con su color.
 
-    comparar: 'borreguil' (borreguil / no o resto), 'humedad' (húmedo, seco y el resto)
-    o 'ambiente' (arroyo, laguna, ladera y el resto). Un borreguil sin ese nivel del
-    tipo va a «sin tipo». Devuelve (grupo de cada fila, [(grupo, color)], resto): solo
-    los grupos que tienen algún punto, en su orden; `resto`, el nombre del grupo con el
-    que se comparan los demás."""
+    comparar: 'borreguil' (borreguil / no borreguil), 'humedad' (húmedo, seco y no
+    borreguil) o 'ambiente' (arroyo, laguna, ladera y no borreguil). Un borreguil sin
+    ese nivel del tipo va a «sin tipo». Los que no son ni borreguil ni no borreguil
+    (inciertos, dudosos, sin predicción) se quedan fuera: su grupo es None (25-11-2026,
+    la autora: antes se juntaban con los no borreguiles en «Resto»; ahora el grupo se
+    llama «No borreguil» y tiene solo eso). Devuelve (grupo de cada fila, [(grupo,
+    color)], resto): solo los grupos que tienen algún punto, en su orden; `resto`, el
+    nombre del grupo con el que se comparan los demás (el de los no borreguiles)."""
     en = i18n.get_lang() == 'en' if en is None else en
     tv = traduce or (lambda x: x)
+    if comparar == 'categoria':
+        return grupos_categoria(rows, en, traduce)
     if comparar not in COMPARAR:
         raise ValueError(f'comparar: uno de {COMPARAR}')
+    resto = 'Not a borreguil' if en else 'No borreguil'
     if comparar == 'borreguil':
-        resto = 'No / rest' if en else _CLS_REST
-        grupos = [_CLS_BORR if _class_of(r) == _CLS_BORR else resto for r in rows]
-        orden = [(_CLS_BORR, '#2e7d32'), (resto, '#8e0000')]
+        grupos = [_CLS_BORR if _class_of(r) == _CLS_BORR
+                  else resto if es_no_borreguil(r) else None for r in rows]
+        orden = [(_CLS_BORR, '#2e7d32'), (resto, _COLOR_RESTO)]
     else:
-        resto = 'Rest' if en else 'Resto'
         sin = 'no type' if en else 'sin tipo'
         nombres = {v: str(tv(v)) for v in _ORDEN_TIPO[comparar]}
         grupos = []
         for r in rows:
             if _class_of(r) != _CLS_BORR:
-                grupos.append(resto)
+                grupos.append(resto if es_no_borreguil(r) else None)
                 continue
             v = str(r.get(comparar) or '').strip()
             grupos.append(nombres.get(v, sin))
@@ -601,6 +620,35 @@ def grupos_puntos(rows, comparar='borreguil', en=None, traduce=None):
                  + [(sin, _COLOR_SIN_TIPO), (resto, _COLOR_RESTO)])
     hay = set(grupos)
     return grupos, [(g, c) for g, c in orden if g in hay], resto
+
+
+def grupos_categoria(rows, en=None, traduce=None):
+    """Como grupos_puntos, pero con la CATEGORÍA de cada muestra de la tabla de
+    entrenamiento del mapa (`categoria`: «húmedo», «ladera · seco», «no borreguil»…):
+    las clases que aprende el modelo de ese nivel. Para «5 · Peso» de Mapa Modelo RF
+    (25-11-2026, la autora: «además de peso, podría mostrar gráficos de las variables
+    por tipo de borreguil como en los puntos de verdad terreno»).
+
+    Cada categoría lleva su color del mapa (mapeo_raster.COLORES), en el orden del
+    catálogo, y «no borreguil» va la última: es el grupo con el que se comparan los
+    demás (`resto`; None si el nivel no lo tiene)."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    tv = traduce or (lambda x: x)
+
+    def nombre(c):                       # «ladera · seco» → «slope · dry»
+        return ' · '.join(str(tv(p)) for p in str(c).split(' · '))
+
+    from mapeo_raster import color as _color
+    cats = [str(r.get('categoria') or '').strip() or None for r in rows]
+    hay = {c for c in cats if c}
+    catalogo = list(_COLORES_APP)
+    orden_cats = (sorted((c for c in hay if c != 'no borreguil'),
+                         key=lambda c: (catalogo.index(c) if c in catalogo else 99, c))
+                  + (['no borreguil'] if 'no borreguil' in hay else []))
+    grupos = [nombre(c) if c else None for c in cats]
+    orden = [(nombre(c), _color(c, i)) for i, c in enumerate(orden_cats)]
+    resto = nombre('no borreguil') if 'no borreguil' in hay else None
+    return grupos, orden, resto
 
 
 def _escala(orden):
@@ -622,6 +670,8 @@ def _valores(rows, grupos, vars):
     """{(rótulo de la variable, grupo): [valores]}."""
     out = {}
     for r, g in zip(rows, grupos):
+        if g is None:                    # ni borreguil ni no borreguil: fuera
+            continue
         for key, lab in vars:
             v = fnum(r.get(key))
             if v is not None:
@@ -785,7 +835,7 @@ def tabla_diferencias(rows, vars=BOX_VARS, en=None, comparar='borreguil', traduc
 
 
 def chart_diferencias(rows, vars=BOX_VARS, en=None, comparar='borreguil', traduce=None):
-    """Diferencias de un vistazo: una fila por variable y un punto por grupo, a la
+    """Diferencia estandarizada de medianas: una fila por variable y un punto por grupo, a la
     derecha si el grupo tiene más que el resto y a la izquierda si menos (en
     desviaciones típicas; tabla_diferencias). Devuelve chart|None."""
     en = i18n.get_lang() == 'en' if en is None else en
@@ -802,18 +852,18 @@ def chart_diferencias(rows, vars=BOX_VARS, en=None, comparar='borreguil', traduc
     order = [lab for _, lab in vars if lab in set(df['variable'])]
     y = alt.Y('variable:N', sort=order, title=None, axis=alt.Axis(labelLimit=260))
     lim = max(1.0, float(df['d'].abs().max()) * 1.1)
+    # Con el nombre del grupo con el que se compara («no borreguil»), no «el resto»
     x = alt.X('d:Q', scale=alt.Scale(domain=[-lim, lim]), axis=_eje_num(en),
-              title=('← less than the rest · more than the rest → (in standard deviations)'
-                     if en else '← menos que el resto · más que el resto → '
-                     '(en desviaciones típicas)'))
+              title=(f'← less · more than «{resto}» → (standard deviations)' if en else
+                     f'← menos · más que «{resto}» → (desviaciones típicas)'))
     color = alt.Color('grupo:N', scale=_escala(orden),
                       legend=alt.Legend(orient='top', title=None))
     tip = [alt.Tooltip('grupo:N', title='Group' if en else 'Grupo'),
            alt.Tooltip('variable:N', title='Variable'),
            alt.Tooltip('med_grupo_txt:N', title='Median of the group' if en
                        else 'Mediana del grupo'),
-           alt.Tooltip('med_resto_txt:N', title='Median of the rest' if en
-                       else 'Mediana del resto'),
+           alt.Tooltip('med_resto_txt:N', title=f'Median of «{resto}»' if en
+                       else f'Mediana de «{resto}»'),
            alt.Tooltip('d_txt:N', title='Difference' if en else 'Diferencia')]
     off = alt.YOffset('grupo:N', sort=[g for g, _ in orden]) if len(orden) > 1 else None
     enc_l = dict(y=y, x=alt.X('cero:Q'), x2='d:Q', color=color, tooltip=tip)
@@ -828,7 +878,9 @@ def chart_diferencias(rows, vars=BOX_VARS, en=None, comparar='borreguil', traduc
         cero,
         base.mark_rule(strokeWidth=2).encode(**enc_l),
         base.mark_circle(size=90, opacity=1).encode(**enc_p),
-    ).properties(height=max(120, 30 * len(order) * max(1, len(orden)) // 1.5))
+    # En la app, la altura incluye la leyenda de arriba y el eje de abajo (unos 90 px):
+    # con 8 variables las filas se aplastaban y solo se leían dos nombres (25-11-2026).
+    ).properties(height=90 + len(order) * (22 + 10 * max(1, len(orden))))
 
 
 def lista_variables(rows, importances=None, en=None, todas=None):
@@ -868,7 +920,7 @@ def chart_dos_variables(rows, xkey, ykey, xlab, ylab, en=None, comparar='borregu
     recs = []
     for i, (r, g) in enumerate(zip(rows, grupos)):
         xv, yv = fnum(r.get(xkey)), fnum(r.get(ykey))
-        if xv is None or yv is None:
+        if xv is None or yv is None or g is None:
             continue
         rf = fnum(r.get('rf_proba'))
         recs.append({'x': xv, 'y': yv, 'grupo': g,
@@ -904,20 +956,52 @@ def chart_decision_counts(rows):
     c = Counter(r.get('decision', '—') or '—' for r in rows)
     if not c:
         return None
-    df = pd.DataFrame([{'decision': i18n.tv(k), 'n': v} for k, v in c.items()])
-    return alt.Chart(df).mark_bar().encode(
-        x=alt.X('n:Q', title='Nº of points' if i18n.get_lang() == 'en'
-                        else 'Nº de puntos'),
-        y=alt.Y('decision:N', sort='-x', title=None),
-        color=alt.Color('decision:N', legend=None),
-        tooltip=['decision:N', 'n:Q'],
-    ).properties(height=max(120, 30 * len(df)))
+    # 25-11-2026, la autora: salía en mayúsculas y cortado («NO BORREGUIL V…»), con
+    # colores al azar y ordenado por tamaño. Ahora: en texto normal y entero; de más a
+    # menos borreguil; cada barra con el color de su decisión en el mapa de los puntos,
+    # y al final, el número y el porcentaje.
+    from borreguil_pipeline import decision_color
+    total = sum(c.values())
+    en = i18n.get_lang() == 'en'
+
+    def _orden(dec):
+        """De más a menos borreguil (lo de «no borreguil» se mira antes: también
+        contiene «borreguil verificado»)."""
+        d = str(dec).lower()
+        for clave, rango in (('no borreguil verificado', 6), ('no borreguil', 5),
+                             ('borreguil verificado', 0), ('probable', 1),
+                             ('posible', 2), ('incierto', 3), ('dudoso', 4)):
+            if clave in d:
+                return rango
+        return 99
+
+    recs = sorted(({'decision': i18n.tv_decision(k), 'n': v, 'color': decision_color(k),
+                    'texto': f'{v} (' + ('<1' if 100 * v / total < 0.5 else
+                                         f'{100 * v / total:.0f}') + ' %)',
+                    'orden': _orden(k)}
+                   for k, v in c.items()), key=lambda x: (x['orden'], x['decision']))
+    df = pd.DataFrame(recs)
+    tope = float(df['n'].max()) * 1.25          # sitio para «186 (48 %)»
+    base = alt.Chart(df).encode(
+        x=alt.X('n:Q', scale=alt.Scale(domain=[0, tope]),
+                title='Nº of points' if en else 'Nº de puntos'),
+        y=alt.Y('decision:N', sort=list(df['decision']), title=None,
+                axis=alt.Axis(labelLimit=0, labelFontSize=12)),
+        tooltip=[alt.Tooltip('decision:N', title='Decision' if en else 'Decisión'),
+                 alt.Tooltip('texto:N', title='nº')])
+    barras = base.mark_bar(cornerRadiusEnd=4, size=20).encode(
+        color=alt.Color('color:N', scale=None, legend=None))
+    numeros = base.mark_text(align='left', dx=5, color='#424242',
+                             fontSize=12).encode(text='texto:N')
+    return (barras + numeros).properties(height=60 + 32 * len(df))
 
 
 _AMB_ORDER = ['arroyo', 'laguna', 'ladera']
 _HUM_ORDER = ['húmedo', 'seco']
 _PUR_ORDER = ['mixto-agua', 'mixto-roca', 'puro']
-_PUR_SCALE = alt.Scale(domain=_PUR_ORDER, range=['#1565c0', '#8d6e63', '#2e7d32'])
+# (los colores de la pureza, los del mapa: mixto-agua azul, mixto-roca marrón, puro
+# verde azulado; antes aquí eran otros)
+_PUR_SCALE = alt.Scale(domain=_PUR_ORDER, range=[_COLOR_TIPO[v] for v in _PUR_ORDER])
 
 
 def chart_hierarchy(rows):
@@ -941,7 +1025,7 @@ def chart_hierarchy(rows):
     amb = [i18n.tv(v) for v in _AMB_ORDER]
     hum = [i18n.tv(v) for v in _HUM_ORDER]
     pur = [i18n.tv(v) for v in _PUR_ORDER]
-    escala = alt.Scale(domain=pur, range=['#1565c0', '#8d6e63', '#2e7d32'])
+    escala = alt.Scale(domain=pur, range=[_COLOR_TIPO[v] for v in _PUR_ORDER])
     en = i18n.get_lang() == 'en'
     chart = alt.Chart(df).mark_bar().encode(
         y=alt.Y('ambiente:N', sort=amb, title=None),
@@ -955,6 +1039,67 @@ def chart_hierarchy(rows):
                  alt.Tooltip('count():Q', title='nº')],
     ).properties(width=240, height=180)
     return chart, len(sub)
+
+
+_NIVELES_TIPO = (('ambiente', _AMB_ORDER, 'Ambiente', 'Environment'),
+                 ('humedad', _HUM_ORDER, 'Humedad', 'Moisture'),
+                 ('pureza', _PUR_ORDER, 'Pureza', 'Purity'))
+
+
+def type_counts(rows):
+    """Cuántos borreguiles hay de cada ambiente, de cada humedad y de cada pureza.
+    Lista de (clave, [(valor, n), …]) en el orden de los niveles; el valor None reúne
+    los que no tienen propuesta en ese nivel (—), y va al final. Valores en español."""
+    from collections import Counter
+    sub = [r for r in rows if is_borreguil_decision(r.get('decision', ''))]
+    out = []
+    for clave, orden, _, _ in _NIVELES_TIPO:
+        c = Counter(r.get(clave) if r.get(clave) not in ('', '—', None) else None
+                    for r in sub)
+        cats = ([v for v in orden if c.get(v)]
+                + sorted(k for k in c if k is not None and k not in orden))
+        out.append((clave, [(k, c[k]) for k in cats]
+                    + ([(None, c[None])] if c.get(None) else [])))
+    return out
+
+
+def chart_type_counts(rows):
+    """Nº de borreguiles de cada ambiente, humedad y pureza: una gráfica de barras
+    horizontales por nivel, con el número al final de cada barra, como el recuento por
+    categoría de decisión (25-11-2026, la autora: «esta me gustaría que estuviera para
+    los tipos de borreguil»). Los que no tienen propuesta en un nivel salen en gris como
+    «sin propuesta (—)». Las tres van en la misma escala (de 0 al total de borreguiles),
+    así que se pueden comparar. Devuelve ([(título, chart), …], n) o ([], 0)."""
+    sub = [r for r in rows if is_borreguil_decision(r.get('decision', ''))]
+    if not sub:
+        return [], 0
+    en = i18n.get_lang() == 'en'
+    sin = 'no proposal (—)' if en else 'sin propuesta (—)'
+    titulos = {k: (t_en if en else t_es) for k, _, t_es, t_en in _NIVELES_TIPO}
+    tope = len(sub) * 1.15            # sitio para el número al final de la barra
+    out = []
+    for clave, cuentas in type_counts(rows):
+        # Cada barra, del color de su categoría en toda la app (laguna azul, arroyo
+        # verde, ladera amarillo verdoso…; 25-11-2026, la autora); sin propuesta, gris.
+        df = pd.DataFrame([{'tipo': sin if k is None else i18n.tv(k), 'n': n,
+                            'sin': k is None,
+                            'color': _COLOR_TIPO.get(k, '#bdbdbd')} for k, n in cuentas])
+        base = alt.Chart(df).encode(
+            y=alt.Y('tipo:N', sort=list(df['tipo']), title=None),
+            x=alt.X('n:Q', scale=alt.Scale(domain=[0, tope]),
+                    title='nº of borreguil points' if en else 'nº puntos de borreguil'),
+            tooltip=[alt.Tooltip('tipo:N', title=titulos[clave]),
+                     alt.Tooltip('n:Q', title='nº')])
+        # Barras de 18 px de grueso, haya una categoría o tres (con una sola, el ancho
+        # automático la dejaba en una raya).
+        barras = base.mark_bar(cornerRadiusEnd=4, size=18).encode(
+            color=alt.Color('color:N', scale=None, legend=None))
+        numeros = base.mark_text(align='left', dx=4, color='#424242').encode(text='n:Q')
+        # En la app, la altura incluye el eje de abajo y su título (unos 60 px): sin
+        # sumarlos, las barras se quedaban sin sitio y los nombres se montaban.
+        out.append((titulos[clave],
+                    (barras + numeros).properties(height=60 + 30 * len(df))))
+    return out, len(sub)
 
 
 def hierarchy_table(rows):

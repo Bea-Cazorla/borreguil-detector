@@ -263,6 +263,24 @@ def control(at, tipo, clave):
     return cs[0] if cs else None
 
 
+def colores_de_la_escala(spec):
+    """Los colores de las escalas de color de una especificación de Vega-Lite, en
+    cualquier capa o faceta (las que no tienen escala, «scale: null», no cuentan)."""
+    out = set()
+    if isinstance(spec, dict):
+        enc = spec.get('encoding')
+        if isinstance(enc, dict) and isinstance(enc.get('color'), dict):
+            esc = enc['color'].get('scale')
+            if isinstance(esc, dict):
+                out |= set(esc.get('range') or [])
+        for v in spec.values():
+            out |= colores_de_la_escala(v)
+    elif isinstance(spec, list):
+        for v in spec:
+            out |= colores_de_la_escala(v)
+    return out
+
+
 def grafico_del_peso(at):
     """Lo que la app manda dibujar en «5 · Peso»: (especificación del gráfico, tabla
     con sus datos). (None, None) si no está en pantalla."""
@@ -415,7 +433,7 @@ def guion(lang):
               'por defecto se usa el modelo de partida (casilla del modelo propio sin marcar)')
     # «Mapa Modelo RF» está en la fila de arriba, junto a «Verdad terreno», con sus
     # pasos
-    # en pestañas propias; los resultados se quedan con seis.
+    # en pestañas propias; los resultados se quedan con cinco (seis hasta el 25-11-2026).
     etiq = [t.label for t in at.tabs]
     comprobar(T('🌿  Mapa Modelo RF', '🌿  RF model map') in etiq
               and etiq.index(T('🌿  Mapa Modelo RF', '🌿  RF model map'))
@@ -424,32 +442,159 @@ def guion(lang):
               and not any('Mapeo RF' in e or 'RF mapping' in e for e in etiq),
               '«Mapa Modelo RF» es una pestaña de la fila de arriba', str(etiq))
     # Pestañas de resultados: nombres y orden de la autora (24-11), Descargas al final.
+    # Desde el 25-11-2026, «Probabilidades», «Peso de las variables» y «Tipos y
+    # distribuciones» son dos: «Resumen de los puntos» y «Variables del modelo».
     _res = [T('Mapa de los puntos', 'Points map'), T('Revisar puntos', 'Review points'),
-            T('Probabilidades', 'Probabilities'),
-            T('Peso de las variables', 'Variable weights'),
-            T('Tipos y distribuciones', 'Types and distributions'),
+            T('Resumen de los puntos', 'Points summary'),
+            T('Variables del modelo', 'Model variables'),
             T('Descargas', 'Downloads')]
     _i = etiq.index(_res[0]) if _res[0] in etiq else -1
-    comprobar(_i >= 0 and etiq[_i:_i + 6] == _res,
+    comprobar(_i >= 0 and etiq[_i:_i + 5] == _res
+              and not any(e in etiq for e in (T('Probabilidades', 'Probabilities'),
+                                              T('Tipos y distribuciones',
+                                                'Types and distributions'))),
               'las pestañas de resultados se llaman como pidió la autora y en su orden',
               str(etiq))
-    # «Tipos y distribuciones»: las cajas son de las variables que más pesan en el
+    # «Resumen de los puntos», en su orden: la probabilidad, debajo el recuento por
+    # decisión (25-11-2026, la autora: «esta quiero que salga debajo de probabilidad de
+    # ser borreguil») y los tipos; «Variables del modelo»: el peso y, debajo, los grupos
+    _md = textos(at)
+    _pos = [next((k for k, x in enumerate(_md) if s in x), -1) for s in (
+        T('#### Probabilidad de ser borreguil', '#### Probability of being a borreguil'),
+        T('#### Recuento de puntos por categoría de decisión',
+          '#### Point count by decision category'),
+        T('#### 🌿 Tipos de borreguil', '#### 🌿 Borreguil types'),
+        T('#### El peso de cada variable', '#### The weight of each variable'),
+        T('#### Las que más pesan, grupo a grupo',
+          '#### The ones that weigh most, group by group'))]
+    comprobar(-1 not in _pos and _pos == sorted(_pos),
+              'el resumen va de la probabilidad al recuento por decisión y a los tipos, y '
+              'las variables del peso a los grupos', str(_pos))
+    # «Probabilidades»: cómo se lee y para qué sirve, debajo del histograma; «Borreguil»
+    # cuenta con el umbral en uso (la raya roja), no con un 0,5 fijo (25-11-2026)
+    _pr = [r.get('rf_proba') for r in at.session_state['rows']
+           if isinstance(r.get('rf_proba'), (int, float)) and r.get('rf_proba') == r.get('rf_proba')]
+    _us = [s for s in at.slider if getattr(s, 'min', None) == 0.3 and getattr(s, 'max', None) == 0.8]
+    _u = float(_us[0].value) if _us else 0.5
+    _cerca = sum(1 for v in _pr if _u - 0.15 <= v < _u + 0.15)
+    comprobar(T('ℹ ¿Cómo se lee esta gráfica y para qué sirve?',
+                'ℹ How to read this chart and what it is for') in [e.label for e in at.expander]
+              and hay(at, T(f'**Borreguil** (≥ {N(_u, en)}, tu umbral): '
+                            f'{sum(1 for v in _pr if v >= _u)}',
+                            f'**Borreguil** (≥ {N(_u, en)}, your threshold): '
+                            f'{sum(1 for v in _pr if v >= _u)}'))
+              and hay(at, T(f'**Muy probable** (≥ {N(0.7, en)}): {sum(1 for v in _pr if v >= 0.7)}',
+                            f'**Very likely** (≥ {N(0.7, en)}): {sum(1 for v in _pr if v >= 0.7)}'))
+              and hay(at, T('**Forma de U**', '**A U shape**'))
+              and hay(at, T(f'cambian como mucho **{_cerca}** de tus {len(_pr)} puntos',
+                            f'changes at most **{_cerca}** of your {len(_pr)} points')),
+              'el histograma de probabilidades explica cómo se lee y cuenta con el umbral '
+              'en uso', f'umbral {_u}, {len(_pr)} probabilidades, {_cerca} cerca del umbral')
+    # Tipos de borreguil («Resumen de los puntos»): barras con el nº de borreguiles de
+    # cada ambiente, humedad y pureza, aunque falte un nivel (25-11-2026, la autora:
+    # «esta me gustaría que estuviera para los tipos de borreguil»)
+    _nb_t = sum(1 for r in at.session_state['rows']
+                if pp.is_borreguil_decision(r.get('decision', '')))
+    comprobar(hay(at, T(f'Cuántos de los {_nb_t} borreguiles hay de cada **ambiente**',
+                        f'How many of the {_nb_t} borreguiles there are of each '
+                        f'**environment**'))
+              and all(hay(at, f'**{t}**') for t in (T('Ambiente', 'Environment'),
+                                                    T('Humedad', 'Moisture'),
+                                                    T('Pureza', 'Purity')))
+              and hay(at, T('Cómo se propone el tipo', 'How the type is proposed')),
+              'el resumen cuenta los borreguiles de cada ambiente, humedad y pureza, con '
+              'barras', f'{_nb_t} borreguiles')
+    # Cada barra de los tipos, del color de su categoría en toda la app (25-11-2026, la
+    # autora: «laguna azul, arroyo verde, ladera amarillo verdoso»)
+    import mapeo_raster as _mra
+    _colores_barras = set()
+    for g in at.get('vega_lite_chart'):
+        for d in g.proto.datasets:
+            from streamlit.dataframe_util import convert_arrow_bytes_to_pandas_df as _a2df
+            _df_b = _a2df(d.data.data)
+            if 'tipo' in _df_b.columns and 'color' in _df_b.columns:
+                _colores_barras |= set(_df_b['color'])
+    comprobar({_mra.color(c) for c in ('arroyo', 'ladera')} <= _colores_barras,
+              'las barras de los tipos llevan el color de cada categoría, el del mapa',
+              str(sorted(_colores_barras)))
+    # «Revisar puntos»: debajo de la tabla, por qué salen esas variables (25-11-2026, la
+    # autora: «que eso se explique brevemente cerca de la tabla»), con su peso
+    import re as _re
+    _por_que = [t for t in textos(at)
+                if t.startswith(T('**Por qué salen estas variables:**', '**Why these variables:**'))]
+    comprobar(len(_por_que) == 1
+              and T('una por cada grupo de variables que dicen casi lo mismo',
+                    'one for each group of variables that say almost the same thing') in _por_que[0]
+              and _re.search(r'\(\d+ %', _por_que[0]) is not None
+              and T('La pendiente va siempre', 'The slope is always there') in _por_que[0]
+              and T('El modelo del mapa', 'The map model') in _por_que[0]
+              and hay(at, T('Debajo de la tabla se explica qué variables salen y por qué.',
+                            'Below the table it says which variables appear and why.')),
+              '«Revisar puntos» explica debajo de la tabla por qué salen esas variables, con su '
+              'peso', _por_que[0][:160] if _por_que else 'no está')
+    # Al pasar el ratón por «Decisión»: si hay etiqueta manda ella; si no, la
+    # probabilidad (25-11-2026, la autora: «¿por qué pone decisión borreguil verificado?»)
+    import json as _json
+    _ayuda_dec = ''
+    for _d_el in at.dataframe:
+        try:
+            _cfg_d = _json.loads(_d_el.proto.columns or '{}')
+        except ValueError:
+            continue
+        _ayuda_dec = (_cfg_d.get(T('Decisión', 'Decision')) or {}).get('help') or _ayuda_dec
+    comprobar(_ayuda_dec.startswith(T('Si el punto está revisado (en la app o ya en tu '
+                                      'fichero), manda lo revisado: «sí» → «Borreguil '
+                                      'verificado»',
+                                      'If the point is reviewed (in the app or already in your '
+                                      'file), the review decides: "yes" → "Verified '
+                                      'borreguil"'))
+              and T(f'desde {N(0.5, en)} (el umbral), «Posible borreguil»',
+                    f'from {N(0.5, en)} (the threshold), "Possible borreguil"') in _ayuda_dec
+              and T(f'hasta {N(0.2, en)}, «No borreguil»',
+                    f'up to {N(0.2, en)}, "Not a borreguil"') in _ayuda_dec,
+              'al pasar el ratón por «Decisión» se explica que la etiqueta manda y, sin ella, '
+              'la probabilidad', _ayuda_dec[:120] or 'sin ayuda')
+    # Y cada columna de la tabla se explica al pasar el ratón (25-11-2026, la autora:
+    # «que explique cada campo de la tabla al pasar el ratón por encima»)
+    _cfg_res = {}
+    for _d_el in at.dataframe:
+        if _d_el.key == 'results_table':
+            _cfg_res = _json.loads(_d_el.proto.columns or '{}')
+    _df_res = tabla_principal(at)
+    _sin_ayuda = ([] if _df_res is None else
+                  [c for c in _df_res.columns if not (_cfg_res.get(c) or {}).get('help')])
+    comprobar(_df_res is not None and not _sin_ayuda
+              and T('«mapa»: lo añadiste pinchando en el mapa',
+                    '"map": you added it by clicking on the map')
+              in ((_cfg_res.get(T('Fuente', 'Source')) or {}).get('help') or
+                  T('«mapa»: lo añadiste pinchando en el mapa',
+                    '"map": you added it by clicking on the map')),
+              'cada columna de la tabla de «Revisar puntos» se explica al pasar el ratón',
+              f'sin ayuda: {_sin_ayuda}')
+    # «Variables del modelo»: las cajas son de las variables que más pesan en el
     # modelo, y lo dice (25-11-2026)
-    comprobar(hay(at, T('#### Las variables que más pesan en el modelo',
-                        '#### The variables that weigh most in the model'))
+    comprobar(hay(at, T('#### Las que más pesan, grupo a grupo',
+                        '#### The ones that weigh most, group by group'))
               and hay(at, T('Las 8 variables que más pesan en el modelo usado',
                             'The 8 variables that weigh most in the model in use')),
-              'las cajas de «Tipos y distribuciones» son de las variables que más pesan '
+              'las cajas de «Variables del modelo» son de las variables que más pesan '
               'en el modelo, y lo dice')
     # Cuatro maneras de verlas, comparando borreguil con el resto o por tipo (25-11-2026)
     vista, comp = control(at, 'selectbox', 'dist_vista'), control(at, 'selectbox', 'dist_comparar')
     comprobar(vista is not None and comp is not None
               and list(vista.options) == [T('Cajas', 'Boxes'),
                                           T('Curvas de distribución', 'Distribution curves'),
-                                          T('Diferencias de un vistazo', 'Differences at a glance'),
+                                          T('Diferencia estandarizada de medianas', 'Standardized median difference'),
                                           T('Dos variables a la vez', 'Two variables at once')]
               and len(comp.options) == 3,
-              'en «Tipos y distribuciones» se elige cómo verlo y qué comparar')
+              'en «Variables del modelo» se elige cómo verlo y qué comparar')
+    # El grupo con el que se compara se llama «No borreguil», no «Resto» (25-11-2026)
+    comprobar(comp is not None
+              and all(T('no borreguil', 'not a borreguil') in o for o in comp.options)
+              and hay(at, T('No borreguil: ', 'Not a borreguil: '))
+              and not hay(at, T('Resto: ', 'Rest: ')),
+              'los puntos que no son borreguil se llaman «No borreguil», no «Resto»',
+              str(list(comp.options)) if comp is not None else 'no está')
     malos = []
     for v_ in ('cajas', 'curvas', 'diferencias', 'dos'):
         for c_ in ('borreguil', 'humedad', 'ambiente'):
@@ -471,9 +616,10 @@ def guion(lang):
              T('2 · Tabla de entrenamiento', '2 · Training table'),
              T('3 · Modelo', '3 · Model'), T('4 · Mapa', '4 · Map'),
              T('5 · Peso', '5 · Weights')]
-    comprobar(all(p in etiq for p in pasos) and len(etiq) == 3 + 6 + 5
+    comprobar(all(p in etiq for p in pasos) and len(etiq) == 3 + 5 + 5
               and [e for e in etiq if e in pasos] == pasos,
-              'sus cinco pasos son pestañas, en orden, y los resultados tienen seis',
+              'sus cinco pasos son pestañas, en orden, y los resultados tienen cinco '
+              '(desde el 25-11-2026)',
               str(etiq))
     comprobar(hay(at, T('**🌿 Mapa Modelo RF**, arriba del todo',
                         '**🌿 RF model map** tab, at the very top')),
@@ -570,11 +716,22 @@ def guion(lang):
               'las tarjetas de recuento van en el idioma elegido y como texto normal, no '
               'en mayúsculas', str(tarjetas))
     ids = [r['ID'] for r in base]
-    comprobar(df is not None and list(df['ID']) == bp.abreviar_ids(ids)
+    # (25-11-2026, la autora: «deja solo el número»: los ID heredados del nombre de
+    # la capa salen en la tabla solo con su número)
+    comprobar(df is not None
+              and list(df['ID']) == bp.abreviar_ids(bp.nombres_de_punto(ids, punto=''))
               and max(len(str(x)) for x in df['ID']) <= 24 < max(len(x) for x in ids),
-              'los nombres largos se muestran abreviados en la tabla',
+              'los nombres largos se ven cortos en la tabla (los de una capa, solo con '
+              'su número)',
               str(list(df['ID'])[:3]) if df is not None else 'sin tabla')
     comprobar(len(set(df['ID'])) == len(set(ids)), 'y siguen distinguiéndose unos de otros')
+    # Las variables llegan del CSV como texto («0.10313319351521447»): en la tabla,
+    # como números, para que salgan con 3 decimales (25-11-2026)
+    import re as _re
+    _largos = [v for c in df.columns if c != 'ID' for v in df[c]
+               if isinstance(v, str) and _re.fullmatch(r'-?\d+\.\d{4,}', v.strip())]
+    comprobar(not _largos, 'en la tabla las variables son números (con 3 decimales), no '
+              'texto con todos sus decimales', str(_largos[:3]))
 
     # --- B · seleccionar un borreguil: la revisión unida (25-11-2026, la autora: sí o
     # no y el tipo, en un solo recorrido y con un solo botón)
@@ -583,6 +740,18 @@ def guion(lang):
     seleccionar(at, [i1])
     sin_error(at, 'B')
     r1 = dict(filas(at)[i1])
+    # La probabilidad, en grande como antes (25-11-2026, la autora)
+    comprobar(T('Probabilidad RF', 'RF probability') in [m.label for m in at.metric],
+              'junto al mapa, la probabilidad del modelo sale en grande',
+              str([m.label for m in at.metric][-3:]))
+    # Si al guardar se reentrena o no, y dónde se elige (la casilla está en el panel)
+    _marcada = bool(at.session_state['entrenar_propio']) \
+        if 'entrenar_propio' in at.session_state else False
+    comprobar(hay(at, T('está marcada: si cambias el sí o el no',
+                        'is ticked: if you change the yes or no')) if _marcada else
+              hay(at, T('pero no lo reentrena. Para eso, marca',
+                        'but it does not retrain it. For that, tick')),
+              'junto a «Guardar» se dice si se reentrenará y dónde está la casilla')
     es = es_borreguil(at)
     comprobar(es is not None and es.value is None
               and list(es.options) == ([T('Sí', 'Yes'), 'No', T('No estoy seguro', 'Not sure')]),
@@ -682,8 +851,9 @@ def guion(lang):
               'puntos.geojson lleva la revisión con las columnas de la plantilla')
     comprobar(es_borreguil(at).value == 'si' and desplegable(at, 'humedad').value == nueva_hum,
               'tras guardar, el formulario muestra lo guardado')
-    comprobar(hay(at, T('tipo **revisado**', 'type **reviewed**')),
-              'junto al formulario pasa a decir «tipo revisado»')
+    # (desde el 25-11-2026 en grande, como antes: «🌿 arroyo · seco · puro — revisado»)
+    comprobar(hay(at, T('— **revisado**', '— **reviewed**')),
+              'junto al formulario pasa a decir «revisado»')
     comprobar(SELECCION['rows'] == [i1] and not boton(at, 'rev_deshacer').disabled,
               'la selección se conserva al guardar, y se puede deshacer')
 
@@ -926,7 +1096,8 @@ def guion(lang):
                                              'evi_late', 'elev_dem_m', 'slope_deg')),
               'la tabla tiene cabeceras legibles y las variables que más pesan en el '
               'modelo (no las 4 de fin de verano, el TWI ni el patrón)', str(cab))
-    _col_b = T('Borreguil (tu etiqueta)', 'Borreguil (your label)')
+    # (25-11-2026, la autora: «no entiendo borreguil (tu etiqueta)» → «mejor revisado»)
+    _col_b = T('¿Borreguil? (revisado)', 'Borreguil? (reviewed)')
     comprobar(_col_b in cab and set(df[_col_b]) <= {T('sí', 'yes'), 'no', ''}
               and '' in set(df[_col_b]),
               'la columna de la etiqueta dice sí, no o nada (no «None»)',
@@ -1022,9 +1193,12 @@ def guion(lang):
     n0 = len(filas(at))
     quitar = NOB[2]
     id_quitado = filas(at)[quitar]['ID']
+    _ids_j = [r['ID'] for r in filas(at)]
+    nombre_quitado = dict(zip(_ids_j, bp.nombres_de_punto(_ids_j, T('Punto', 'Point'))))[
+        id_quitado]
     seleccionar(at, [quitar])
     msgs_j = pulsar(at, boton(at, 'remove_pts'), 'J')
-    comprobar(any(f"{id_quitado} {T('quitado del análisis', 'removed from the analysis')}"
+    comprobar(any(f"{nombre_quitado} {T('quitado del análisis', 'removed from the analysis')}"
                   in m for m in msgs_j),
               'al quitar un punto se ve un aviso con su nombre',
               str([m[:90] for m in msgs_j if 'quit' in m or 'remov' in m][:3]))
@@ -1323,6 +1497,20 @@ def guion_tabla(lang):
               and list(xy.columns[3:]) == [V(n, en) for n in mr.nombres_predictores()],
               'la tabla X/y tiene 21 filas y las 34 variables en el orden del catálogo',
               str(list(xy.columns[:5])) if xy is not None else 'no está')
+    # El ID, con solo su número, como en «Revisar puntos» (25-11-2026, la autora: «aquí
+    # también debería poner id 1,2,3»)
+    _cortos = set(bp.abreviar_ids(bp.nombres_de_punto([r['ID'] for r in rows], punto='')))
+    comprobar(xy is not None and set(map(str, xy['ID'])) <= _cortos
+              and len(set(xy['ID'])) == len(xy)
+              and max(len(str(x)) for x in xy['ID']) < min(len(r['ID']) for r in rows),
+              'en la tabla de entrenamiento el ID es solo el número del punto',
+              str(list(xy['ID'])[:5]) if xy is not None else 'no está')
+    # Y dice qué variables salen, según el caso (25-11-2026): aquí, las 34
+    comprobar(hay(at, T('Salen **las 34 variables**: no se ha quitado ninguna, ni con el VIF '
+                        'ni con el PCA.',
+                        'These are **all 34 variables**: none has been removed, neither with '
+                        'the VIF nor with the PCA.')),
+              'la tabla de entrenamiento dice que salen las 34 variables')
 
     print('  M1 · entrenar y validar')
     b = control(at, 'button', 'mrf_entrenar')
@@ -1445,6 +1633,35 @@ def guion_tabla(lang):
     comprobar(tabla is not None
               and list(tabla['Variable']) == [V(x['variable'], en) for x in imp['variables']],
               'la tabla no cambia: sigue en el orden de lo que pierde el modelo')
+
+    print('  V3 · las que más pesan, categoría a categoría')
+    # 25-11-2026, la autora: «además de peso, podría mostrar gráficos de las variables
+    # por tipo de borreguil como en los puntos de verdad terreno»
+    import mapeo_raster as _mra3
+    vm = control(at, 'selectbox', 'mrf_dist_vista')
+    _cats3 = sorted({m_['categoria'] for m_ in mod['muestras']})
+    comprobar(vm is not None and len(vm.options) == 4
+              and hay(at, T('#### Las que más pesan, categoría a categoría',
+                            '#### The ones that weigh most, category by category'))
+              and all(hay(at, f'{T(c, bp.TIPO_EN.get(c, "not a borreguil"))}: ')
+                      for c in _cats3),
+              'en «5 · Peso», debajo del peso, las variables que más pesan por categoría '
+              'del modelo, con cuántas muestras hay de cada una', str(_cats3))
+    malos3, colores3 = [], set()
+    from streamlit.dataframe_util import convert_arrow_bytes_to_pandas_df as _a2df3
+    for v_ in ('cajas', 'curvas', 'diferencias', 'dos'):
+        control(at, 'selectbox', 'mrf_dist_vista').set_value(v_)
+        at.run()
+        if at.exception:
+            malos3.append((v_, [str(e.value)[:80] for e in at.exception]))
+        for g in at.get('vega_lite_chart'):
+            colores3 |= colores_de_la_escala(json.loads(g.proto.spec))
+    comprobar(not malos3, 'las cuatro vistas de las categorías se dibujan sin errores',
+              str(malos3))
+    comprobar({_mra3.color(c) for c in _cats3} <= colores3,
+              'cada categoría lleva su color del mapa', str(sorted(colores3)))
+    control(at, 'selectbox', 'mrf_dist_vista').set_value('cajas')
+    at.run()
     control(at, 'radio', 'mrf_peso_medida').set_value('permutacion')
     at.run()
 
@@ -1659,6 +1876,11 @@ def guion_tabla(lang):
               and tabla_con_columna(at, 'Qué pasa', 'What happens') is None,
               'al elegir el VIF no se quita nada hasta pulsar «Aplicar» (lo dicen «1 · Datos» '
               'y «2 · Tabla»)')
+    comprobar(hay(at, T('Salen las **20 variables que tienes marcadas** en «1 · Datos», de '
+                        'las 34 que hay. No las ha elegido el VIF ni el PCA.',
+                        'These are the **20 variables you have selected** under "1 · Data", '
+                        'out of the 34 there are. Neither the VIF nor the PCA chose them.')),
+              'la tabla de entrenamiento dice que salen las 20 marcadas a mano')
     # Lo elegido en otros pasos no se pierde al aplicar (25-11-2026: con st.rerun() en
     # el botón, Streamlit olvidaba los controles que esa pasada no llegaba a dibujar)
     control(at, 'number_input', 'mrf_p_semilla').set_value(43)
@@ -1692,6 +1914,11 @@ def guion_tabla(lang):
               'al aplicarlo dice cuáles se quedan (la altitud, siempre) y cuáles se quitan; '
               '«2 · Tabla» sigue con esas; con 22 muestras y 20 variables, avisa de que el '
               'VIF no es fiable', str(quedan))
+    comprobar(hay(at, T(f'Salen las **{len(quedan)} variables que dejó el VIF**, de las 20 '
+                        'que había marcadas (se aplicó en «1 · Datos»).',
+                        f'These are the **{len(quedan)} variables the VIF kept**, out of the '
+                        '20 that were selected (applied under "1 · Data").')),
+              'la tabla de entrenamiento dice que salen las que dejó el VIF', str(len(quedan)))
 
     def marcadas():
         return sorted(v for i in range(len(mr.GRUPOS))
@@ -1820,6 +2047,11 @@ def guion_tabla(lang):
                             'marcadas.', 'The ones the PCA kept are selected. Before applying '
                             'it there were 20 selected.')),
               'con el PCA también quedan marcadas solo las que se quedan', str(marcadas()))
+    comprobar(hay(at, T(f'Salen las **{len(quedan_p)} variables que dejó el PCA**, de las 20 '
+                        'que había marcadas (se aplicó en «1 · Datos»).',
+                        f'These are the **{len(quedan_p)} variables the PCA kept**, out of '
+                        'the 20 that were selected (applied under "1 · Data").')),
+              'la tabla de entrenamiento dice que salen las que dejó el PCA', str(len(quedan_p)))
     var_t = tabla_con_columna(at, 'Su eje', 'Its axis')
     quedan_t = [] if var_t is None else sorted(
         de_nombre[v] for v, q in zip(var_t['Variable'], var_t.iloc[:, 1])

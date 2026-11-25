@@ -235,7 +235,7 @@ Verás el progreso por fases. **Tiempos orientativos** (150 puntos):
 ## 6. Interpretar los resultados
 
 Al terminar, dentro de **📍 Verdad terreno**, aparecen el recuento por decisión, el
-recuadro **🧭 Modelo usado y acierto con tus puntos de campo** y seis pestañas. En la
+recuadro **🧭 Modelo usado y acierto con tus puntos de campo** y cinco pestañas. En la
 fila de arriba hay además **🌿 Mapa Modelo RF** (apartado 8) y **📖 Documentación y
 recomendaciones**.
 
@@ -280,20 +280,20 @@ Encima de las pestañas puedes poner **quién revisa** y su **perfil** (estudian
 gestor/a o investigador/a). Al revisar un punto, indica también la **certidumbre**
 (alta, media o baja). Todo se guarda en el punto y sale en las descargas.
 
-### Probabilidades
+### Resumen de los puntos
 
-Reparto de probabilidades. **Lo ideal son dos "montañas"** separadas: una baja
-(no-borreguiles) y otra alta (borreguiles). Si sale una sola masa central, el
-modelo no está distinguiendo bien en esa zona.
+Lo que ha encontrado la app, de arriba abajo:
 
-### Peso de las variables
-
-Qué pesa más en la decisión del modelo. Léelo de arriba abajo.
-
-### Tipos y distribuciones
-
-Cajas y bigotes por variable, y la **clasificación jerárquica del tipo de
-borreguil**:
+1. **Probabilidad de ser borreguil.** **Lo ideal son dos "montañas"** separadas: una
+   baja (no-borreguiles) y otra alta (borreguiles). Si sale una sola masa central, el
+   modelo no está distinguiendo bien en esa zona. Debajo de la gráfica, la app explica
+   cómo leerla, qué son las dos rayas rojas y cuántos puntos cambiarían si movieras el
+   umbral; los del centro son los primeros que conviene revisar.
+2. **Recuento de puntos por categoría de decisión**, de más a menos borreguil, con el
+   número y el porcentaje, y los colores del mapa de los puntos.
+3. **🌿 Tipos de borreguil**: cuántos hay de cada categoría, cada una con su color (el
+   mismo en toda la app: arroyo verde, laguna azul, ladera amarillo verdoso), y la
+   **clasificación jerárquica del tipo de borreguil**:
 
 - **Ambiente**: arroyo · laguna · ladera
 - **Humedad**: húmedo · seco
@@ -303,6 +303,12 @@ borreguil**:
 > punto, según su NDVI de inicio de verano. Es **puro** si llega al 75 %; si no,
 > **mixto-agua** si el píxel es agua o toca agua, y **mixto-roca** si no. Necesita
 > Earth Engine; sin él, la pureza se queda sin propuesta (—).
+
+### Variables del modelo
+
+Qué pesa más en la decisión del modelo (léelo de arriba abajo) y, debajo, cómo son
+esas variables en cada grupo de puntos: borreguil frente a no borreguil, o por humedad
+o por ambiente, en cajas, curvas, diferencias o dos variables a la vez.
 
 ### Descargas
 
