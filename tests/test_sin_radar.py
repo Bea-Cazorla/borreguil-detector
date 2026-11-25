@@ -8,6 +8,7 @@ ha leído, y lo dice. Se ejecutan con `python tests/test_sin_radar.py`; no hace 
 y tardan unos segundos.
 """
 import ast
+import os
 import shutil
 import sys
 import tempfile
@@ -15,6 +16,8 @@ from pathlib import Path
 
 APP = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(APP))
+# sin buscar modelos en GitHub al abrir la app (modelos_remotos.py)
+os.environ.setdefault('BORREGUIL_MODELOS_URL', '')
 
 import borreguil_pipeline as bp   # noqa: E402
 import i18n                        # noqa: E402
@@ -32,7 +35,8 @@ def funciones_de_app(*nombres):
     arbol = ast.parse(src)
     trozos = [ast.get_source_segment(src, n) for n in arbol.body
               if isinstance(n, ast.FunctionDef) and n.name in nombres]
-    ns = {'Path': Path, 'APP_DIR': APP, 'bp': bp, 'i18n': i18n}
+    ns = {'Path': Path, 'APP_DIR': APP, 'bp': bp, 'i18n': i18n,
+          'DESCARGADOS': TMP / 'modelos_descargados'}
     exec('\n\n'.join(trozos), ns)
     return ns
 

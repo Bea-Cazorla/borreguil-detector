@@ -35,11 +35,12 @@ El programa los busca automáticamente:
 1. Toma **puntos** sobre el terreno (los tuyos, o generados al azar).
 2. Para cada punto descarga **datos de satélite y de terreno**: índices de
    vegetación y humedad (Sentinel-2), radar (Sentinel-1), altitud, pendiente,
-   acumulación de agua y textura de la imagen aérea.
-3. Un modelo de **inteligencia artificial** (Random Forest), entrenado con cientos
-   de borreguiles verificados en campo en Sierra Nevada, estima para cada punto la
+   curvatura del terreno y textura de la imagen aérea.
+3. Un modelo de **inteligencia artificial** (Random Forest), entrenado con 769
+   puntos revisados en campo en Sierra Nevada, estima para cada punto la
    **probabilidad de ser borreguil**.
 4. Te lo muestra en un **mapa**, con tablas y gráficas, y te lo deja descargar.
+5. Revisas los puntos y, con ellos, haces el **mapa de borreguiles** de tu zona.
 
 ---
 
@@ -49,13 +50,14 @@ El programa los busca automáticamente:
 
 ### 2.1 Descargar
 
-Ve a la página de **Releases** del repositorio y descarga el archivo de tu sistema:
+Ve a la página de **Releases** del repositorio (cuando haya una versión publicada) y
+descarga el archivo de tu sistema:
 
 | Tu ordenador | Archivo a descargar |
 |---|---|
 | Windows 10/11 | `Borreguil-windows.zip` |
 | macOS (Apple Silicon: M1/M2/M3/M4) | `Borreguil-macos-arm64.zip` |
-| macOS (Intel) | `Borreguil-macos-intel.zip` |
+| macOS (Intel) | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte) |
 | Linux (Ubuntu, Debian…) | `Borreguil-linux.tar.gz` |
 
 > Ocupa bastante (varios cientos de MB) porque **lleva dentro todo lo necesario**:
@@ -96,7 +98,12 @@ cd Borreguil
 Se abre una **ventana negra de consola** (no la cierres: es el motor del programa)
 y, a los pocos segundos, tu **navegador** con la interfaz.
 
-Si el navegador no se abre solo, entra tú a **http://localhost:8501**.
+Si el navegador no se abre solo, entra en la dirección que muestra la consola
+(«Abriendo el navegador en: …»), normalmente **http://localhost:8501**.
+
+Al abrirse, la app trae de GitHub los modelos nuevos o actualizados; la última línea
+del panel lateral dice si están al día. Todo lo que hace por internet va por HTTPS
+(puerto 443).
 
 > ⏳ El primer arranque puede tardar **30-60 segundos**. Los siguientes son rápidos.
 
@@ -111,7 +118,8 @@ de imágenes y una ejecución pasaría de segundos a decenas de minutos.
 Es **gratuito para uso académico y de investigación**.
 
 > 💡 ¿Tienes prisa? Puedes saltarte este paso: el programa funciona con el backend
-> **Planetary Computer**, que no requiere cuenta — pero es bastante más lento.
+> **Planetary Computer**, que no requiere cuenta — pero es bastante más lento y no
+> lee el radar.
 
 ### 3.1 Crear el proyecto
 
@@ -167,12 +175,14 @@ Elige **🎲 Generar aleatoriamente en el área** y configura:
 | Opción | Valor para esta prueba | Por qué |
 |---|---|---|
 | Nº puntos a generar | **150** | Suficiente para ver resultados; rápido. |
-| Estrategia | **stratified_elev** | Reparte los puntos por franjas de altitud. |
+| Estrategia | **Repartidos por altitud** | Reparte los puntos por franjas de altitud. |
 | Elev. mín (m) | **2000** | Los borreguiles son de alta montaña. |
 | Elev. máx (m) | *(vacío)* | Sin límite superior. |
 
-> ¿Tienes tus propios puntos? Elige **📁 Subir archivo** (KML, GeoJSON o
-> shapefile). Ver [MANUAL.md](MANUAL.md) para el formato.
+> ¿Tienes tus propios puntos? Elige **📁 Subir archivo** y súbelos en **Tus puntos**
+> (KML, GeoJSON, Shapefile o CSV con `lon` y `lat`; plantilla en la pantalla de
+> inicio). ¿Solo quieres probar? En la pantalla de inicio, **▶ Probar con 20 puntos
+> de ejemplo de Sierra Nevada**.
 
 ### Paso 3 · Área de estudio
 
@@ -184,15 +194,17 @@ Elige **🎲 Generar aleatoriamente en el área** y configura:
 
 ### Paso 4 · Backend
 
-**🌍 Google Earth Engine** (el que configuraste en el paso 4). Si no lo tienes,
-deja **Microsoft Planetary Computer** y ármate de paciencia.
+**🌍 Google Earth Engine** (viene elegido; lo configuraste en el paso 4). Sin cuenta,
+elige **🛰 Microsoft Planetary Computer (sin cuenta)**: más lento y sin radar; la app
+usa sola la versión del modelo sin radar (AUC 0,833 frente a 0,847).
 
 ### Paso 5 · Modelo
 
-En **Modelo de partida** deja `rf_sierra_nevada.joblib` (universal, 27 variables).
+En **Modelo de partida** deja `rf_sierra_nevada.joblib` (universal, 27 variables) y
+**sin marcar** «Sumar mis puntos a los del modelo y reentrenarlo».
 
-> En España peninsular con cobertura infrarroja (Andalucía, Cataluña, Canarias),
-> `rf_sierra_nevada_cir.joblib` es **más preciso**.
+> En Andalucía, Cataluña y Canarias (ortofoto infrarroja PNOA),
+> `rf_sierra_nevada_cir.joblib` (32 variables, AUC 0,945) es **más preciso**.
 
 ### Paso 6 · Umbral
 
@@ -222,10 +234,10 @@ Verás el progreso por fases. **Tiempos orientativos** (150 puntos):
 
 ## 6. Interpretar los resultados
 
-Al terminar aparecen seis pestañas, dentro de **📍 Verdad terreno**. (En esa misma
-fila de arriba hay otra pestaña, **🌿 Mapa Modelo RF**: es un trabajo posterior,
-que lleva de los puntos con el tipo revisado a un mapa de tipos; lo explica el
-manual.)
+Al terminar, dentro de **📍 Verdad terreno**, aparecen el recuento por decisión, el
+recuadro **🧭 Modelo usado y acierto con tus puntos de campo** y seis pestañas. En la
+fila de arriba hay además **🌿 Mapa Modelo RF** (apartado 8) y **📖 Documentación y
+recomendaciones**.
 
 ### Mapa de los puntos
 
@@ -233,14 +245,17 @@ Cada punto es un candidato, coloreado por su decisión:
 
 | Color | Decisión | Qué significa |
 |---|---|---|
-| 🟢 Verde oscuro | BORREGUIL VERIFICADO | Confirmado en campo (lo aportaste tú). |
-| 🟢 Verde | BORREGUIL PROBABLE | Probabilidad **≥ 0,70**. Los más fiables. |
-| 🟩 Verde claro | POSIBLE BORREGUIL | Entre el umbral y 0,70. Merecen revisión. |
-| 🟧 Naranja | INCIERTO | Zona dudosa. |
-| 🔴 Rojo | NO BORREGUIL | Probabilidad baja. |
+| 🟢 Verde oscuro | BORREGUIL VERIFICADO | Una persona lo dio por borreguil (fichero de campo, Revisar puntos o añadido en el mapa). |
+| 🟢 Verde | BORREGUIL PROBABLE | Probabilidad **≥ 0,700**. Los más fiables. |
+| 🟩 Verde claro | POSIBLE BORREGUIL | Entre el umbral y 0,700. Merecen revisión. |
+| 🟧 Naranja | INCIERTO | Entre 0,200 y el umbral. Zona dudosa. |
+| 🟨 Ámbar | DUDOSO | Marcado como dudoso en campo: no entrena. |
+| 🔴 Rojo | NO BORREGUIL / NO BORREGUIL VERIFICADO | Probabilidad ≤ 0,200, o una persona lo dio por no borreguil. |
 
 Haz **clic en un punto** para ver su ficha y poder **quitarlo** del análisis.
-La **leyenda** está abajo a la izquierda.
+La **leyenda** está abajo a la izquierda. Con **➕ Añadir puntos pinchando en el
+mapa** puedes añadir sitios que conoces: pinchas, contestas debajo si hay borreguil y
+el punto entra como un dato de campo más (borde blanco).
 
 ### Revisar puntos
 
@@ -249,6 +264,10 @@ fila, el mapa se centra en ese punto y se despliega su ficha: el valor de las
 variables que más pesan y la gráfica **📈 Este punto frente a los borreguiles
 verdaderos**, que dice en cada una dónde cae el punto entre los borreguiles con los
 que se entrenó el modelo.
+
+Con puntos seleccionados: **✓ Marcar como borreguil verificado**, **✗ Marcar como no
+borreguil verificado** o **🗑 Quitar del análisis**. Con «Sumar mis puntos…» marcada,
+el botón dice «… y reentrenar» y el modelo se reentrena al momento.
 
 Si el punto es un borreguil, aparece el panel **🌿 Revisar el tipo de borreguil**:
 la app propone ambiente, humedad y pureza, y tú los confirmas o corriges mirando la
@@ -301,7 +320,9 @@ Excel, CSV, GeoJSON de los puntos y mapa HTML.
 > tipos revisados. Para seguir otro día, cárgalo en *Tus puntos* al
 > empezar y no tendrás que repetirlo.
 
-Tus modelos entrenados y las salidas se guardan en:
+Los ficheros del análisis **no se guardan solos**: descárgalos en **Descargas**. En
+esta carpeta quedan los modelos guardados con «💾 Guardar en la app», los modelos
+nuevos de GitHub y el proyecto de Earth Engine:
 
 | Sistema | Carpeta |
 |---|---|
@@ -314,17 +335,30 @@ Tus modelos entrenados y las salidas se guardan en:
 
 ### Mejorar la precisión en TU zona
 
-El modelo incluido aprendió en Sierra Nevada. En otras montañas funciona, pero
-**mejora mucho** si le enseñas ejemplos locales:
+El modelo aprendió en Sierra Nevada; mejora si le enseñas ejemplos locales:
 
-1. Sal al campo (o fotointerpreta) y marca **borreguiles confirmados**.
-2. Guárdalos como KML o GeoJSON — **no hace falta ningún atributo**: cada punto se
-   asume borreguil.
-3. Súbelos en **Opcional: puntos de campo para comprobar el modelo**.
-4. Ejecuta de nuevo. Con **≥ 30** borreguiles (ideal 80–150) el programa entrena un
-   modelo **propio de tu zona**.
-5. Guárdalo desde el panel de resultados: aparecerá en «Modelo de partida» para
-   futuras sesiones.
+1. Descarga la **plantilla de datos de campo** (pantalla de inicio). Una fila por
+   punto: `lon`, `lat` (grados) y `presence` (**1** borreguil, **0** no; `doubtful`
+   = 1 si no lo sabes). **Incluye ausencias**: la app no se las inventa.
+2. Guárdala como CSV y súbela en **Tus puntos** o en **Opcional: puntos de campo
+   para comprobar el modelo**.
+3. Ejecuta. Por defecto se usa el modelo tal cual, y **🧭 Modelo usado y acierto con
+   tus puntos de campo** dice cuántos acierta.
+4. Marca **Sumar mis puntos a los del modelo y reentrenarlo**: se reentrena con sus
+   769 puntos **más** todos los tuyos con etiqueta (fichero, **Revisar puntos** y los
+   añadidos en el mapa). Desde entonces, cada punto verificado o añadido lo reentrena
+   al momento. El acierto en tus puntos se mide por zonas.
+5. Guárdalo en **💾 Guardar el modelo reentrenado** (debajo de las pestañas):
+   «💾 Guardar en la app» o «⬇ Descargar el modelo».
+
+### Hacer el mapa de borreguiles
+
+La pestaña **🌿 Mapa Modelo RF** (necesita Earth Engine) entrena otro modelo con tus
+puntos revisados y lo aplica a cada píxel de 10 m: **1 · Datos** («¿Son bastantes
+puntos?»: mínimo 100 puntos con 33 borreguiles, recomendado 250 con 83; «Quitar las
+variables repetidas»: ninguna, con el VIF o con un PCA), **2 · Tabla**, **3 · Modelo**,
+**4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
+[manual](MANUAL.md#mapa-de-tipos-con-random-forest).
 
 ---
 
@@ -334,12 +368,16 @@ El modelo incluido aprendió en Sierra Nevada. En otras montañas funciona, pero
 |---|---|
 | Windows bloquea el programa | **Más información** → **Ejecutar de todas formas**. |
 | macOS: «no se puede comprobar» | Clic derecho → **Abrir**, o el comando `xattr` del punto 2.2. |
-| El navegador no se abre | Entra manualmente a **http://localhost:8501**. |
+| El navegador no se abre | Entra en la dirección que da la consola, normalmente **http://localhost:8501**. |
 | **Solo detecta 1 o 2 puntos** | Casi seguro tienes el umbral en **Manual**. Cámbialo a **Otsu**. |
 | Va lentísimo | Usa **GEE** en vez de MPC y marca **⚡ Modo rápido**. |
 | Error de Earth Engine | Revisa el identificador del proyecto y vuelve a **🔑 Autenticar GEE**. |
 | No aparecen texturas | Es normal con **⚡ Modo rápido**: desmárcalo. |
 | El radar (Sentinel-1) sale «omitida» | Solo se lee con **GEE**; con Planetary Computer la app usa sola la versión del modelo sin radar. |
+| Sin texturas aunque no uses el modo rápido | Windows puede bloquear scikit-image; la app avisa y rellena las texturas con un valor típico (probabilidad menos fiable). |
+| «Sin conexión con GitHub» o red con cortafuegos (aula) | Todo va por HTTPS, puerto 443: hay que dejarlo salir hacia Earth Engine y `raw.githubusercontent.com`. |
 
-¿Sigue sin funcionar? Abre una *issue* en el repositorio indicando tu sistema
-operativo y **copiando el texto de la ventana de consola**.
+¿Sigue sin funcionar? **💬 Sugerir un cambio o informar de un error** (abajo en el
+panel lateral) abre una *issue*: indica tu sistema y copia el texto de la consola; no
+pegues coordenadas de borreguiles. Manual en la
+[wiki](https://github.com/Bea-Cazorla/borreguil-detector/wiki).

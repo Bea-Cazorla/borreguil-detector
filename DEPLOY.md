@@ -90,7 +90,7 @@ Para GEE en Spaces, define el secret `EE_SERVICE_ACCOUNT_KEY` en
 
 - **Descarga de imágenes ESRI**: ~1 imagen por punto. Para 300 puntos son
   ~300 peticiones HTTP (varios minutos). Si el deploy tiene límites de tiempo
-  de request, marca **«Saltar imágenes ESRI»** (se pierden las texturas, pero
+  de request, marca **«Saltar imágenes (más rápido, sin texturas)»** (se pierden las texturas, pero
   el modelo sigue usando topografía + Sentinel-2).
 - **Backend MPC**: lee ventanas de muchos COG de Sentinel-2; con el periodo
   2017-2025 y cientos de puntos puede tardar 10-30 min. El backend **GEE** lo

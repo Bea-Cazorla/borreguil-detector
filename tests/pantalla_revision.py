@@ -34,6 +34,8 @@ if not DATOS.exists():
 os.chdir(APP)
 sys.path.insert(0, str(APP))
 os.environ['BORREGUIL_DATA_DIR'] = tempfile.mkdtemp(prefix='bt_')
+# sin buscar modelos en GitHub al abrir la app (modelos_remotos.py)
+os.environ.setdefault('BORREGUIL_MODELOS_URL', '')
 warnings.simplefilter('ignore')
 
 import borreguil_pipeline as bp   # noqa: E402

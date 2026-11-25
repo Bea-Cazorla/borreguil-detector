@@ -10,6 +10,7 @@ than guessing.
 
 ## The point
 
+- `id`: any name or code for the point (optional; if missing, the app creates one).
 - **One row per point**, at the place you observed. Coordinates in decimal degrees,
   WGS84 (`lon`, `lat`).
 - The app works with 10 × 10 m Sentinel-2 pixels: describe what is in the **10 m
@@ -24,14 +25,15 @@ than guessing.
 - **0 — no wet meadow.** Anything else: dry grassland, scrub, rock, scree, bare
   soil, water. Absences are as important as presences: try to record some in the
   same areas, especially dry grasslands that look green.
-- Leave empty if you did not look at presence.
+- Leave empty if you did not look at presence: the app then only classifies the
+  point; it is not used to check or train the model.
 
 ## environment (only if presence = 1)
 
 | Value | Definition |
 |---|---|
-| `stream` | Along a watercourse, permanent or seasonal: the meadow follows the stream bed or its banks. **[TO DECIDE]** proposal: within about 30 m of the channel |
-| `lake` | On the shore of a lake or pond, or in a basin that holds water part of the year. **[TO DECIDE]** proposal: within about 100 m of the water |
+| `stream` | Along a watercourse, permanent or seasonal: the meadow follows the stream bed or its banks. **[TO DECIDE]** proposal: within about 30 m of the channel (the app proposes `stream` within 30 m of an OpenStreetMap stream) |
+| `lake` | On the shore of a lake or pond, or in a basin that holds water part of the year. **[TO DECIDE]** proposal: within about 100 m of the water (the app proposes `lake` within 120 m of a known lake) |
 | `slope` | Neither of the above: on a slope, fed by seepage, springs or snowmelt |
 
 ## moisture (only if presence = 1)
@@ -59,7 +61,7 @@ What is inside the 10 m pixel:
 | Value | Definition |
 |---|---|
 | `pure` | Almost all meadow (about 75 % or more) |
-| `mixed-water` | Meadow with open water inside the pixel (pond, stream) |
+| `mixed-water` | Meadow with open water inside the pixel (pond, stream). The app proposes it when the pixel is water or touches water |
 | `mixed-rock` | Meadow with rock, scree or bare soil inside the pixel |
 
 ## doubtful, method, date, observer, expertise, certainty, notes
@@ -82,6 +84,7 @@ What is inside the 10 m pixel:
 
 ## What is optional
 
-Only `lon`, `lat` and `presence` are required. The type columns are independent of
+Only `lon`, `lat` and `presence` are required for the points that check or train the
+model. The type columns are independent of
 each other: a point with only `moisture` is useful for the moisture model. Fill in
 what you know and leave the rest empty.

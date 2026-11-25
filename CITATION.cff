@@ -49,11 +49,14 @@ abstract: >-
   teledetección multi-fuente y aprendizaje automático. Combina series temporales
   de Sentinel-2 (índices de vegetación, humedad y agua), radar Sentinel-1,
   variables topográficas derivadas del modelo digital de elevaciones Copernicus
-  (altitud, pendiente, curvatura e índice topográfico de humedad) y descriptores
+  (altitud, pendiente y curvatura) y descriptores
   de textura obtenidos de ortofotografía de alta resolución. Un clasificador
-  Random Forest, entrenado con 796 puntos verificados en campo en Sierra Nevada
-  (España) y validado mediante validación cruzada espacial por cuencas
-  hidrográficas, estima la probabilidad de presencia de borreguil en cada punto.
+  Random Forest, entrenado con 769 puntos verificados en Sierra Nevada (España;
+  372 borreguiles y 397 no) y validado mediante validación cruzada espacial por
+  cuencas hidrográficas, estima la probabilidad de presencia de borreguil en cada
+  punto. Con los puntos revisados, entrena además un modelo para la zona de
+  estudio, lo valida por zonas y genera el mapa de borreguil a 10 m en Google
+  Earth Engine.
   El programa incorpora además una clasificación jerárquica del tipo de borreguil
   (ambiente, humedad y pureza del píxel), selección automática del umbral de
   decisión y la posibilidad de reentrenar el modelo con datos de campo locales.

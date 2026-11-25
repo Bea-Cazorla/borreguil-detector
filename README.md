@@ -1,39 +1,49 @@
 # 🌿 Borreguil / Wet Meadow Finder
 
-App web (Streamlit) para identificar **borreguiles** (mountain wet meadows /
-cervunales higroturbosos) en cualquier zona de alta montaña.
+App (Streamlit) para identificar **borreguiles** (mountain wet meadows /
+cervunales higroturbosos) en cualquier zona de alta montaña y hacer su mapa.
 
-Combina imagen aérea (ESRI World Imagery), modelo digital del terreno
-(Copernicus DEM 30 m) e imagen satelital multi-temporal Sentinel-2, con dos
-backends posibles:
+Combina ortofoto (ESRI World Imagery o, en España, PNOA), modelo digital del terreno
+(Copernicus DEM 30 m), Sentinel-2 multitemporal y radar Sentinel-1, con dos fuentes
+de datos posibles:
 
-- **Microsoft Planetary Computer (MPC)** — sin cuenta, sin API key.
-- **Google Earth Engine (GEE)** — si tienes cuenta, el cómputo se hace en la
-  nube de Google (rápido, sin descargas).
+- **Google Earth Engine (GEE)** — la que viene elegida: el cálculo se hace en la nube
+  de Google (rápido, sin descargas). Necesita cuenta.
+- **Microsoft Planetary Computer (MPC)** — sin cuenta, más lento y sin radar. Si
+  Earth Engine no está disponible, la app usa esta.
 
-Un **Random Forest preentrenado en Sierra Nevada** (796 puntos verificados en
-campo; AUC con validación espacial por cuencas = **0,847** el modelo universal y
-**0,945** la variante con ortofoto infrarroja) sirve como modelo por defecto, y
-puede **reentrenarse con tus propios puntos de campo** (modo *presence-only*:
-solo necesitas las coordenadas de borreguiles confirmados).
+Un **Random Forest preentrenado en Sierra Nevada** sirve como modelo de partida. Se
+entrenó con 769 puntos revisados en campo (372 borreguiles y 397 no borreguiles; de
+los 796, los 27 dudosos quedaron fuera). Su acierto con validación espacial por
+cuencas (AUC) es **0,847** (27 variables) y **0,945** en la variante con ortofoto
+infrarroja (32 variables). Sin radar (Planetary Computer), la app usa sola sus
+versiones sin radar (0,833 y 0,937). Por defecto el modelo se usa tal cual; con
+**«Sumar mis puntos a los del modelo y reentrenarlo»** se vuelve a entrenar con sus
+769 puntos más tus puntos con etiqueta (borreguil sí o no).
 
 ---
 
 ## ⬇️ Descargar el programa (recomendado)
 
-**No necesitas instalar Python ni ninguna librería.** Descarga el ejecutable de tu
-sistema desde la página de [**Releases**](../../releases), descomprime y ejecuta:
+**No necesitas instalar Python ni ninguna librería.** Cuando haya una versión
+publicada, descarga el ejecutable de tu sistema desde la página de
+[**Releases**](../../releases), descomprime y ejecuta:
 
 | Sistema | Archivo |
 |---|---|
 | Windows 10/11 | `Borreguil-windows.zip` |
 | macOS Apple Silicon (M1-M4) | `Borreguil-macos-arm64.zip` |
-| macOS Intel | `Borreguil-macos-intel.zip` |
+| macOS Intel | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte; si no, usa el código fuente) |
 | Linux x86-64 | `Borreguil-linux.tar.gz` |
 
 📖 **[TUTORIAL.md](TUTORIAL.md)** — primeros pasos, incluido el alta en Google Earth Engine
 📘 **[MANUAL.md](MANUAL.md)** — referencia completa de todas las opciones
-🏷️ **[PUBLICAR.md](PUBLICAR.md)** — cómo publicar una versión y obtener su DOI
+🌐 **[Wiki](https://github.com/Bea-Cazorla/borreguil-detector/wiki)** — manual en línea, en español e inglés
+🏷️ **[PUBLICAR.md](PUBLICAR.md)** — cómo publicar una versión, un modelo y obtener el DOI
+
+¿Un error o una idea? En la app, **«💬 Sugerir un cambio o informar de un error»**
+(abajo en el panel lateral). No pegues coordenadas de borreguiles: son localizaciones
+de un hábitat sensible.
 
 > La primera vez, Windows y macOS avisan de que el programa no está firmado (es
 > habitual en software científico). El tutorial explica cómo continuar.
@@ -57,7 +67,8 @@ Se abre en `http://localhost:8501`.
 ## Cómo se usa
 
 1. **Origen de los puntos**:
-   - Subir un KML/Shapefile/GeoJSON/CSV con tus puntos, **o**
+   - Subir tus puntos en **Tus puntos** (KML, GeoJSON, Shapefile o CSV con `lon` y
+     `lat`), **o**
    - Generar puntos aleatorios dentro del área de estudio.
 2. **Área de estudio** (recomendado), por tres vías:
    - **Subir un vector**: un único **KML / GeoJSON / GeoPackage**, o un
@@ -65,30 +76,39 @@ Se abre en `http://localhost:8501`.
      un `.zip`).
    - **WDPA ID** de [protectedplanet.net](https://www.protectedplanet.net):
      resuelve **cualquier** ID si pegas un **token gratuito** de Protected Planet
-     (campo opcional, o secret/`env WDPA_TOKEN`), o **sin token** si usas el
-     backend **GEE** (capa `WCMC/WDPA` de Earth Engine). Sin token ni GEE, solo
+     (campo opcional, o secret/`env WDPA_TOKEN`), o **sin token** si usas
+     **GEE** (capa `WCMC/WDPA` de Earth Engine). Sin token ni GEE, solo
      funcionan los IDs del cache local.
    - **Nombre** del parque (búsqueda Nominatim/OSM; incluye "Parque Nacional/
      Natural" para mejores resultados).
-3. **Backend satelital**: MPC (sin cuenta) o GEE (con proyecto + autenticación).
-4. **Verdad-terreno** (opcional): subir un KML con borreguiles confirmados.
-   **No hace falta ningún atributo** — todos los puntos se asumen borreguil
-   (*presence-only*). La clase negativa se genera automáticamente con
-   pseudo-ausencias.
-5. **Ejecutar** → mapa interactivo + tabla + descargas (CSV / Excel / mapa HTML).
+3. **Fuente de datos**: GEE (por defecto) o MPC (sin cuenta, más lento y sin radar).
+4. **Puntos de campo** (opcional, fichero aparte): sitios donde ya sabes si hay
+   borreguil, con `presence` (1 = borreguil, 0 = no) y, si quieres, `doubtful`, el
+   tipo, `observer`, `expertise` y `certainty`. Plantilla:
+   `plantilla/field_points_template.xlsx` (botón «⬇ Descargar la plantilla de datos
+   de campo (Excel)» en la pantalla de inicio). **Incluye ausencias**: la app no se
+   las inventa. Un fichero sin ninguna columna se toma como todo borreguil: sirve para
+   medir cuántos acierta el modelo, pero no aporta ausencias.
+5. **▶ Ejecutar pipeline** → seis pestañas: Mapa de los puntos, Revisar puntos,
+   Probabilidades, Peso de las variables, Tipos y distribuciones y Descargas (Excel,
+   CSV, `puntos.geojson`, mapa HTML y área de estudio).
 
-## Inspeccionar puntos y aportar verdad-terreno (aprendizaje activo)
+## Revisar puntos y aportar puntos de campo
 
-En la pestaña **Revisar puntos**, **selecciona una o varias filas** (casillas a la izquierda):
-- la **primera** seleccionada centra el mapa principal, abre un **mini-mapa con
-  zoom** sobre el punto y muestra su **imagen ESRI**, las variables que más pesan
-  en el modelo, la altitud y la pendiente, y un enlace a Google Maps;
-- con una o varias seleccionadas, el botón **«✓ Marcar como borreguil verificado
-  y reentrenar»** las añade a la verdad-terreno y **recalibra el modelo al
-  instante** (las features ya están calculadas).
+En **Revisar puntos**, selecciona una o varias filas. El **último punto
+seleccionado** centra el mapa y abre su ficha: la ortofoto con, en amarillo, el
+píxel de 10 m del punto (capas Google Satélite, Relieve LiDAR y curvas de nivel), las
+variables que más pesan, la gráfica «📈 Este punto frente a los borreguiles
+verdaderos» y un enlace a Google Maps. Con puntos seleccionados:
+**«✓ Marcar como borreguil verificado»**, **«✗ Marcar como no borreguil
+verificado»** (con su **certidumbre**: alta, media o baja) o **«🗑 Quitar del
+análisis»**. Encima de las pestañas se indica **quién revisa** y su **perfil**
+(estudiante, gestor/a, investigador/a); todo sale en las descargas.
 
-Con la casilla **«Sumar mis puntos a los del modelo y reentrenarlo»** marcada,
-cada confirmación se suma a los puntos del modelo y lo mejora en tu zona.
+En **Mapa de los puntos**, **«➕ Añadir puntos pinchando en el mapa»** añade sitios
+que conoces como un dato de campo más. Con **«Sumar mis puntos a los del modelo y
+reentrenarlo»** marcada, cada punto verificado o añadido reentrena el modelo al
+momento, sin volver a ejecutar.
 
 Con borreguiles seleccionados aparece además el panel **«🌿 Revisar el tipo de
 borreguil»**: la app propone ambiente, humedad y pureza por reglas, y aquí una
@@ -96,83 +116,97 @@ persona los confirma o corrige mirando la ortofoto. Lo revisado queda marcado, n
 se pisa al reentrenar y se guarda en `puntos.geojson`, que puede volver a cargarse
 en otra sesión. Detalles en el [manual](MANUAL.md#10-clasificación-jerárquica-del-tipo).
 
+## Mapa de borreguiles («🌿 Mapa Modelo RF»)
+
+Con los puntos revisados, la app entrena otro Random Forest y lo aplica a cada píxel
+de 10 m (necesita **Earth Engine**). Eliges qué cartografiar (borreguil sí o no,
+humedad, o ambiente y humedad) y sigues los pasos: **1 · Datos** (aviso
+**«¿Son bastantes puntos?»**: mínimo 100 puntos con 33 borreguiles, recomendado 250
+con 83; **«Quitar las variables repetidas»**: ninguna, con el VIF o con un PCA),
+**2 · Tabla**, **3 · Modelo** (validación por zonas), **4 · Mapa** (GeoTIFF) y
+**5 · Peso**. Ver el [manual](MANUAL.md#mapa-de-tipos-con-random-forest).
+
 ## Guardar y reutilizar modelos
 
-- **Modelo de partida** (sidebar): un desplegable lista todos los modelos `.joblib`
-  de la carpeta de la app (empezando por `rf_sierra_nevada.joblib`). El elegido
-  se usa para predecir cuando no hay verdad-terreno local suficiente.
-- **Guardar el modelo entrenado**: en la pestaña de resultados, cuando el modelo
-  se ha reentrenado con tus puntos, aparece **«💾 Guardar el modelo reentrenado»**. El fichero se llama **`rf_<nombre del área protegida>.joblib`** (p. ej.
-  `rf_parque_nacional_picos_de_europa.joblib`), donde el nombre se deriva
-  automáticamente del área de estudio.
+- **Modelo de partida** (panel lateral, «Modelo base Random Forest»): tus modelos
+  guardados, los descargados de GitHub y los incluidos (primero
+  `rf_sierra_nevada.joblib`). Da **siempre** la probabilidad, salvo que marques
+  «Sumar mis puntos…». Las versiones de `sin_radar/` no salen en la lista: se usan
+  solas con Planetary Computer.
+- **Guardar**: tras reentrenar, debajo de las pestañas aparece **«💾 Guardar el
+  modelo reentrenado»**, con «💾 Guardar en la app» y «⬇ Descargar el modelo». El
+  fichero se llama `rf_<nombre de la zona>.joblib`; el nombre se propone a partir
+  del área y se puede cambiar.
 
-### Publicar el modelo para todos los usuarios del deploy online
+### Publicar un modelo para todos los usuarios
 
-Los modelos `.joblib` están **incluidos en el repositorio** (no aparecen en
-`.gitignore`) para que cualquier usuario del deploy online pueda usarlos sin
-necesitar entrenar desde cero.
+La app, al abrirse, lee `modelos.json` en este repositorio y **descarga sola los
+modelos nuevos o cambiados**, sin reinstalarla. Para publicar uno:
 
-Flujo para publicar un modelo nuevo:
+```bash
+py publicar_modelo.py rf_<tu_zona>.joblib --nombre "<Nombre del área>"
+git add modelos.json rf_<tu_zona>.joblib
+git commit -m "Añadir modelo RF: <Nombre del área>"
+git push
+```
 
-1. **Localmente**: pulsa "💾 Guardar en la carpeta" → se crea
-   `borreguil_app/rf_<tu_zona>.joblib`.
-2. Súbelo al repositorio:
-   ```bash
-   git add borreguil_app/rf_<tu_zona>.joblib
-   git commit -m "Añadir modelo RF: <Nombre del área>"
-   git push
-   ```
-3. Streamlit Cloud redesplegará la app automáticamente. El nuevo modelo
-   aparecerá en el desplegable **"Modelo de partida"** para todos los usuarios.
+Detalles (versión sin radar, quitar un modelo, otro repositorio): `PUBLICAR.md`.
 
-**App online** (la carpeta es efímera entre reinicios): usa el botón
-"⬇ Descargar .joblib", copia el fichero a `borreguil_app/` en tu repositorio
-local y sigue los pasos 2-3.
-
-> **Tamaño**: cada modelo pesa ~3-4 MB. Para repositorios con muchos modelos
+> **Tamaño**: cada modelo pesa ~3,5-5 MB. Para repositorios con muchos modelos
 > considera usar [Git LFS](https://git-lfs.github.com/).
 
 ## Probar sin datos propios
 
-Genera puntos aleatorios y usa el modelo Sierra Nevada:
+Lo más rápido: en la pantalla de inicio, **«▶ Probar con 20 puntos de ejemplo de
+Sierra Nevada»** (12 borreguiles y 8 no).
+
+O genera puntos aleatorios y usa el modelo de Sierra Nevada:
 - Origen: 🎲 Generar aleatoriamente
 - Área: 🆔 WDPA ID `555512151` (Sierra Nevada) o el de tu zona
-- Backend: MPC
 - Nº puntos: 200, altitud mín 2000 m → Ejecutar
 
-## Backend Google Earth Engine
+## Google Earth Engine
 
 1. Crea un proyecto en Google Cloud con la **Earth Engine API** habilitada
    (gratis para uso no comercial): https://earthengine.google.com
-2. En la app, elige backend **GEE**, escribe el nombre del proyecto
+2. En la app, elige **Google Earth Engine**, escribe el nombre del proyecto
    (p. ej. `ee-tunombre`) y pulsa **🔑 Autenticar GEE** (abre el navegador).
 3. Pulsa **✓ Probar conexión** para verificar.
-
-> En local la autenticación es por navegador. Para un despliegue online
-> headless se usa un *service account* (ver `DEPLOY.md`).
 
 ## Archivos
 
 | Archivo | Función |
 |---|---|
 | `app.py` | Interfaz Streamlit |
-| `borreguil_pipeline.py` | Pipeline (ESRI, ríos y arroyos de OSM, DEM, S2, Random Forest) |
-| `gee_backend.py` | Backend Google Earth Engine |
+| `borreguil_pipeline.py` | Pipeline (ortofoto, ríos y arroyos de OSM, DEM, Sentinel-2, radar Sentinel-1, Random Forest) |
+| `gee_backend.py` | Google Earth Engine |
+| `mapeo_rf.py`, `mapeo_raster.py`, `mapeo_tif.py`, `mapeo_ambiente.py` | Pestaña «🌿 Mapa Modelo RF» |
+| `point_profile.py`, `i18n.py` | Gráficas por punto e idioma |
 | `study_area.py` | Resolución de área (vector / WDPA / nombre) |
 | `random_points.py` | Generación de puntos aleatorios |
-| `rf_sierra_nevada.joblib` | Modelo Random Forest preentrenado |
-| `Metodologia_borreguiles.docx` | Documentación metodológica completa |
+| `modelos_remotos.py`, `publicar_modelo.py`, `modelos.json` | Modelos nuevos desde GitHub |
+| `launcher.py`, `borreguil.spec` | Ejecutable |
+| `rf_sierra_nevada.joblib` | Modelo preentrenado (27 variables) |
+| `rf_sierra_nevada_cir.joblib` | Variante con ortofoto infrarroja (32 variables) |
+| `sin_radar/` | Versiones sin radar (22 y 27 variables) |
+| `entrenamiento_sierra_nevada.csv` | Los 796 puntos de entrenamiento, para reentrenar sumando los tuyos |
+| `lagunas_sierra_nevada.kml`, `cauces_sierra_nevada.geojson` | Lagunas, ríos y arroyos de Sierra Nevada |
+| `plantilla/` | Plantilla de puntos de campo y ejemplo de 20 puntos |
 | `examples/` | Datos de ejemplo (borreguiles verificados de Sierra Nevada) |
 
-## Despliegue online
+## Uso en un servidor
 
-Ver **`DEPLOY.md`** — incluye Streamlit Community Cloud y Hugging Face Spaces,
-y la configuración de Earth Engine con service account.
+Lo recomendado es el ejecutable o el código en tu ordenador. `DEPLOY.md` explica cómo
+montarla en Streamlit Community Cloud o Hugging Face Spaces (Earth Engine con
+*service account*), pero no se mantiene al día. En un servidor compartido, los
+modelos guardados y los ajustes son comunes a todos, y el cálculo de Earth Engine se
+carga a esa cuenta.
 
 ## Notas
 
-- El backend **MPC** descarga rásters: más lento y con más uso de RAM.
-  Recomendado para deploy: **GEE** (cómputo en la nube, app ligera).
+- Todo lo que la app hace por internet va por **HTTPS (puerto 443)**: Earth Engine,
+  GitHub, Planetary Computer, ortofotos y OpenStreetMap.
+- **MPC** descarga rásters: más lento, más memoria y sin radar.
 - El periodo Sentinel-2 por defecto es **2017-2025** (más robusto frente a
   nubes y variabilidad interanual).
 - Los **ríos y arroyos de OpenStreetMap** (para el ambiente «arroyo») de Sierra

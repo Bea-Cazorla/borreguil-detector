@@ -43,6 +43,7 @@ import folium
 from streamlit_folium import st_folium
 import point_profile as pp
 import i18n
+import modelos_remotos as mrm
 
 # Carpeta ESCRIBIBLE del usuario. En la versión standalone (ejecutable) APP_DIR es
 # una carpeta temporal de solo lectura que se borra al salir, así que lo que el
@@ -53,6 +54,10 @@ try:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
     DATA_DIR = APP_DIR
+
+# Modelos públicos que la app descarga de GitHub al abrirse (modelos_remotos.py), para
+# tener los nuevos sin reinstalar. Pasan delante de los que trae la app.
+DESCARGADOS = DATA_DIR / mrm.CARPETA
 
 
 # Ajustes que conviene recordar de una sesión a otra (el proyecto de Earth Engine,
@@ -83,28 +88,42 @@ def guardar_ajuste(clave, valor):
         pass                    # no poder recordar una preferencia no detiene nada
 
 
+def carpetas_de_modelos():
+    """Dónde se buscan los modelos, por orden: los que guarda quien usa la app, los
+    descargados de GitHub y los que trae la app."""
+    try:
+        propia = DATA_DIR.resolve() != APP_DIR.resolve()
+    except OSError:
+        propia = False
+    return ([DATA_DIR] if propia else []) + [DESCARGADOS, APP_DIR]
+
+
 def model_path(name):
-    """Ruta de un modelo por nombre: primero la carpeta del usuario, luego la de la app."""
-    p = DATA_DIR / name
-    return p if p.exists() else APP_DIR / name
+    """Ruta de un modelo por nombre, en el orden de carpetas_de_modelos()."""
+    for d in carpetas_de_modelos():
+        p = d / name
+        if p.exists():
+            return p
+    return APP_DIR / name
 
 
 def modelo_sin_radar(ruta):
-    """Versión SIN radar de un modelo incluido en la app (carpeta sin_radar/), o None.
+    """Versión SIN radar de un modelo incluido en la app o descargado de GitHub (su
+    carpeta sin_radar/), o None.
 
     Con Planetary Computer (o «Saltar Sentinel-2») el radar no se lee. El modelo con
     radar, si le falta, acierta bastante menos (AUC 0,793 frente a 0,847) que uno
     entrenado desde el principio sin él (0,833). Solo los modelos que vienen con la app
-    tienen esta versión; los que guarda quien usa la app, no."""
+    o de GitHub tienen esta versión; los que guarda quien usa la app, no."""
     if not ruta:
         return None
     p = Path(ruta)
     try:
-        if p.resolve().parent != APP_DIR.resolve():
+        if p.resolve().parent not in (APP_DIR.resolve(), DESCARGADOS.resolve()):
             return None
     except OSError:
         return None
-    return bp.ruta_sin_radar(APP_DIR / p.name)
+    return bp.ruta_sin_radar(p)
 
 
 def modelo_segun_radar(ruta, hay_radar):
@@ -163,13 +182,45 @@ def _es_modelo_real(p):
 
 
 def list_models():
-    """Modelos .joblib disponibles (los del usuario + los incluidos; SN primero)."""
-    found = {}
-    for d in (APP_DIR, DATA_DIR):
-        for p in d.glob('*.joblib'):
-            if _es_modelo_real(p):
-                found.setdefault(p.name, p)   # el de DATA_DIR no pisa al de APP_DIR
+    """Modelos .joblib disponibles (los del usuario, los descargados de GitHub y los
+    incluidos; SN primero). Son nombres: model_path() dice de qué carpeta sale cada uno."""
+    found = set()
+    for d in carpetas_de_modelos():
+        if d.is_dir():
+            found.update(p.name for p in d.glob('*.joblib') if _es_modelo_real(p))
     return sorted(found, key=lambda n: (n != 'rf_sierra_nevada.joblib', n))
+
+
+@st.cache_resource(show_spinner='Buscando modelos nuevos en GitHub… / '
+                                 'Checking GitHub for new models…')
+def modelos_de_github():
+    """Una vez por arranque de la app: descarga de GitHub los modelos públicos nuevos o
+    cambiados (modelos_remotos.py). Sin conexión, sigue con los que haya."""
+    return mrm.actualizar(DESCARGADOS, incluidos=APP_DIR)
+
+
+def texto_modelos_github(res):
+    """Una línea sobre los modelos de GitHub para el panel ('' si no se buscan)."""
+    estado = (res or {}).get('estado')
+    if estado == 'al_dia':
+        return i18n.pick('Modelos al día con GitHub.', 'Models up to date with GitHub.')
+    if estado == 'descargados':
+        partes = ([i18n.pick(f'{n} (nuevo)', f'{n} (new)') for n in res['nuevos']]
+                  + [i18n.pick(f'{n} (actualizado)', f'{n} (updated)')
+                     for n in res['actualizados']])
+        return i18n.pick('Modelos descargados de GitHub al abrir la app: ',
+                         'Models downloaded from GitHub when the app opened: ') + \
+            ', '.join(partes) + '.'
+    if estado == 'sin_conexion':
+        return i18n.pick('Sin conexión con GitHub: se usan los modelos que ya tienes.',
+                         'No connection to GitHub: the models you already have are used.')
+    if estado == 'error':
+        motivo = (res.get('fallos') or [''])[0]
+        return i18n.pick(f'No se pudieron traer los modelos de GitHub ({motivo}). Se usan '
+                         'los que ya tienes.',
+                         f'The models could not be fetched from GitHub ({motivo}). The '
+                         'ones you already have are used.')
+    return ''
 
 
 def area_to_filename(area_name: str) -> str:
@@ -293,24 +344,41 @@ def render_docs():
         'fuente de **muy alta resolución** que sube el AUC. **La app extrae '
         'automáticamente la fuente extra** que el modelo elegido necesite — tú solo '
         'eliges el modelo.')
-    st.table({
+    # st.table no pasa por la traducción automática: cada idioma, su tabla
+    st.table(i18n.pick({
         'Tu zona': ['🇪🇸 Andalucía · Cataluña · Canarias',
                     '🌍 Cualquier otra zona'],
         'Modelo recomendado': ['rf_sierra_nevada_cir', 'rf_sierra_nevada'],
         'Variables': ['32', '27'],
         'AUC honesto': ['0,945', '0,847'],
         'Requisitos': ['Gratis (PNOA IR 0,25 m)', 'Ninguno — universal'],
-    })
+    }, {
+        'Your area': ['🇪🇸 Andalusia · Catalonia · Canary Islands', '🌍 Any other area'],
+        'Recommended model': ['rf_sierra_nevada_cir', 'rf_sierra_nevada'],
+        'Variables': ['32', '27'],
+        'Honest AUC': ['0.945', '0.847'],
+        'Requirements': ['Free (PNOA IR 0.25 m)', 'None — universal'],
+    }))
     st.markdown(i18n.pick(
         '- **El mejor resultado es el del modelo `_cir`, y es gratis** (AUC 0,945). '
         'Úsalo siempre que trabajes en Andalucía, Cataluña o Canarias.\n'
         '- **En el resto de España y fuera** usa el modelo base, `rf_sierra_nevada` '
-        '(AUC 0,847).',
+        '(AUC 0,847).\n'
+        '- **Sin Earth Engine** (Planetary Computer) no se lee el radar y la app usa sola '
+        'la versión de cada modelo entrenada sin él: AUC 0,833 el base y 0,937 el '
+        '`_cir`.\n'
+        '- Al abrirse, la app trae de GitHub los modelos nuevos o actualizados; la última '
+        'línea del panel lateral dice si están al día.',
         '- **The best result is that of the `_cir` model, and it is free** (AUC '
         '0.945). Use it whenever you work in Andalusia, Catalonia or the Canary '
         'Islands.\n'
         '- **Elsewhere in Spain and abroad** use the base model, `rf_sierra_nevada` '
-        '(AUC 0.847).'))
+        '(AUC 0.847).\n'
+        '- **Without Earth Engine** (Planetary Computer) the radar is not read and the '
+        'app automatically uses the version of each model trained without it: AUC 0.833 '
+        'for the base one and 0.937 for the `_cir`.\n'
+        '- When it opens, the app fetches new or updated models from GitHub; the last '
+        'line of the side panel says whether they are up to date.'))
 
     # ---- 2. Cobertura geográfica del CIR ------------------------------------
     st.markdown('### 🗺️ Cobertura de la ortofoto infrarroja (modelo `_cir`, gratis)')
@@ -322,11 +390,15 @@ def render_docs():
             '- **Cataluña** → Aigüestortes, Pirineos\n'
             '- **Canarias** → Teide, Garajonay, Caldera de Taburiente')
     with c2:
-        st.warning(
+        st.warning(i18n.pick(
             '**❌ Sin WMS infrarrojo** (usa el modelo base)\n\n'
             '- **Aragón** → Ordesa y Monte Perdido\n'
             '- **Cantabria / Castilla y León** → Picos de Europa\n'
-            '- **Madrid / CyL** → Sierra de Guadarrama')
+            '- **Madrid / CyL** → Sierra de Guadarrama',
+            '**❌ Without infrared WMS** (use the base model)\n\n'
+            '- **Aragón** → Ordesa y Monte Perdido\n'
+            '- **Cantabria / Castile-León** → Picos de Europa\n'
+            '- **Madrid / Castile-León** → Sierra de Guadarrama'))
     st.caption(
         'El IGN tiene PNOA Falso Color Infrarrojo a 0,25 m para **toda España**, pero solo '
         'como descarga COG por hojas MTN25 (sin WMS) → conectarlo cubriría también Ordesa, '
@@ -336,7 +408,7 @@ def render_docs():
 
     # ---- 4. Fuentes de datos y variables ------------------------------------
     st.markdown('### 🛰️ Fuentes de datos y variables del modelo')
-    st.table({
+    st.table(i18n.pick({
         'Fuente': ['Imagen aérea (ESRI / PNOA)', 'Copernicus DEM 30 m',
                    'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
                    'PNOA Falso Color IR 0,25 m'],
@@ -347,7 +419,18 @@ def render_docs():
             'NDVI/NDWI/NDMI… de inicio y fin de verano y estadísticos de verano',
             'Humedad y estructura del suelo por radar, con el relieve corregido',
             'Pseudo-NDVI a 25 cm: nitidez del borde de la mancha'],
-    })
+    }, {
+        'Source': ['Aerial image (ESRI / PNOA)', 'Copernicus DEM 30 m',
+                   'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
+                   'PNOA False Colour IR 0.25 m'],
+        'Variables': ['8', '3', '11', '5', '5 (`_cir` only)'],
+        'What it adds': [
+            'Texture, colour, pattern and alpine context (% rock)',
+            'Elevation, slope and curvature',
+            'NDVI/NDWI/NDMI… of early and late summer and summer statistics',
+            'Soil moisture and structure from radar, with the relief corrected',
+            'Pseudo-NDVI at 25 cm: sharpness of the patch edge'],
+    }))
     st.caption(i18n.pick(
         'Las variables que usa el modelo: 27 en el base y 32 en el `_cir` (una por grupo '
         'de las que dicen lo mismo). La última fila es la que añade el `_cir`: su variable '
@@ -392,17 +475,23 @@ def render_docs():
             f'Ranking del modelo seleccionado (`{Path(_mp).name}`), variable a variable. '
             'Cambia según el modelo: en los `_cir` manda el **contraste del NDVI a 0,25 m**; '
             'en el modelo base, la **altitud**, la **caída estacional del NDVI**, la '
-            '**variación del NDWI** y el **NDVI de inicio de verano**. Cada modelo usa una '
+            '**diferencia VV–VH del radar**, el **NDVI de inicio de verano** y la '
+            '**variación del NDWI**. Cada modelo usa una '
             'sola variable de cada grupo de las que dicen lo mismo, así que el peso no se '
             'reparte entre repetidas.',
             f'Ranking of the selected model (`{Path(_mp).name}`), variable by variable. It '
             'changes with the model: in the `_cir` ones the **NDVI contrast at 0.25 m** '
             'leads; in the base model, **elevation**, the **seasonal NDVI drop**, the '
-            '**NDWI variability** and **early-summer NDVI**. Each model uses a single '
+            '**radar VV–VH difference**, **early-summer NDVI** and the **NDWI '
+            'variability**. Each model uses a single '
             'variable from each group of those that say the same, so the weight is not '
             'shared among repeated ones.'))
     else:
-        st.caption('Selecciona un modelo con `ref_stats` (reentrenado con `train_v5.py`) para ver el ranking.')
+        st.caption(i18n.pick(
+            'Este modelo no trae el peso de sus variables, así que no se puede mostrar '
+            'el ranking.',
+            'This model does not carry the weight of its variables, so the ranking cannot '
+            'be shown.'))
 
     # ---- 4c. Cuántos puntos hacen falta (curva de Sierra Nevada, 24-11) ------
     import mapeo_rf as mr      # aquí, como en «Mapa Modelo RF»: la app lo carga tarde
@@ -449,36 +538,51 @@ def render_docs():
         width='stretch')
     st.caption(i18n.pick(
         'Línea: media de 10 repeticiones; franja: 8 de cada 10. Línea discontinua: con '
-        'todos los puntos. Mismo procedimiento que la app: VIF, Random Forest y '
-        'validación por zonas.',
+        'todos los puntos. Procedimiento de la app con «Quitar las variables repetidas: '
+        'Con el VIF» (umbral 10), Random Forest y validación por zonas.',
         'Line: mean of 10 repetitions; band: 8 out of 10. Dashed line: with all the '
-        "points. Same procedure as the app: VIF, Random Forest and spatial validation."))
+        'points. Same procedure as the app with "Remove repeated variables: With the '
+        'VIF" (threshold 10), Random Forest and spatial validation.'))
 
     # ---- 5. Cómo usar la app ------------------------------------------------
     st.markdown('### ▶️ Flujo de trabajo')
     st.markdown(i18n.pick(
-        '1. **Define el área** (vector, WDPA ID o nombre) o sube tus puntos candidatos.\n'
-        '2. Elige el **modelo** según la tabla de arriba y la **fuente de imágenes** '
-        '(PNOA en España, ESRI fuera).\n'
+        '1. **Tus puntos**: súbelos o deja que la app los genere al azar en el área '
+        '(vector, WDPA ID o nombre).\n'
+        '2. Elige la **fuente de datos** (Earth Engine: más rápido y con radar; Planetary '
+        'Computer: sin cuenta y sin radar), el **modelo** según la tabla de arriba y la '
+        '**fuente de imágenes** (PNOA en España, ESRI fuera).\n'
         '3. Pulsa **Ejecutar pipeline**. La app descarga cada fuente, extrae las '
         'variables y predice con el **modelo de partida**. Si tus puntos traen '
         'etiquetas de campo, te dice cuántas acierta.\n'
-        '4. Revisa el **mapa** y la **tabla** de resultados; ajusta el umbral; descarga '
-        'Excel/CSV/GeoJSON.\n'
+        '4. En **📍 Verdad terreno → Revisar puntos**, verifica puntos como borreguil o no '
+        '(con quién revisa, su perfil y la certidumbre) y revisa su tipo; en **Mapa de '
+        'los puntos** puedes añadir puntos pinchando. Descarga Excel, CSV o '
+        '`puntos.geojson` en **Descargas**.\n'
         '5. *(Opcional)* si tienes puntos de campo de tu zona, marca **«Sumar mis puntos a los del modelo y reentrenarlo»**: '
         'la app vuelve a entrenar el modelo con sus 769 puntos de Sierra Nevada y los '
-        'tuyos juntos, y te dice cuánto acierta en tus puntos.',
-        '1. **Define the area** (vector, WDPA ID or name) or upload your candidate points.\n'
-        '2. Choose the **model** according to the table above and the **image source** '
-        '(PNOA in Spain, ESRI elsewhere).\n'
+        'tuyos juntos, y te dice cuánto acierta en tus puntos.\n'
+        f'6. En **🌿 Mapa Modelo RF**, con tus puntos revisados (mínimo unos {_mn}, con '
+        f'{_mb} borreguiles), entrena y valida un modelo de tu zona y haz el mapa de '
+        'borreguil a 10 m. Necesita Earth Engine.',
+        '1. **Your points**: upload them or let the app generate them at random in the '
+        'area (vector, WDPA ID or name).\n'
+        '2. Choose the **data source** (Earth Engine: faster and with radar; Planetary '
+        'Computer: no account and no radar), the **model** according to the table above '
+        'and the **image source** (PNOA in Spain, ESRI elsewhere).\n'
         '3. Click **Run pipeline**. The app downloads each source, extracts the variables '
         'and predicts with the **starting model**. If your points carry field labels, '
         'it tells you how many it gets right.\n'
-        '4. Review the results **map** and **table**; adjust the threshold; download '
-        'Excel/CSV/GeoJSON.\n'
+        '4. Under **📍 Ground truth → Review points**, verify points as borreguil or not '
+        '(with who is reviewing, their profile and the certainty) and review their type; '
+        'under **Points map** you can add points by clicking. Download Excel, CSV or '
+        '`puntos.geojson` under **Downloads**.\n'
         '5. *(Optional)* if you have field points from your area, tick **"Add my points to the model\'s and retrain it"**: '
         'the app retrains the model with its 769 Sierra Nevada points and yours '
-        'together, and tells you how well it does on your points.'))
+        'together, and tells you how well it does on your points.\n'
+        f'6. Under **🌿 RF model map**, with your reviewed points (at least about {_mn}, '
+        f'with {_mb} borreguiles), train and validate a model for your area and make the '
+        '10 m borreguil map. It needs Earth Engine.'))
 
     # ---- 6. Manual y sugerencias --------------------------------------------
     st.markdown(i18n.pick('### 💬 Manual y sugerencias', '### 💬 Manual and suggestions'))
@@ -1263,14 +1367,24 @@ _lang_choice = st.sidebar.selectbox(
 i18n.set_lang('en' if _lang_choice == 'English' else 'es')
 i18n.install(st)   # traduce todos los st.* a partir de aquí (fallback a ES)
 
+# --- Modelos nuevos de GitHub ------------------------------------------------
+# Una vez por arranque (antes del desplegable de modelos, para que ya salgan en él).
+_modelos_gh = modelos_de_github()
+if _modelos_gh.get('estado') == 'descargados' and not st.session_state.get('_aviso_gh'):
+    st.session_state['_aviso_gh'] = True
+    st.toast(i18n.pick('⬇️ Modelos nuevos de GitHub: ', '⬇️ New models from GitHub: ')
+             + ', '.join(_modelos_gh['nuevos'] + _modelos_gh['actualizados'])
+             + i18n.pick('. Ya están en «Modelo de partida».',
+                         '. They are already under "Starting model".'))
+
 st.title('🌿 Borreguil / Wet Meadow Pipeline')
 st.markdown(i18n.pick(
     'Identificación automática de borreguiles en zonas de montaña con imagen aérea, '
     'relieve (Copernicus DEM), Sentinel-2, radar Sentinel-1 y Random Forest. '
-    '[Documentación metodológica](Metodologia_borreguiles.docx)',
+    f'[Manual (wiki)]({WIKI_URL})',
     'Automatic detection of borreguiles (high-mountain wet meadows) with aerial '
     'imagery, terrain (Copernicus DEM), Sentinel-2, Sentinel-1 radar and Random '
-    'Forest. [Methodology documentation](Metodologia_borreguiles.docx)'))
+    f'Forest. [Manual (wiki)]({WIKI_URL})'))
 
 # ============================================================
 # SIDEBAR – inputs y opciones
@@ -1417,8 +1531,9 @@ with st.sidebar:
             'decirlo (no cuenta).\n'
             '- **Tipo**, opcional y solo si `presence` = 1; cada nivel cuenta por '
             'separado: `environment` (`stream` · `lake` · `slope`), `moisture` (`wet` · '
-            '`dry`), `purity` (`pure` · `mixed-water` · `mixed-rock`). También vale en '
-            'español.\n'
+            '`dry`), `purity` (`pure` · `mixed-water` · `mixed-rock`). En español: '
+            '`ambiente` (`arroyo` · `laguna` · `ladera`), `humedad` (`húmedo` · `seco`), '
+            '`pureza` (`puro` · `mixto-agua` · `mixto-roca`).\n'
             '- Recomendado: `method` (`field` · `orthophoto`) y `date` (AAAA-MM-DD). '
             'Opcional: `observer`, `expertise` (`student` · `manager` · `researcher`), '
             '`certainty` (`high` · `medium` · `low`) y `notes`.\n'
@@ -1747,6 +1862,9 @@ with st.sidebar:
     _v = version_app()
     if _v:
         st.caption(i18n.pick(f'Versión {_v}', f'Version {_v}'))
+    _txt_gh = texto_modelos_github(_modelos_gh)
+    if _txt_gh:
+        st.caption(_txt_gh)
 
 # ============================================================
 # HELP / WELCOME
@@ -3725,8 +3843,11 @@ with tab_analisis:
             if imp_chart is not None:
                 st.altair_chart(imp_chart, width='stretch')
             else:
-                st.info('El modelo actual no expone importancias de variables '
-                        '(reentrena o usa un modelo guardado con `train_v5.py`).')
+                st.info(i18n.pick(
+                    'Este modelo no trae el peso de sus variables, así que no se puede '
+                    'mostrar.',
+                    'This model does not carry the weight of its variables, so it cannot '
+                    'be shown.'))
 
         with tab6:
             n_borr = sum(1 for r in rows if pp.is_borreguil_decision(r.get('decision', '')))
