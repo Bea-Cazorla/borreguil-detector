@@ -42,8 +42,9 @@ publicada, descarga el ejecutable de tu sistema desde la página de
 🏷️ **[PUBLICAR.md](PUBLICAR.md)** — cómo publicar una versión, un modelo y obtener el DOI
 
 ¿Un error o una idea? En la app, **«💬 Sugerir un cambio o informar de un error»**
-(abajo en el panel lateral). No pegues coordenadas de borreguiles: son localizaciones
-de un hábitat sensible.
+(abajo en el panel lateral): una *issue* en GitHub o, sin cuenta, el formulario anónimo
+de la app, con la versión ya puesta. No pegues coordenadas de borreguiles: son
+localizaciones de un hábitat sensible.
 
 > La primera vez, Windows y macOS avisan de que el programa no está firmado (es
 > habitual en software científico). El tutorial explica cómo continuar.

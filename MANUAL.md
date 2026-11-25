@@ -1617,7 +1617,12 @@ Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
 en español e inglés, resume cómo usar la app. Para proponer un cambio o avisar de un
 fallo, usa **💬 Sugerir un cambio o informar de un error**, al final del panel lateral
 (o el apartado **💬 Manual y sugerencias**, al final de la pestaña de Documentación):
-enlaza con la wiki y abre una *issue* en GitHub con la versión ya puesta. No pegues coordenadas de borreguiles: son un hábitat sensible.
+enlaza con la wiki y abre una *issue* en GitHub con la versión ya puesta (pública,
+con cuenta de GitHub; puedes pegar pantallazos y seguir la respuesta). Sin cuenta, el
+**formulario anónimo** de la app: qué quieres hacer, en qué parte de la app, la versión
+(ya puesta), el ordenador, la descripción y, si quieres, un enlace a pantallazos y el
+texto de la consola. No pide nombre ni correo, así que no te podrán contestar. No
+pegues coordenadas de borreguiles: son un hábitat sensible.
 
 Si usas este programa en un trabajo científico, cítalo mediante el **DOI** de la
 versión utilizada (ver `CITATION.cff` y la página de Zenodo del repositorio).

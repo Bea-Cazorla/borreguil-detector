@@ -493,6 +493,12 @@ def guion(lang):
               and hay(at, 'github.com/Bea-Cazorla/borreguil-detector/issues/new/choose?version=')
               and hay(at, 'github.com/Bea-Cazorla/borreguil-detector/wiki'),
               'manual (wiki) y sugerencias: el enlace a GitHub lleva la versión')
+    # El formulario anónimo propio de esta app (25-11-2026), con la versión ya puesta
+    comprobar(hay(at, 'docs.google.com/forms/d/e/'
+                      '1FAIpQLScq7UehnDlaNaYsq9DZNhXc-CxRo57KgdT9e98U0q1xGglRPg/viewform?')
+              and hay(at, 'entry.666897268=')
+              and hay(at, T('Formulario anónimo', 'Anonymous form')),
+              'y el formulario anónimo de la app, con la versión ya puesta')
     comprobar(any(T('aprende **solo si hay borreguil**',
                     'learns **only whether there is a borreguil**') in str(i.value)
                   for i in at.info),

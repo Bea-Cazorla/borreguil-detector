@@ -380,6 +380,6 @@ en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 | «Sin conexión con GitHub» o red con cortafuegos (aula) | Todo va por HTTPS, puerto 443: hay que dejarlo salir hacia Earth Engine y `raw.githubusercontent.com`. |
 
 ¿Sigue sin funcionar? **💬 Sugerir un cambio o informar de un error** (abajo en el
-panel lateral) abre una *issue*: indica tu sistema y copia el texto de la consola; no
-pegues coordenadas de borreguiles. Manual en la
+panel lateral) abre una *issue* o, sin cuenta de GitHub, un formulario anónimo: indica
+tu sistema y copia el texto de la consola; no pegues coordenadas de borreguiles. Manual en la
 [wiki](https://github.com/Bea-Cazorla/borreguil-detector/wiki).

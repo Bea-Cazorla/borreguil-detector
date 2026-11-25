@@ -275,12 +275,17 @@ def get_secret(key, default=None):
 
 # ── Manual y sugerencias (24-11, como en MonitorEO) ────────────────────────────
 # La wiki del repositorio, en español e inglés, y sus plantillas de issues (error y
-# sugerencia, en .github/ISSUE_TEMPLATE). El formulario anónimo, para quien no tiene
-# cuenta de GitHub, está pendiente de decidir (el del equipo de MonitorEO, con esta app
-# como opción, o uno propio): mientras esté vacío no se enseña.
+# sugerencia, en .github/ISSUE_TEMPLATE). Para quien no tiene cuenta de GitHub, un
+# formulario anónimo propio de esta app (25-11-2026, la autora: «quiero que este
+# formulario de sugerencias también aparezca en la app», «que sea de esta app»), hecho
+# como el de MonitorEO: qué quieres hacer, en qué parte de la app, versión, ordenador,
+# descripción, enlace a pantallazos y texto de la consola. No recoge correos y lo puede
+# rellenar cualquiera con el enlace. Se abre con la versión ya puesta.
 REPO_URL = 'https://github.com/Bea-Cazorla/borreguil-detector'
 WIKI_URL = REPO_URL + '/wiki'
-FORMULARIO_URL = ''
+FORMULARIO_URL = ('https://docs.google.com/forms/d/e/'
+                  '1FAIpQLScq7UehnDlaNaYsq9DZNhXc-CxRo57KgdT9e98U0q1xGglRPg/viewform')
+FORMULARIO_CAMPO_VERSION = 'entry.666897268'
 
 
 def version_app():
@@ -296,13 +301,18 @@ def version_app():
 
 def enlaces_sugerencias(version=None):
     """{'issue': una issue nueva de GitHub (elegir error o sugerencia) con la versión
-    ya puesta, 'form': el formulario anónimo o '' si no hay, 'wiki': el manual}."""
+    ya puesta, 'form': el formulario anónimo con la versión ya puesta ('' si no hay),
+    'wiki': el manual}."""
     import urllib.parse
     version = version_app() if version is None else version
     issue = REPO_URL + '/issues/new/choose'
     if version:
         issue += '?' + urllib.parse.urlencode({'version': version})
-    return {'issue': issue, 'form': FORMULARIO_URL, 'wiki': WIKI_URL}
+    form = FORMULARIO_URL
+    if form and version:
+        form += '?' + urllib.parse.urlencode({'usp': 'pp_url',
+                                              FORMULARIO_CAMPO_VERSION: version})
+    return {'issue': issue, 'form': form, 'wiki': WIKI_URL}
 
 
 def mostrar_sugerencias():
@@ -313,13 +323,15 @@ def mostrar_sugerencias():
         f'💬 **Sugerir un cambio o informar de un error**:\n'
         f'- [En GitHub]({e["issue"]}): público, con una cuenta de GitHub; puedes pegar '
         'pantallazos y seguir la respuesta.'
-        + (f'\n- [Formulario anónimo]({e["form"]}): sin cuenta, nombre ni correo.'
+        + (f'\n- [Formulario anónimo]({e["form"]}): sin cuenta, nombre ni correo, así que '
+           'no te podrán contestar. La versión ya va puesta.'
            if e['form'] else ''),
         f'📖 [Manual (wiki), in Spanish and English]({e["wiki"]})\n\n'
         f'💬 **Suggest a change or report an error**:\n'
         f'- [On GitHub]({e["issue"]}): public, with a GitHub account; you can paste '
         'screenshots and follow the answer.'
-        + (f'\n- [Anonymous form]({e["form"]}): no account, no name and no email.'
+        + (f'\n- [Anonymous form]({e["form"]}): no account, no name and no email, so '
+           'nobody can answer you. The version is already filled in.'
            if e['form'] else '')))
     st.caption(i18n.pick(
         'No pegues coordenadas de borreguiles: son un hábitat sensible.',
