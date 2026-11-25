@@ -50,6 +50,22 @@ def test_lectura_puntos():
     assert l['nivel'] == 'minimo' and (l['faltan'], l['faltan_borreguiles']) == (130, 43)
     l = lp(900, 300)
     assert l['nivel'] == 'recomendado' and l['faltan'] == 0 and l['auc'] == 0.969
+    assert (mr.MINIMO_AUSENCIAS, mr.RECOMENDADO_AUSENCIAS) == (67, 167)
+
+
+def test_lectura_puntos_cuenta_las_ausencias():
+    """25-11-2026: con muchos borreguiles y pocas ausencias ya no se llega al mínimo."""
+    lp = mr.lectura_puntos
+    l = lp(106, 100)                               # 100 borreguiles y 6 ausencias
+    assert l['nivel'] == 'bajo_minimo'
+    assert (l['faltan_borreguiles'], l['faltan_ausencias']) == (0, 61)
+    l = lp(120, 40)                                # 40 y 80: mínimo; faltan para lo recomendado
+    assert l['nivel'] == 'minimo' and (l['faltan_borreguiles'], l['faltan_ausencias']) == (43, 87)
+    l = lp(300, 200)                               # 200 borreguiles y 100 ausencias
+    assert l['nivel'] == 'minimo' and (l['faltan_borreguiles'], l['faltan_ausencias']) == (0, 67)
+    # las ausencias se pueden dar aparte (p. ej. si hubiera muestras de otras categorías)
+    assert lp(120, 40, n_ausencia=60)['nivel'] == 'bajo_minimo'
+    assert lp(1, 0)['faltan_ausencias'] == 66
 
 
 def test_grafica_con_y_sin_tus_puntos():

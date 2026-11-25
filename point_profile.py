@@ -434,6 +434,51 @@ def chart_curva_puntos(curva, n=None, marcas=(), en=None):
     return alt.layer(*capas).properties(height=280)
 
 
+def chart_curva_propia(cifras, en=None):
+    """La curva con los puntos de la zona (mapeo_rf.cifras_curva): el acierto en zonas
+    que el modelo no ha visto frente a los puntos con los que aprende, con la franja
+    entre el peor y el mejor sorteo y, bajo cada punto, qué parte de los puntos es.
+    Devuelve el gráfico de Altair."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    m = cifras['medida']
+    df = pd.DataFrame([{'n': f['n_puntos'], 'borr': f['n_borreguiles'], 'v': f[m],
+                        'lo': f[m + '_min'], 'hi': f[m + '_max'],
+                        'parte': f"{round(f['fraccion'] * 100)} %"}
+                       for f in cifras['filas']])
+    df['n_txt'] = df['n'].round().astype(int).astype(str)
+    df['borr_txt'] = df['borr'].round().astype(int).astype(str)
+    df['v_txt'] = df['v'].map(_fmt)
+    df['franja'] = df['lo'].map(_fmt) + ' – ' + df['hi'].map(_fmt)
+    titulo_y = (('AUC in new areas' if en else 'AUC en zonas nuevas') if m == 'auc' else
+                ('Mean F1 in new areas' if en else 'F1 medio en zonas nuevas'))
+    x = alt.X('n:Q', scale=alt.Scale(domain=[0, float(df['n'].max()) * 1.08], nice=False),
+              axis=alt.Axis(format='d', grid=False),
+              title=('Points the model learns from (mean of the folds)' if en else
+                     'Puntos con los que aprende el modelo (media de las partes)'))
+    abajo = max(0.0, float(df['lo'].min()) - 0.01)
+    arriba = min(1.0, float(df['hi'].max()) + 0.01)
+    escala = alt.Scale(domain=[abajo, arriba], zero=False, clamp=True)
+    y = alt.Y('v:Q', scale=escala, title=titulo_y,
+              axis=alt.Axis(labelExpr="format(datum.value, '.3f')" if en else
+                            "replace(format(datum.value, '.3f'), '.', ',')", tickCount=5))
+    tip = [alt.Tooltip('parte:N', title='Share of your points' if en else
+                       'Parte de tus puntos'),
+           alt.Tooltip('n_txt:N', title='Points' if en else 'Puntos'),
+           alt.Tooltip('borr_txt:N', title='Borreguiles'),
+           alt.Tooltip('v_txt:N', title=titulo_y),
+           alt.Tooltip('franja:N', title='Worst – best draw' if en else
+                       'Peor – mejor sorteo')]
+    base = alt.Chart(df)
+    capas = [base.mark_area(color=COL_PT, opacity=0.15).encode(
+                 x=x, y=alt.Y('lo:Q', scale=escala), y2='hi:Q'),
+             base.mark_line(color=COL_PT, strokeWidth=2).encode(x=x, y=y),
+             base.mark_point(color=COL_PT, filled=True, size=70, opacity=1,
+                             stroke='white', strokeWidth=2).encode(x=x, y=y, tooltip=tip),
+             base.mark_text(dy=16, fontSize=11, color='#37474f').encode(
+                 x=x, y=y, text='parte:N')]
+    return alt.layer(*capas).properties(height=260)
+
+
 def chart_importance(rs, topn=12):
     """Ranking de las variables más importantes del modelo (barras horizontales), con el
     rango típico de borreguil (p25–p75) a la derecha de cada barra. Sirve de guía jerárquica

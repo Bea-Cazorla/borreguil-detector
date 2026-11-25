@@ -121,9 +121,11 @@ en otra sesión. Detalles en el [manual](MANUAL.md#10-clasificación-jerárquica
 Con los puntos revisados, la app entrena otro Random Forest y lo aplica a cada píxel
 de 10 m (necesita **Earth Engine**). Eliges qué cartografiar (borreguil sí o no,
 humedad, o ambiente y humedad) y sigues los pasos: **1 · Datos** (aviso
-**«¿Son bastantes puntos?»**: mínimo 100 puntos con 33 borreguiles, recomendado 250
-con 83; **«Quitar las variables repetidas»**: ninguna, con el VIF o con un PCA),
-**2 · Tabla**, **3 · Modelo** (validación por zonas), **4 · Mapa** (GeoTIFF) y
+**«¿Son bastantes puntos?»**: mínimo 100 puntos con 33 borreguiles y 67 ausencias,
+recomendado 250 con 83 y 167; **«Quitar las variables repetidas»**: ninguna, con el
+VIF o con un PCA, que se aplican con un botón y dicen qué variables se quedan y por qué),
+**2 · Tabla**, **3 · Modelo** (validación por zonas y curva con tus puntos: si más
+puntos mejorarían el mapa en tu zona), **4 · Mapa** (GeoTIFF) y
 **5 · Peso**. Ver el [manual](MANUAL.md#mapa-de-tipos-con-random-forest).
 
 ## Guardar y reutilizar modelos

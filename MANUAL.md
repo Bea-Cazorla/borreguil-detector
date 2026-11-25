@@ -882,20 +882,31 @@ puntos revisados del mapa de Sierra Nevada (315 borreguiles) y este mismo
 procedimiento: se entrenó con 20, 30… hasta 682 puntos elegidos al azar y se midió el
 acierto en zonas que el modelo no había visto, 10 veces para cada número.
 
-| Puntos revisados | Borreguiles | AUC en zonas nuevas | |
-|---|---|---|---|
-| 20 | 7 | 0,896 | por debajo de 50, el acierto cambia mucho según qué puntos sean |
-| 50 | 17 | 0,930 | |
-| **100** | **33** | **0,951** | **mínimo**: a menos de 0,02 del de todos los puntos |
-| **250** | **83** | **0,961** | **recomendado**: a menos de 0,01 |
-| 682 (todos) | 226 | 0,969 | |
+| Puntos revisados | Borreguiles | Ausencias | AUC en zonas nuevas | |
+|---|---|---|---|---|
+| 20 | 7 | 13 | 0,896 | por debajo de 50, el acierto cambia mucho según qué puntos sean |
+| 50 | 17 | 33 | 0,930 | |
+| **100** | **33** | **67** | **0,951** | **mínimo**: a menos de 0,02 del de todos los puntos |
+| **250** | **83** | **167** | **0,961** | **recomendado**: a menos de 0,01 |
+| 682 (todos) | 226 | 456 | 0,969 | |
 
-Se llega a un nivel con los puntos **y** los borreguiles; si falta algo, la app dice
-cuánto. Es una referencia: en una montaña más variada pueden hacer falta más, y los
+Se llega a un nivel con los borreguiles **y** las ausencias de esa fila; si falta
+algo, la app dice cuántos borreguiles y cuántas ausencias faltan (las ausencias se
+cuentan aparte desde el 25-11-2026: antes, 100 borreguiles con 6 ausencias «llegaban
+al mínimo»). La curva se hizo con 1 borreguil de cada 3 y no se probaron otras
+proporciones: los borreguiles y las ausencias de cada nivel son los que había en ella.
+Las **ausencias** son los sitios que has comprobado que no son borreguil: `presence` = 0
+en tu fichero, **✗ Marcar como no borreguil verificado** al revisar un punto o **✗ Aquí
+no hay** al pinchar en el mapa; la app no se las inventa. Para buscarlas en sitios que
+no has muestreado, genera puntos al azar con **Lejos de tus puntos de campo** (300 m) y
+revísalos. Si faltan ausencias, el aviso lo recuerda.
+
+Es una referencia: en una montaña más variada pueden hacer falta más, y los
 puntos repartidos por toda la zona enseñan más que los concentrados en pocos valles.
-La curva, con su explicación, también está en **📖 Documentación y
-recomendaciones**. El cálculo está en `claude-borreguiles/curva_puntos/` (fuera de la
-app).
+Lo que vale en cada zona es la curva con sus propios puntos, al final de **3 · Modelo**
+(**¿Mejoraría con más puntos?**, más abajo). La curva de Sierra Nevada, con su
+explicación, también está en **📖 Documentación y recomendaciones**. El cálculo está
+en `claude-borreguiles/curva_puntos/` (fuera de la app).
 
 > ⚠️ Sin clase `no borreguil`, el modelo solo distingue tipos: cualquier píxel que
 > se le dé recibirá uno de ellos. Por eso, para hacer el mapa con un modelo así, la
@@ -954,9 +965,15 @@ una columna por variable, en el orden exacto que verá el modelo.
 **Variables repetidas (VIF o PCA).** En **1 · Datos**, debajo de las variables, está
 la opción **Quitar las variables repetidas**: *No quitar ninguna* (la que viene
 elegida), *Con el VIF* o *Con un PCA*, con sus ajustes y las variables que se quedan
-siempre. Se decide ahí, junto a las variables, pero se calcula en **2 · Tabla de
-entrenamiento**, cuando ya se han leído los valores de las muestras (la lectura trae
-siempre todas las variables).
+siempre. Se calcula con los valores de las muestras, así que primero hay que leerlos
+en **2 · Tabla de entrenamiento** (la lectura trae siempre todas las variables).
+Después, el botón **✔ Aplicar el VIF** (o **✔ Aplicar el PCA**) enseña ahí mismo, en
+**1 · Datos**, qué variables se quedan, la tabla del análisis y, en **Por qué,
+variable a variable**, una frase para cada una. Hasta que se aplica no se quita
+ninguna. Si después cambias el ajuste, las variables que se quedan siempre, las
+variables elegidas o las muestras, la app pide volver a aplicarlo y, mientras, usa
+todas. Lo aplicado se recuerda para cada nivel y cada método: se puede aplicar el VIF,
+entrenar, pasar al PCA, aplicarlo y entrenar otra vez para compararlos.
 
 *Con el VIF.*
 El VIF de una variable dice qué parte de ella se puede adivinar con todas las demás
@@ -971,9 +988,13 @@ tabla.
 | Umbral del VIF | Se quitan variables mientras alguna lo pase. Cuanto más bajo, más se quitan | **10**; 5 para quedarte con menos |
 | Variables que se quedan siempre | No se quitan nunca, aunque pasen del umbral (sí cuentan en el VIF de las demás) | **La altitud**, que viene marcada |
 
-En **1 · Datos** dice cuántas se quedan («Con el VIF se quedan 14 de 34») y en
-**2 · Tabla** enseña una tabla con cada variable, su VIF y qué pasa con ella: se
-queda, se queda siempre o se quita en tal paso. Desde ahí, el
+Al aplicarlo, **1 · Datos** dice cuáles se quedan («Con el VIF se quedan 14 de 34
+variables: …») y enseña una tabla con cada variable: su VIF, qué pasa con ella (se
+queda, se queda siempre o se quita en tal paso), qué parte de ella explican las demás
+y a cuál de las que se quedan se parece más (con su correlación, r). La frase de cada
+una lo resume; por ejemplo, de una que se quita: «Las demás explicaban el 98,9 % de ella
+(VIF 88,324), más que el umbral (90 %). Se parece sobre todo a NDVI inicio
+(r 0,994), que se queda». Desde ahí, el
 modelo, el mapa y el peso usan **solo las que se quedan**, y la línea de estado lo
 dice: «2 · Tabla · … variables (VIF)». Si hay menos del doble de muestras que
 variables, avisa de que el VIF no es fiable. Con las 161 muestras del ejemplo y las
@@ -984,10 +1005,14 @@ ejes independientes. De cada eje con valor propio mayor que 1 (criterio de Kaise
 queda **una variable**: entre las que tienen con él una correlación de al menos 0,65
 (en valor absoluto), la que mejor separa las categorías por sí sola (con dos
 categorías, por su AUC; con más, por la F del ANOVA). Las variables que se quedan
-siempre (la altitud) no entran en el PCA y se añaden. **2 · Tabla** enseña cada eje:
-su valor propio, su parte de la varianza, las variables ligadas a él y la que se
-queda; **1 · Datos** dice cuántas se quedan, y la línea de estado, «… variables
-(PCA)».
+siempre (la altitud) no entran en el PCA y se añaden. Al aplicarlo, **1 · Datos**
+enseña un gráfico con el valor propio de cada eje (en verde los que pasan de 1), una
+tabla con cada eje importante (su valor propio, su parte de la varianza, las variables
+ligadas a él y la que se queda) y otra con cada variable: qué pasa con ella, su eje, su
+correlación con él y lo bien que separa las categorías ella sola. La frase de cada una
+dice por qué: es la que mejor separa de su eje, de su eje se queda otra que separa
+mejor, o no está muy ligada a ningún eje importante. La línea de estado dice «…
+variables (PCA)».
 
 | Control | Qué es | Recomendado |
 |---|---|---|
@@ -1116,6 +1141,42 @@ Hay un modelo por cada opción: puedes tener entrenados a la vez el de borreguil
 no, el de humedad y el de ambiente y humedad. Si después cambias las
 muestras o las variables, la app avisa de que el modelo es de la tabla anterior
 hasta que vuelvas a entrenar.
+
+**¿Mejoraría con más puntos?** El mínimo y lo recomendado de **1 · Datos** salen de
+Sierra Nevada. Debajo del modelo final, **📈 Calcular la curva con mis puntos** hace
+esa curva con **tus** puntos y tu modelo:
+
+1. Repite la validación por zonas del modelo, con las mismas partes.
+2. En cada parte, el modelo aprende solo con el **25, el 50 o el 75 %** de los puntos
+   de las otras zonas, elegidos al azar con la misma proporción de cada categoría. Se
+   hacen 3 sorteos de cada fracción.
+3. La zona apartada se predice siempre entera: lo único que cambia es con cuántos
+   puntos aprende. El **100 %** es la validación del propio modelo.
+
+Entrena 45 modelos con 5 partes. Con unos mil puntos tarda medio minuto.
+
+La app enseña una gráfica y una tabla: los puntos con los que aprende el modelo, los
+borreguiles entre ellos, el **AUC en zonas nuevas** (sin «no borreguil», el F1 medio)
+con el peor y el mejor sorteo, y el F1 medio. Después mira lo que pasa **de la mitad de
+los puntos a todos**, es decir, con el doble:
+
+| Si de la mitad a todos el acierto… | La app dice | Qué hacer |
+|---|---|---|
+| sube **0,010 o más** | **Todavía sube** | Con el doble de puntos que ahora, cabe esperar que suba algo parecido, o algo menos. Busca sobre todo en las zonas y los ambientes con pocos puntos, borreguiles y ausencias |
+| sube menos de 0,010 | **Ya casi no sube** | Más puntos parecidos apenas cambiarán el mapa. Si el acierto es bajo, lo que falta no es cantidad: revisa las muestras mal clasificadas, busca puntos de sitios distintos o prueba otras variables |
+
+Con los 948 puntos del mapa de Sierra Nevada, el AUC pasa de 0,959 (un cuarto de los
+puntos) a 0,968 (todos), y de la mitad a todos sube 0,004: **ya casi no sube**, como en
+la curva de referencia.
+
+- Las variables son las del modelo, como en su validación. El VIF no mira si los puntos
+  son borreguil o no, así que elegirlas con todos no da ventaja a ninguna fracción.
+- Con el criterio de mayor F1 o de mayor TSS, cada sorteo elige su propio umbral, igual
+  que el modelo con todos los puntos; con un umbral fijado a mano, se usa ese.
+- Con pocos puntos la curva baila: mira la franja entre el peor y el mejor sorteo antes
+  de sacar conclusiones.
+- La curva se guarda con el modelo: al volver a entrenarlo, desaparece y hay que
+  calcularla de nuevo.
 
 **Con qué variables acierta más.** Al final de **3 · Modelo**, en cuanto hay dos
 modelos del mismo nivel entrenados en la sesión con las mismas muestras y distintas

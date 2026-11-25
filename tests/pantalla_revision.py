@@ -454,14 +454,39 @@ def guion(lang):
     comprobar(hay(at, T('**¿Son bastantes puntos?**', '**Are they enough points?**'))
               and hay(at, T('Con menos de 20 no hay referencia',
                             'Below 20 there is no reference'))
-              and hay(at, T('te faltan unos 99 puntos, 33 de ellos borreguiles',
-                            'you need about 99 more points, 33 of them borreguiles')),
-              'mapeo: dice si son bastantes puntos y cuántos faltan para el mínimo')
+              and hay(at, T('(0 borreguiles y 1 ausencia)', '(0 borreguiles and 1 absence)'))
+              and hay(at, T('Para el mínimo (100 puntos: 33 borreguiles y 67 ausencias), '
+                            'te faltan 33 borreguiles y 66 ausencias.',
+                            'For the minimum (100 points: 33 borreguiles and 67 absences), '
+                            'you need 33 borreguiles and 66 absences more.'))
+              and hay(at, T('Las ausencias son los sitios que has comprobado que **no** son '
+                            'borreguil', 'Absences are the places you have checked are '
+                            '**not** a borreguil')),
+              'mapeo: dice si son bastantes puntos y cuántos borreguiles y cuántas ausencias '
+              'faltan para el mínimo, y cómo se ponen las ausencias (25-11)')
+    cuentas = tabla_con_columna(at, 'Tienes', 'You have')
+    comprobar(cuentas is not None and len(cuentas) == 3
+              and list(cuentas.iloc[:, 1]) == ['1', '0', '1']
+              and list(cuentas.iloc[:, 2]) == [T('100 (faltan 99)', '100 (99 to go)'),
+                                               T('33 (faltan 33)', '33 (33 to go)'),
+                                               T('67 (faltan 66)', '67 (66 to go)')]
+              and list(cuentas.iloc[:, 3])[0] == T('250 (faltan 249)', '250 (249 to go)')
+              and T('· ausencias (no borreguil)', '· absences (not a borreguil)')
+              in list(cuentas.iloc[:, 0])
+              and hay(at, T('El mínimo de la gráfica, 100 puntos, es la suma de 33 '
+                            'borreguiles y 67 ausencias',
+                            'The minimum in the chart, 100 points, is the sum of 33 '
+                            'borreguiles and 67 absences')),
+              'tabla siempre a la vista: el total de la gráfica y, debajo, borreguiles y '
+              'ausencias, con el mínimo, lo recomendado y lo que falta; la frase dice que '
+              '100 = 33 + 67', str(cuentas.values.tolist())
+              if cuentas is not None else 'no está')
     comprobar(hay(at, T('¿Cuántos puntos necesito para el mapa?',
                         'How many points do I need for the map?'))
-              and hay(at, T('Mínimo: unos 100 puntos revisados, con unos 33 borreguiles',
+              and hay(at, T('Mínimo: unos 100 puntos revisados, con unos 33 borreguiles y '
+                            '67 ausencias',
                             'Minimum: about 100 reviewed points, with about 33 '
-                            'borreguiles')),
+                            'borreguiles and 67 absences')),
               'la Documentación explica cuántos puntos hacen falta')
     comprobar(hay(at, T('Sugerir un cambio o informar de un error',
                         'Suggest a change or report an error'))
@@ -1261,6 +1286,43 @@ def guion_tabla(lang):
                       + N(en=en, v=mod['macro_f1'])),
               'estado: modelo entrenado, con su F1 medio')
 
+    # ¿Mejoraría con más puntos? (25-11-2026, la autora: «¿los puntos mínimos son solo
+    # para Sierra Nevada?»): la curva con los puntos de la zona
+    print('  M1b · la curva con tus puntos')
+    b = control(at, 'button', 'mrf_curva')
+    comprobar(b is not None and hay(at, T('#### ¿Mejoraría con más puntos?',
+                                          '#### Would more points help?'))
+              and hay(at, T(f'Entrena {mr.entrenamientos_curva(mod)} modelos',
+                            f'It trains {mr.entrenamientos_curva(mod)} models')),
+              'con el modelo entrenado se puede pedir la curva con tus puntos, y dice '
+              'cuántos modelos entrena')
+    b.click()
+    at.run()
+    sin_error(at, 'M1b')
+    mod = at.session_state['mrf_modelos'].get('humedad')
+    cc = mr.cifras_curva(mod['_curva'], mod) if mod and '_curva' in mod else None
+    comprobar(cc is not None and [f['fraccion'] for f in cc['filas']] == [0.25, 0.5, 0.75, 1.0]
+              and abs(cc['filas'][-1]['f1'] - mod['macro_f1']) < 1e-9,
+              'la curva queda en el modelo: 25, 50, 75 y 100 %, y el 100 % es su validación')
+    dicho = T('Todavía sube', 'still rising') if cc and cc['lectura'] == 'sube' else \
+        T('Ya casi no sube', 'almost stopped rising')
+    comprobar(cc is not None
+              and hay(at, T('De la mitad de tus puntos a todos (el modelo aprende con unos ',
+                            'From half of your points to all of them (the model learns '))
+              and hay(at, dicho)
+              and hay(at, N(cc['filas'][-1][cc['medida']], en))
+              and hay(at, N(cc['mitad'][cc['medida']], en)),
+              'dice cuánto acierta con la mitad de los puntos y con todos, y si todavía sube')
+    curva = tabla_con_columna(at, 'Parte de tus puntos', 'Share of your points')
+    comprobar(curva is not None and len(curva) == 4
+              and list(curva.iloc[:, 0]) == ['25 %', '50 %', '75 %', '100 %'],
+              'la tabla de la curva tiene las cuatro partes de los puntos')
+    from streamlit.dataframe_util import convert_arrow_bytes_to_pandas_df
+    partes = [list(convert_arrow_bytes_to_pandas_df(d.data.data)['parte'])
+              for g in at.get('vega_lite_chart') for d in g.proto.datasets
+              if 'parte' in convert_arrow_bytes_to_pandas_df(d.data.data).columns]
+    comprobar(['25 %', '50 %', '75 %', '100 %'] in partes, 'y se dibuja la curva')
+
     print('  V1 · el peso de las variables')
     imp = mod['importancia']
     comprobar(len(imp['variables']) == 34 and len(imp['familias']) == 9
@@ -1505,6 +1567,21 @@ def guion_tabla(lang):
               and T('Recomendado: 10', 'Recommended: 10') in (umbral.help or '')
               and T('Recomendado: la altitud', 'Recommended: elevation') in (fijas.help or ''),
               'con el umbral 10 y la altitud fija, cada uno con lo que es y lo recomendado')
+    # Desde el 25-11-2026 se aplica con un botón, y lo que sale se ve en «1 · Datos»
+    boton = control(at, 'button', 'mrf_aplicar_sel')
+    comprobar(boton is not None and boton.label == T('✔ Aplicar el VIF', '✔ Apply the VIF')
+              and not boton.disabled
+              and hay(at, T('Pulsa «✔ Aplicar el VIF»', 'Press "✔ Apply the VIF"'))
+              and hay(at, T('pero no está aplicado: se usan las 20 variables',
+                            'but it is not applied: the 20 variables are used'))
+              and hay(at, T('2 · Tabla · 22 muestras, 20 variables',
+                            '2 · Table · 22 samples, 20 variables'))
+              and tabla_con_columna(at, 'Qué pasa', 'What happens') is None,
+              'al elegir el VIF no se quita nada hasta pulsar «Aplicar» (lo dicen «1 · Datos» '
+              'y «2 · Tabla»)')
+    boton.click()
+    at.run()
+    sin_error(at, 'T7 · aplicar')
     vif_t = tabla_con_columna(at, 'Qué pasa', 'What happens')
     de_nombre = {V(n, en): n for n in mr.nombres_predictores()}   # nombre legible → código
     quedan = [] if vif_t is None else [
@@ -1512,20 +1589,48 @@ def guion_tabla(lang):
         if not q.startswith(T('se quita', 'removed'))]
     comprobar(vif_t is not None and len(vif_t) == 20 and 0 < len(quedan) < 20
               and 'elev_dem_m' in quedan
-              and hay(at, T(f'**Se quedan {len(quedan)} de 20 variables.**',
-                            f'**{len(quedan)} of 20 variables stay.**'))
+              and hay(at, T(f'**Con el VIF se quedan {len(quedan)} de 20 variables:**',
+                            f'**With the VIF, {len(quedan)} of 20 variables stay:**'))
               and hay(at, T(f'2 · Tabla · 22 muestras, {len(quedan)} variables (VIF)',
                             f'2 · Table · 22 samples, {len(quedan)} variables (VIF)'))
+              and hay(at, T(f'**Variables repetidas (VIF):** se quedan {len(quedan)} de 20; '
+                            'cuáles y por qué, en «1 · Datos»',
+                            f'**Repeated variables (VIF):** {len(quedan)} of 20 stay; which '
+                            'ones and why, under "1 · Data"'))
               and hay(at, T('el VIF no es fiable', 'the VIF is not reliable')),
-              'dice cuáles se quedan (la altitud, siempre) y cuáles se quitan; con 22 '
-              'muestras y 20 variables, avisa de que el VIF no es fiable', str(quedan))
+              'al aplicarlo dice cuáles se quedan (la altitud, siempre) y cuáles se quitan; '
+              '«2 · Tabla» sigue con esas; con 22 muestras y 20 variables, avisa de que el '
+              'VIF no es fiable', str(quedan))
     _datos = pestana_datos()
+    _md_datos = [str(m.value) for m in _datos[0].markdown] if _datos else []
     comprobar(_datos
               and any(c.key == 'mrf_vif_umbral' for c in _datos[0].number_input)
-              and any(T(f'Con el VIF se quedan **{len(quedan)} de 20** variables',
-                        f'With the VIF, **{len(quedan)} of 20** variables stay')
-                      in str(m.value) for m in _datos[0].markdown),
-              'en «1 · Datos», con el umbral y las fijas, dice cuántas variables se quedan')
+              and any(T(f'Con el VIF se quedan {len(quedan)} de 20 variables',
+                        f'With the VIF, {len(quedan)} of 20 variables stay')
+                      in str(m.value) for m in _datos[0].success)
+              and any(T('Qué pasa', 'What happens') in d.value.columns
+                      and T('Las demás la explican', 'The others explain it') in d.value.columns
+                      for d in _datos[0].dataframe)
+              and any(T('Las demás explicaban el', 'The others explained') in t
+                      and T('que se queda.', 'which stays.') in t for t in _md_datos),
+              'en «1 · Datos», junto al umbral y las fijas: cuáles se quedan, la tabla del '
+              'VIF y, variable a variable, por qué (cuánto la explican las demás y a cuál '
+              'se parece de las que se quedan)')
+    control(at, 'number_input', 'mrf_vif_umbral').set_value(5.0)
+    at.run()
+    sin_error(at, 'T7 · otro umbral')
+    comprobar(hay(at, T('Has cambiado algo desde que lo aplicaste',
+                        'Something has changed since you applied it'))
+              and hay(at, T('2 · Tabla · 22 muestras, 20 variables',
+                            '2 · Table · 22 samples, 20 variables'))
+              and tabla_con_columna(at, 'Qué pasa', 'What happens') is None,
+              'si cambia el umbral, hay que volver a aplicarlo; mientras, se usan las 20')
+    control(at, 'number_input', 'mrf_vif_umbral').set_value(10.0)
+    at.run()
+    sin_error(at, 'T7 · umbral de antes')
+    comprobar(hay(at, T(f'2 · Tabla · 22 muestras, {len(quedan)} variables (VIF)',
+                        f'2 · Table · 22 samples, {len(quedan)} variables (VIF)')),
+              'con el umbral con el que se aplicó, lo aplicado vuelve a valer')
     comprobar(hay(at, aviso_tabla), 'el modelo de antes pasa a ser de una tabla anterior')
     control(at, 'button', 'mrf_entrenar').click()
     at.run()
@@ -1562,6 +1667,12 @@ def guion_tabla(lang):
     control(at, 'radio', 'mrf_seleccion').set_value('pca')
     at.run()
     sin_error(at, 'T7b')
+    comprobar(hay(at, T('Pulsa «✔ Aplicar el PCA»', 'Press "✔ Apply the PCA"'))
+              and tabla_con_columna(at, 'Eje', 'Axis') is None,
+              'el PCA tampoco quita nada hasta pulsar «Aplicar»')
+    control(at, 'button', 'mrf_aplicar_sel').click()
+    at.run()
+    sin_error(at, 'T7b · aplicar')
     carga = control(at, 'number_input', 'mrf_pca_carga')
     ejes_t = tabla_con_columna(at, 'Eje', 'Axis')
     elegidas = [] if ejes_t is None else [
@@ -1576,13 +1687,23 @@ def guion_tabla(lang):
               and 'elev_dem_m' not in elegidas
               and hay(at, T(f'2 · Tabla · 22 muestras, {len(quedan_p)} variables (PCA)',
                             f'2 · Table · 22 samples, {len(quedan_p)} variables (PCA)'))
-              and any(T(f'Con el PCA se quedan **{len(quedan_p)} de 20** variables',
-                        f'With the PCA, **{len(quedan_p)} of 20** variables stay')
-                      in str(m.value) for m in pestana_datos()[0].markdown)
+              and any(T(f'Con el PCA se quedan {len(quedan_p)} de 20 variables',
+                        f'With the PCA, {len(quedan_p)} of 20 variables stay')
+                      in str(m.value) for m in pestana_datos()[0].success)
               and hay(at, T('el PCA no es fiable', 'the PCA is not reliable')),
               'una variable por eje del PCA, más la altitud; lo dicen «1 · Datos», «2 · Tabla» '
               'y la línea de estado; con 22 muestras avisa de que no es fiable',
               str(elegidas))
+    var_t = tabla_con_columna(at, 'Su eje', 'Its axis')
+    quedan_t = [] if var_t is None else sorted(
+        de_nombre[v] for v, q in zip(var_t['Variable'], var_t.iloc[:, 1])
+        if not q.startswith(T('se quita', 'removed')))
+    comprobar(var_t is not None and len(var_t) == 20 and quedan_t == sorted(quedan_p)
+              and hay(at, T('Valor propio de cada eje del PCA', 'Eigenvalue of each PCA axis'))
+              and any(T('es la que mejor separa', 'it is the one that best separates')
+                      in str(m.value) for m in pestana_datos()[0].markdown),
+              'en «1 · Datos»: el gráfico de los ejes, la tabla variable a variable (casa con '
+              'las que se quedan) y por qué', str(quedan_t))
     control(at, 'button', 'mrf_entrenar').click()
     at.run()
     sin_error(at, 'T7b · entrenar')

@@ -355,9 +355,11 @@ El modelo aprendió en Sierra Nevada; mejora si le enseñas ejemplos locales:
 
 La pestaña **🌿 Mapa Modelo RF** (necesita Earth Engine) entrena otro modelo con tus
 puntos revisados y lo aplica a cada píxel de 10 m: **1 · Datos** («¿Son bastantes
-puntos?»: mínimo 100 puntos con 33 borreguiles, recomendado 250 con 83; «Quitar las
-variables repetidas»: ninguna, con el VIF o con un PCA), **2 · Tabla**, **3 · Modelo**,
-**4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
+puntos?»: mínimo 100 puntos con 33 borreguiles y 67 ausencias, recomendado 250 con 83
+y 167; «Quitar las variables repetidas»: ninguna, con el VIF o con un PCA, con el
+botón «Aplicar», que dice qué variables se quedan y por qué), **2 · Tabla**, **3 · Modelo**
+(con «📈 Calcular la curva con mis puntos», que dice si más puntos mejorarían el mapa
+en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 [manual](MANUAL.md#mapa-de-tipos-con-random-forest).
 
 ---

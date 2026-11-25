@@ -155,6 +155,12 @@ CURVA_PUNTOS_SN = (
 # y casi no cambia entre repeticiones. Recomendado: a menos de 0,01.
 MINIMO_PUNTOS = (100, 33)
 RECOMENDADO_PUNTOS = (250, 83)
+# Las ausencias (no borreguiles) de esos puntos: la curva se hizo con 1 borreguil de cada
+# 3, así que el resto lo eran. Se piden aparte desde el 25-11-2026 (la autora: «¿cómo sé
+# cuál es el mínimo de ausencias?»): antes, 100 borreguiles y 6 ausencias «llegaban al
+# mínimo». La curva no probó otras proporciones: son las que había en ella.
+MINIMO_AUSENCIAS = MINIMO_PUNTOS[0] - MINIMO_PUNTOS[1]                  # 67
+RECOMENDADO_AUSENCIAS = RECOMENDADO_PUNTOS[0] - RECOMENDADO_PUNTOS[1]   # 167
 POCOS_PUNTOS = 50               # por debajo, el acierto cae y depende de qué puntos sean
 
 
@@ -174,16 +180,20 @@ def auc_esperado(n):
     return None
 
 
-def lectura_puntos(n, n_borreguil):
-    """Dónde están `n` muestras (`n_borreguil` de ellas borreguiles) frente a la curva
-    de Sierra Nevada. Devuelve {'nivel', 'auc', 'faltan', 'faltan_borreguiles'};
-    nivel: 'sin_referencia' (< 20), 'pocos' (< 50), 'bajo_minimo', 'minimo' o
-    'recomendado'. Para llegar a un nivel hacen falta los puntos Y los borreguiles;
-    'faltan' cuenta lo que falta para el siguiente."""
+def lectura_puntos(n, n_borreguil, n_ausencia=None):
+    """Dónde están `n` muestras (`n_borreguil` de ellas borreguiles y `n_ausencia`
+    ausencias; si no se da, el resto) frente a la curva de Sierra Nevada. Devuelve
+    {'nivel', 'auc', 'faltan', 'faltan_borreguiles', 'faltan_ausencias'}; nivel:
+    'sin_referencia' (< 20), 'pocos' (< 50), 'bajo_minimo', 'minimo' o 'recomendado'.
+    Para llegar a un nivel hacen falta los puntos, los borreguiles Y las ausencias;
+    'faltan…' cuenta lo que falta para el siguiente."""
     n, nb = int(n or 0), int(n_borreguil or 0)
-    if n >= RECOMENDADO_PUNTOS[0] and nb >= RECOMENDADO_PUNTOS[1]:
+    na = max(0, n - nb) if n_ausencia is None else int(n_ausencia)
+    aus = {MINIMO_PUNTOS: MINIMO_AUSENCIAS, RECOMENDADO_PUNTOS: RECOMENDADO_AUSENCIAS}
+    if (n >= RECOMENDADO_PUNTOS[0] and nb >= RECOMENDADO_PUNTOS[1]
+            and na >= RECOMENDADO_AUSENCIAS):
         nivel, meta = 'recomendado', None
-    elif n >= MINIMO_PUNTOS[0] and nb >= MINIMO_PUNTOS[1]:
+    elif n >= MINIMO_PUNTOS[0] and nb >= MINIMO_PUNTOS[1] and na >= MINIMO_AUSENCIAS:
         nivel, meta = 'minimo', RECOMENDADO_PUNTOS
     elif n < CURVA_PUNTOS_SN[0][0]:
         nivel, meta = 'sin_referencia', MINIMO_PUNTOS
@@ -193,7 +203,8 @@ def lectura_puntos(n, n_borreguil):
         nivel, meta = 'bajo_minimo', MINIMO_PUNTOS
     return {'nivel': nivel, 'auc': auc_esperado(n),
             'faltan': max(0, meta[0] - n) if meta else 0,
-            'faltan_borreguiles': max(0, meta[1] - nb) if meta else 0}
+            'faltan_borreguiles': max(0, meta[1] - nb) if meta else 0,
+            'faltan_ausencias': max(0, aus[meta] - na) if meta else 0}
 
 
 def codigos(nivel):
@@ -827,8 +838,10 @@ def elegir_por_pca(X, y, nombres, fijas=VIF_FIJAS, carga=PCA_CARGA,
     Devuelve un dict: quedan (en el orden de `nombres`), ejes [{eje, valor_propio,
     varianza_pct, variables [{variable, carga, separa}], elegida}] de los ejes con valor
     propio > `valor_propio`, varianza_pct (la de esos ejes juntos), carga, fijas,
-    sin_variar (las que no varían: fuera) y pocas_muestras (con menos del doble de
-    muestras que variables el PCA no es fiable)."""
+    sin_variar (las que no varían: fuera), pocas_muestras (con menos del doble de
+    muestras que variables el PCA no es fiable), valores_propios (los de TODOS los ejes,
+    de mayor a menor), cargas {variable: [correlación con cada eje importante]} y
+    separa {variable: lo bien que separa las categorías sola} de las que entran."""
     import numpy as np
     X = np.asarray(X, dtype=float)
     nombres = list(nombres)
@@ -844,7 +857,7 @@ def elegir_por_pca(X, y, nombres, fijas=VIF_FIJAS, carga=PCA_CARGA,
     sin_variar = [n for n, v in zip(nombres, varia) if not v and n not in fijas]
     usar = [i for i, n in enumerate(nombres) if varia[i] and n not in fijas]
     ejes, elegidas = [], []
-    total = 0.0
+    total, valores, cargas_de, sep = 0.0, [], {}, {}
     if len(usar) >= 2 and X.shape[0] >= 3:
         Z = X[:, usar]
         Z = (Z - Z.mean(axis=0)) / Z.std(axis=0)
@@ -869,6 +882,9 @@ def elegir_por_pca(X, y, nombres, fijas=VIF_FIJAS, carga=PCA_CARGA,
                          'varianza_pct': float(100 * val[k] / val.sum()),
                          'variables': ligadas, 'elegida': elegida})
         total = float(sum(e['varianza_pct'] for e in ejes))
+        valores = [float(v) for v in val]
+        cargas_de = {nombres[usar[j]]: [float(cargas[j, k]) for k in range(len(ejes))]
+                     for j in range(len(usar))}
         if not elegidas:
             # ningún eje tiene variables tan ligadas: la más ligada al primero
             j = int(np.argmax(np.abs(cargas[:, 0])))
@@ -878,7 +894,208 @@ def elegir_por_pca(X, y, nombres, fijas=VIF_FIJAS, carga=PCA_CARGA,
     quedan = [n for n in nombres if n in elegidas or n in fijas]
     return {'quedan': quedan, 'ejes': ejes, 'varianza_pct': total, 'carga': carga,
             'fijas': fijas, 'sin_variar': sin_variar,
-            'pocas_muestras': X.shape[0] < 2 * X.shape[1]}
+            'pocas_muestras': X.shape[0] < 2 * X.shape[1],
+            'valores_propios': valores, 'cargas': cargas_de, 'separa': sep}
+
+
+# Por qué se queda o se quita cada variable (25-11-2026, lo pidió la autora: «que te
+# muestre qué variables se han quedado y algún output del análisis para entender por
+# qué»). Una fila por variable, con lo que hace falta para contarlo en una frase.
+def por_que_vif(X, nombres, sel):
+    """Una fila por variable a partir de elegir_por_vif(X, nombres) = `sel`, primero las
+    que se quedan (en su orden) y después las quitadas (por pasos): {variable, que
+    ('fija', 'queda', 'quitada' o 'no_varia'), vif (None si no varía; inf si se obtiene
+    exactamente de otras), explicado_pct (lo que las demás explican de ella: 1 − 1/VIF),
+    paso (al quitarla), parecida y r (la que más se le parece, por la correlación, de
+    entre las que se quedan; None si no hay)}."""
+    import numpy as np
+    X = np.asarray(X, dtype=float)
+    col = {n: i for i, n in enumerate(nombres)}
+    with np.errstate(invalid='ignore', divide='ignore'):
+        R = np.corrcoef(X, rowvar=False)
+    R = np.atleast_2d(R)
+
+    def _explicado(v):
+        if v is None:
+            return None
+        return 100.0 if v == float('inf') else max(0.0, 100.0 * (1.0 - 1.0 / v))
+
+    def _parecida(n):
+        mejor, r = None, None
+        for m in sel['quedan']:
+            if m == n:
+                continue
+            x = R[col[n], col[m]]
+            if np.isfinite(x) and (r is None or abs(x) > abs(r)):
+                mejor, r = m, float(x)
+        return mejor, r
+
+    filas = []
+    for n in sel['quedan']:
+        v = sel['vif'].get(n)
+        p, r = _parecida(n)
+        filas.append({'variable': n, 'que': 'fija' if n in sel['fijas'] else 'queda',
+                      'vif': v, 'explicado_pct': _explicado(v), 'paso': None,
+                      'parecida': p, 'r': r})
+    for q in sel['quitadas']:
+        p, r = _parecida(q['variable'])
+        filas.append({'variable': q['variable'],
+                      'que': 'no_varia' if q['vif'] is None else 'quitada',
+                      'vif': q['vif'], 'explicado_pct': _explicado(q['vif']),
+                      'paso': q['paso'], 'parecida': p, 'r': r})
+    return filas
+
+
+def por_que_pca(sel, nombres):
+    """Una fila por variable a partir de elegir_por_pca(…, nombres) = `sel`, primero las
+    que se quedan: {variable, que ('fija', 'elegida', 'ligada', 'suelta' o 'no_varia'),
+    eje (el suyo: el que la elige, o al que más ligada está), carga (su correlación con
+    ese eje), separa (lo bien que separa sola), ganadora y separa_ganadora (la que se
+    queda en ese eje, para las 'ligada')}. 'suelta' = no llega a la correlación mínima
+    con ningún eje importante."""
+    ejes = sel['ejes']
+    elegida_en = {e['elegida']: e for e in ejes if e['elegida']}
+    filas = []
+    for n in nombres:
+        fila = {'variable': n, 'eje': None, 'carga': None,
+                'separa': sel.get('separa', {}).get(n), 'ganadora': None,
+                'separa_ganadora': None}
+        cargas = sel.get('cargas', {}).get(n) or []
+        if n in sel['fijas']:
+            fila['que'] = 'fija'
+        elif n in sel['sin_variar']:
+            fila['que'] = 'no_varia'
+        elif n in elegida_en:
+            e = elegida_en[n]
+            fila.update(que='elegida', eje=e['eje'],
+                        carga=next(d['carga'] for d in e['variables'] if d['variable'] == n))
+        elif n in sel['quedan']:
+            # ningún eje tenía variables tan ligadas: la más ligada al primero
+            fila.update(que='elegida', eje=1 if ejes else None,
+                        carga=cargas[0] if cargas else None)
+        else:
+            ligado = [(abs(d['carga']), e) for e in ejes for d in e['variables']
+                      if d['variable'] == n]
+            if ligado:
+                _, e = max(ligado, key=lambda t: t[0])
+                g = e['elegida']
+                fila.update(que='ligada', eje=e['eje'],
+                            carga=next(d['carga'] for d in e['variables']
+                                       if d['variable'] == n),
+                            ganadora=g,
+                            separa_ganadora=next((d['separa'] for d in e['variables']
+                                                  if d['variable'] == g), None))
+            else:
+                fila['que'] = 'suelta'
+                if cargas:
+                    k = max(range(len(cargas)), key=lambda i: abs(cargas[i]))
+                    fila.update(eje=k + 1, carga=cargas[k])
+        filas.append(fila)
+    orden = {'fija': 0, 'elegida': 0, 'ligada': 1, 'suelta': 2, 'no_varia': 3}
+    return sorted(filas, key=lambda f: orden[f['que']])
+
+
+def texto_por_que(fila, metodo, en=False, nombre=str, num=None, umbral=None, carga=None):
+    """La frase de por qué se queda o se quita una variable (una fila de por_que_vif o
+    por_que_pca). `nombre` escribe el nombre de una variable y `num(v, nd)` un número
+    (con coma en español); `umbral` es el del VIF y `carga`, la correlación mínima del
+    PCA."""
+    if num is None:
+        def num(v, nd=3):
+            return f'{v:.{nd}f}'
+
+    def t(es, en_):
+        return en_ if en else es
+
+    q = fila['que']
+    if q == 'no_varia':
+        return t('No varía en las muestras: no aporta nada.',
+                 'It does not vary across the samples: it adds nothing.')
+    if metodo == 'vif':
+        v, pct = fila['vif'], fila['explicado_pct']
+        lim = None if umbral is None else 100.0 * (1.0 - 1.0 / umbral)
+        # el porcentaje con un decimal (90,2 % frente al umbral del 90 %; 99,9 % y no
+        # «100 %» si no es exacto); el del umbral, entero si lo es
+        p_txt = None if pct is None else num(pct, 1)
+        l_txt = None if lim is None else num(lim, 0 if abs(lim - round(lim)) < 0.05 else 1)
+        if v == float('inf'):
+            cuanto = t('Se obtiene exactamente de otras (VIF ∞)',
+                       'It is obtained exactly from others (VIF ∞)')
+        elif q == 'quitada':
+            cuanto = t(f'Las demás explicaban el {p_txt} % de ella (VIF {num(v)})',
+                       f'The others explained {p_txt} % of it (VIF {num(v)})')
+        else:
+            cuanto = t(f'Las demás explican el {p_txt} % de ella (VIF {num(v)})',
+                       f'The others explain {p_txt} % of it (VIF {num(v)})')
+        if lim is None or v == float('inf'):
+            frente = ''
+        elif q == 'quitada':
+            frente = t(f', más que el umbral ({l_txt} %)',
+                       f', more than the threshold ({l_txt} %)')
+        elif q == 'queda':
+            frente = t(f', no más que el umbral ({l_txt} %)',
+                       f', not more than the threshold ({l_txt} %)')
+        else:
+            frente = ''
+        par = ''
+        if fila['parecida']:
+            if q == 'quitada':
+                par = t(f' Se parece sobre todo a {nombre(fila["parecida"])} '
+                        f'(r {num(fila["r"])}), que se queda.',
+                        f' It is most similar to {nombre(fila["parecida"])} '
+                        f'(r {num(fila["r"])}), which stays.')
+            else:
+                par = t(f' La que más se le parece de las que se quedan: '
+                        f'{nombre(fila["parecida"])} (r {num(fila["r"])}).',
+                        f' The most similar one among those that stay: '
+                        f'{nombre(fila["parecida"])} (r {num(fila["r"])}).')
+        if q == 'fija':
+            return t('Se queda siempre (la elegiste así). ',
+                     'Always stays (you chose so). ') + cuanto + '.' + par
+        return cuanto + frente + '.' + par
+    # PCA
+    sep = '—' if fila['separa'] is None else num(fila['separa'])
+    if q == 'fija':
+        return t('Se queda siempre (la elegiste así): no entra en el PCA.',
+                 'Always stays (you chose so): it is left out of the PCA.')
+    if q == 'elegida':
+        return t(f'De las ligadas al eje {fila["eje"]}, es la que mejor separa las '
+                 f'categorías por sí sola ({sep}). Su correlación con el eje: '
+                 f'{num(fila["carga"])}.',
+                 f'Among those tied to axis {fila["eje"]}, it is the one that best separates '
+                 f'the categories on its own ({sep}). Its correlation with the axis: '
+                 f'{num(fila["carga"])}.')
+    if q == 'ligada':
+        if fila['ganadora']:
+            sg = '—' if fila['separa_ganadora'] is None else num(fila['separa_ganadora'])
+            if sg == sep:       # empate: se queda la más ligada al eje
+                return t(f'Está ligada al eje {fila["eje"]} (correlación '
+                         f'{num(fila["carga"])}), pero de ese eje se queda '
+                         f'{nombre(fila["ganadora"])}: separa igual de bien ({sep}) y está '
+                         'más ligada al eje.',
+                         f'It is tied to axis {fila["eje"]} (correlation '
+                         f'{num(fila["carga"])}), but {nombre(fila["ganadora"])} stays for '
+                         f'that axis: it separates just as well ({sep}) and is more tied to '
+                         'the axis.')
+            return t(f'Está ligada al eje {fila["eje"]} (correlación {num(fila["carga"])}), '
+                     f'pero de ese eje se queda {nombre(fila["ganadora"])}, que separa mejor '
+                     f'({sg} frente a {sep}).',
+                     f'It is tied to axis {fila["eje"]} (correlation {num(fila["carga"])}), '
+                     f'but {nombre(fila["ganadora"])} stays for that axis, as it separates '
+                     f'better ({sg} against {sep}).')
+        return t(f'Está ligada al eje {fila["eje"]} (correlación {num(fila["carga"])}), pero '
+                 'ese eje ya está representado por otra variable.',
+                 f'It is tied to axis {fila["eje"]} (correlation {num(fila["carga"])}), but '
+                 'that axis is already represented by another variable.')
+    # suelta
+    if fila['eje'] is None:
+        return t('No está muy ligada a ningún eje importante.',
+                 'It is not strongly tied to any important axis.')
+    c = '' if carga is None else t(f'; hace falta {num(carga)}', f'; {num(carga)} is needed')
+    return t(f'No está muy ligada a ningún eje importante (como mucho '
+             f'{num(abs(fila["carga"]))}, con el eje {fila["eje"]}{c}).',
+             f'It is not strongly tied to any important axis (at most '
+             f'{num(abs(fila["carga"]))}, with axis {fila["eje"]}{c}).')
 
 
 # ============================================================
@@ -1689,6 +1906,181 @@ def mensaje_validacion(item, en=False, traduce=None):
                 'aparta para validar, el modelo no ha visto nunca esa categoría y no puede '
                 'acertarla.')
     return str(item)
+
+
+# ============================================================
+# ¿Mejoraría con más puntos? La curva con los puntos de la zona
+# ------------------------------------------------------------
+# La curva de Sierra Nevada (CURVA_PUNTOS_SN) es solo una referencia: en otra montaña
+# pueden hacer falta más puntos, o menos (25-11-2026, la autora: «¿los puntos mínimos
+# son solo para Sierra Nevada?»). Esta se calcula con los puntos y el modelo de cada
+# persona: se repite su validación por zonas, con las MISMAS partes, pero el modelo
+# aprende solo con una parte de los puntos de las otras zonas (un 25, un 50 y un 75 %),
+# elegidos al azar y con la misma proporción de cada categoría. La parte apartada se
+# predice siempre entera: lo único que cambia es con cuántos puntos aprende. El 100 %
+# es la validación del propio modelo.
+#
+# De la mitad de los puntos a todos, el modelo aprende con el doble. Si en ese paso el
+# acierto todavía sube (0,01 o más), es de esperar que con el doble de puntos que ahora
+# suba algo parecido, o algo menos: merece la pena buscar más. Si ya no sube, más puntos
+# parecidos a los que hay apenas cambiarán el mapa. (Del 75 al 100 % el paso es más
+# corto y sube poco aunque la curva siga subiendo: con las 376 muestras de un ejemplo,
+# +0,004 entre el 75 y el 100 % y +0,012 entre el 50 y el 100 %.)
+#
+# Las variables son las del modelo, como en su validación. El VIF no mira si los puntos
+# son borreguil o no, así que elegirlas con todos no da ventaja a ninguna fracción.
+# ============================================================
+CURVA_FRACCIONES = (0.25, 0.5, 0.75)
+CURVA_REPETICIONES = 3          # cada fracción, con 3 sorteos distintos de puntos
+SIGUE_SUBIENDO = 0.01           # de la mitad a todos, lo que tiene que subir para «sube»
+
+
+def _parte_al_azar(pos, y, fraccion, azar):
+    """Una `fraccion` de las posiciones `pos`, al azar y con la misma proporción de
+    cada categoría (al menos una de cada una de las que hay)."""
+    import numpy as np
+    elegidas = []
+    for c in np.unique(y[pos]):
+        de_c = pos[y[pos] == c]
+        n = min(len(de_c), max(1, int(round(fraccion * len(de_c)))))
+        elegidas.append(azar.choice(de_c, n, replace=False))
+    return np.sort(np.concatenate(elegidas))
+
+
+def entrenamientos_curva(mod, fracciones=CURVA_FRACCIONES,
+                         repeticiones=CURVA_REPETICIONES):
+    """Cuántos modelos entrena curva_propia (para decirlo antes de pulsar)."""
+    partes = len(set(int(k) for k in mod['_validacion']['parte']))
+    return len(fracciones) * repeticiones * partes
+
+
+def curva_propia(tab, mod, fracciones=CURVA_FRACCIONES, repeticiones=CURVA_REPETICIONES,
+                 al_avanzar=None):
+    """La curva de aprendizaje con los puntos de la zona (ver arriba).
+
+    tab: la tabla con la que se entrenó `mod` (salida de construir_tabla); mod: un
+    modelo de entrenar_y_validar. al_avanzar(f): se llama tras cada entrenamiento con
+    la fracción hecha (0–1), para una barra de progreso.
+
+    Devuelve {'firma', 'corridas'}: una corrida por fracción y sorteo, más la del 100 %
+    (la validación del modelo), con los puntos con los que aprende el modelo en cada
+    parte (media) y lo que da a cada muestra cuando le toca ser validada. Las cifras
+    salen de cifras_curva, con la regla de «¿borreguil o no?» que tenga el modelo.
+    Lanza ValueError si el modelo no casa con la tabla."""
+    import numpy as np
+    from sklearn.ensemble import RandomForestClassifier
+    if '_validacion' not in mod:
+        raise ValueError('el modelo es de una versión anterior de la app: vuelve a '
+                         'entrenarlo')
+    if mod['firma'] != firma_tabla(tab):
+        raise ValueError('la tabla ha cambiado desde que se entrenó el modelo: vuelve a '
+                         'entrenarlo')
+    X = np.asarray(tab['X'], dtype=float)
+    v = mod['_validacion']
+    y, parte = np.asarray(v['y'], dtype=int), np.asarray(v['parte'], dtype=int)
+    p, bal = mod['params'], mod['balance']
+    semilla = p['random_state']
+    con_pesos = bal.get('class_weight') == 'balanced'
+    razon = bal.get('razon_maxima')             # None: sin recortar las abundantes
+    partes = sorted(set(int(k) for k in parte))
+
+    def para_entrenar(pos):
+        """Como en entrenar_y_validar: tras el recorte, si lo hay."""
+        return pos if razon is None else pos[submuestrear(y[pos], razon, semilla)]
+
+    def cuantos(usadas):
+        return (float(np.mean([len(u) for u in usadas])),
+                float(np.mean([np.sum(y[u] != CODIGO_AUSENCIA) for u in usadas])))
+
+    total, hechos, corridas = len(fracciones) * repeticiones * len(partes), 0, []
+    for fraccion in fracciones:
+        for r in range(repeticiones):
+            # cada fracción y sorteo, su azar: sale lo mismo cada vez
+            azar = np.random.default_rng([semilla, int(round(fraccion * 1000)), r])
+            p_borr = np.zeros(len(y), np.float32)
+            tipo = np.full(len(y), -1, dtype=int)
+            usadas = []
+            for k in partes:
+                aprende = para_entrenar(_parte_al_azar(np.where(parte != k)[0], y,
+                                                       fraccion, azar))
+                m = RandomForestClassifier(
+                    n_estimators=p['n_estimators'], max_features=p['max_features'],
+                    max_depth=p['max_depth'], min_samples_leaf=p['min_samples_leaf'],
+                    class_weight='balanced' if con_pesos else None,
+                    random_state=semilla, n_jobs=-1).fit(X[aprende], y[aprende])
+                m.n_jobs = 1                    # predecir con uno: siempre lo mismo
+                valida = np.where(parte == k)[0]
+                p_borr[valida], tipo[valida] = repartir(m.predict_proba(X[valida]),
+                                                        m.classes_)[:2]
+                usadas.append(aprende)
+                hechos += 1
+                if al_avanzar:
+                    al_avanzar(hechos / total)
+            n, nb = cuantos(usadas)
+            corridas.append({'fraccion': float(fraccion), 'sorteo': r, 'n_puntos': n,
+                             'n_borreguiles': nb, 'p_borr': p_borr, 'tipo': tipo})
+    n, nb = cuantos([para_entrenar(np.where(parte != k)[0]) for k in partes])
+    corridas.append({'fraccion': 1.0, 'sorteo': 0, 'n_puntos': n, 'n_borreguiles': nb,
+                     'p_borr': np.asarray(v['p_borr'], np.float32),
+                     'tipo': np.asarray(v['tipo'], dtype=int)})
+    return {'firma': mod['firma'], 'corridas': corridas}
+
+
+def cifras_curva(curva, mod):
+    """Las cifras de la curva de curva_propia, con la regla de «¿borreguil o no?» que
+    tenga ahora el modelo (con el F1 o el TSS, cada sorteo elige su umbral, igual que
+    el modelo con todos los puntos; con un umbral fijo, ese).
+
+    Devuelve {'medida': 'auc' o 'f1', 'filas': [...], 'mitad', 'ganancia', 'lectura':
+    'sube' o 'plana'}. Cada fila es una fracción: los puntos con los que aprende el
+    modelo y los borreguiles entre ellos (media de las partes), el AUC de «¿borreguil o
+    no?» en zonas que no ha visto (None si el modelo no tiene «no borreguil») y el F1
+    medio entre categorías; de cada cifra, la media de los sorteos y la menor y la
+    mayor. La medida es el AUC si lo hay (no depende del umbral; es la de la curva de
+    Sierra Nevada) y si no el F1. 'mitad' es la fila de la mitad de los puntos (la más
+    cercana) y 'ganancia', lo que sube la medida de ella a la de todos: lo que da
+    doblar los puntos."""
+    import numpy as np
+    from sklearn.metrics import roc_auc_score
+    v, regla = mod['_validacion'], mod.get('regla') or {}
+    y = np.asarray(v['y'], dtype=int)
+    presentes = np.asarray(v['presentes'])
+    con_no = CODIGO_AUSENCIA in set(int(c) for c in presentes)
+    es_borr = y != CODIGO_AUSENCIA
+    hay_auc = con_no and 0 < es_borr.sum() < len(y)
+    por_fraccion = {}
+    for c in curva['corridas']:
+        if con_no:
+            if regla.get('criterio') == 'manual':
+                u = regla['umbral']
+            else:
+                u = elegir_umbral(barrido_umbral(c['p_borr'], es_borr),
+                                  regla.get('criterio') or CRITERIO_DEFECTO)['umbral']
+            pred = np.where(c['p_borr'] >= np.float32(u), c['tipo'], CODIGO_AUSENCIA)
+        else:
+            pred = c['tipo']
+        por_fraccion.setdefault(c['fraccion'], []).append({
+            'n_puntos': c['n_puntos'], 'n_borreguiles': c['n_borreguiles'],
+            'auc': float(roc_auc_score(es_borr, c['p_borr'])) if hay_auc else None,
+            'f1': float(_macro_f1(y, pred, presentes))})
+    filas = []
+    for fraccion in sorted(por_fraccion):
+        rs = por_fraccion[fraccion]
+        fila = {'fraccion': fraccion, 'sorteos': len(rs),
+                'n_puntos': float(np.mean([r['n_puntos'] for r in rs])),
+                'n_borreguiles': float(np.mean([r['n_borreguiles'] for r in rs]))}
+        for k in ('auc', 'f1'):
+            vals = [r[k] for r in rs if r[k] is not None]
+            fila[k], fila[k + '_min'], fila[k + '_max'] = (
+                (float(np.mean(vals)), float(min(vals)), float(max(vals))) if vals
+                else (None, None, None))
+        filas.append(fila)
+    medida = 'auc' if hay_auc else 'f1'
+    mitad = (min(filas[:-1], key=lambda f: abs(f['fraccion'] - filas[-1]['fraccion'] / 2))
+             if len(filas) > 1 else filas[-1])
+    ganancia = filas[-1][medida] - mitad[medida]
+    return {'medida': medida, 'filas': filas, 'mitad': mitad, 'ganancia': float(ganancia),
+            'lectura': 'sube' if ganancia >= SIGUE_SUBIENDO else 'plana'}
 
 
 # ============================================================

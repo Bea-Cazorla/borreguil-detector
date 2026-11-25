@@ -498,6 +498,7 @@ def render_docs():
     st.markdown(i18n.pick('### 📏 ¿Cuántos puntos necesito para el mapa?',
                           '### 📏 How many points do I need for the map?'))
     (_mn, _mb), (_rn, _rb) = mr.MINIMO_PUNTOS, mr.RECOMENDADO_PUNTOS
+    _ma, _ra = mr.MINIMO_AUSENCIAS, mr.RECOMENDADO_AUSENCIAS
     _todos = mr.CURVA_PUNTOS_SN[-1]
     st.markdown(i18n.pick(
         'El mapa de borreguil sí o no (**🌿 Mapa Modelo RF**) aprende de tus puntos '
@@ -506,32 +507,56 @@ def render_docs():
         '(315 borreguiles): se entrenó con 20, 30… hasta '
         f'{_todos[0]} puntos elegidos al azar y se midió el acierto en zonas que el modelo '
         'no había visto, 10 veces para cada número.\n\n'
-        f'- **Mínimo: unos {_mn} puntos revisados, con unos {_mb} borreguiles** (AUC '
-        f'{_num(mr.auc_esperado(_mn))}; con todos, {_num(_todos[2])}).\n'
-        f'- **Recomendado: unos {_rn}, con unos {_rb} borreguiles** (AUC '
+        f'- **Mínimo: unos {_mn} puntos revisados, con unos {_mb} borreguiles y {_ma} '
+        f'ausencias** (AUC {_num(mr.auc_esperado(_mn))}; con todos, {_num(_todos[2])}).\n'
+        f'- **Recomendado: unos {_rn}, con unos {_rb} borreguiles y {_ra} ausencias** (AUC '
         f'{_num(mr.auc_esperado(_rn))}). Con más, el acierto apenas cambia.\n'
         f'- **Con menos de {mr.POCOS_PUNTOS}**, el acierto baja y depende mucho de qué '
         'puntos sean.\n\n'
+        'Las **ausencias** son los sitios que has comprobado que no son borreguil: '
+        '`presence` = 0 en tu fichero, «✗ Marcar como no borreguil verificado» al revisar un '
+        'punto o «✗ Aquí no hay» al pinchar en el mapa. La app no se las inventa. Para buscarlas en sitios que no has '
+        'muestreado, genera puntos al azar «lejos de tus puntos de campo» y revísalos.\n\n'
         'Es la referencia de Sierra Nevada: en una montaña más variada pueden hacer falta '
         'más. Los puntos repartidos por toda la zona enseñan más que los concentrados en '
-        'pocos valles, y conviene una proporción parecida (aquí, 1 borreguil de cada 3). '
-        'En **🌿 Mapa Modelo RF → 1 · Datos** la app te dice dónde estás en esta curva.',
+        'pocos valles. La curva se hizo con 1 borreguil de cada 3 (por cada borreguil, 2 '
+        'ausencias); de ahí salen los borreguiles y las ausencias de cada nivel, y no se '
+        'probaron otras proporciones. En **🌿 Mapa Modelo RF → 1 · Datos** la app te dice '
+        'dónde estás en esta curva y cuántos borreguiles y ausencias te faltan.\n\n'
+        'En tu zona, lo que vale es la curva con **tus** puntos: en **🌿 Mapa Modelo RF → '
+        '3 · Modelo**, después de entrenar, **📈 Calcular la curva con mis puntos** repite '
+        'la validación del modelo aprendiendo con el 25, el 50 y el 75 % de tus puntos. Si '
+        'de la mitad a todos (el doble) el acierto todavía sube, más puntos mejorarán el '
+        'mapa; si ya casi no sube, más puntos parecidos apenas lo cambiarán.',
         'The borreguil yes-or-no map (**🌿 RF model map**) learns from your reviewed '
         'points, borreguiles and non-borreguiles. To find out how many are needed, the '
         "app's procedure was repeated with the 948 reviewed points of Sierra Nevada (315 "
         f'borreguiles): it was trained with 20, 30… up to {_todos[0]} points chosen at '
         'random and its accuracy was measured in areas the model had not seen, 10 times '
         'for each number.\n\n'
-        f'- **Minimum: about {_mn} reviewed points, with about {_mb} borreguiles** (AUC '
-        f'{_num(mr.auc_esperado(_mn))}; with all of them, {_num(_todos[2])}).\n'
-        f'- **Recommended: about {_rn}, with about {_rb} borreguiles** (AUC '
-        f'{_num(mr.auc_esperado(_rn))}). With more, the accuracy hardly changes.\n'
+        f'- **Minimum: about {_mn} reviewed points, with about {_mb} borreguiles and {_ma} '
+        f'absences** (AUC {_num(mr.auc_esperado(_mn))}; with all of them, '
+        f'{_num(_todos[2])}).\n'
+        f'- **Recommended: about {_rn}, with about {_rb} borreguiles and {_ra} absences** '
+        f'(AUC {_num(mr.auc_esperado(_rn))}). With more, the accuracy hardly changes.\n'
         f'- **With fewer than {mr.POCOS_PUNTOS}**, the accuracy drops and depends a lot on '
         'which points they are.\n\n'
+        '**Absences** are the places you have checked are not a borreguil: `presence` = 0 '
+        'in your file, "✗ Mark as verified non-borreguil" when reviewing a point or "✗ '
+        'There is none" when clicking on the map. The app never invents them. To look for them in places you '
+        'have not sampled, generate random points "far from your field points" and review '
+        'them.\n\n'
         'It is the Sierra Nevada reference: a more varied mountain may need more. Points '
-        'spread over the whole area teach more than points concentrated in a few valleys, '
-        'and a similar proportion helps (here, 1 borreguil in 3). Under **🌿 RF model map '
-        '→ 1 · Data** the app tells you where you are on this curve.'))
+        'spread over the whole area teach more than points concentrated in a few valleys. '
+        'The curve was made with 1 borreguil in 3 (2 absences for each borreguil); that is '
+        'where the borreguiles and absences of each level come from, and other proportions '
+        'were not tested. Under **🌿 RF model map → 1 · Data** the app tells you where you '
+        'are on this curve and how many borreguiles and absences you still need.\n\n'
+        'In your area, what counts is the curve with **your** points: under **🌿 RF model '
+        'map → 3 · Model**, after training, **📈 Compute the curve with my points** repeats '
+        "the model's validation learning from 25, 50 and 75 % of your points. If accuracy "
+        'still rises from half of them to all (twice as many), more points will improve the '
+        'map; if it has almost stopped rising, more similar points will hardly change it.'))
     st.altair_chart(pp.chart_curva_puntos(
         mr.CURVA_PUNTOS_SN, marcas=[(_mn, i18n.pick('Mínimo', 'Minimum')),
                                     (_rn, i18n.pick('Recomendado', 'Recommended'))]),
@@ -1667,7 +1692,7 @@ with st.sidebar:
     _models = list_models()
     if _models:
         sel_model_name = st.selectbox(
-            'Modelo base Random Forest', _models, index=0,
+            'Modelo base Random Forest', _models, index=0, key='modelo_partida',
             help=i18n.pick(
                 'Modelos .joblib de la carpeta de la app. Es el que da la probabilidad '
                 'de cada punto, aunque tus puntos traigan etiquetas de campo (con ellas '
@@ -4132,6 +4157,152 @@ with tab_tipos:
             except ValueError as e:
                 return mod, str(e)
 
+        def _mostrar_seleccion(ap, metodo, param):
+            """Lo que sale en «1 · Datos» al aplicar el VIF o el PCA: qué variables se
+            quedan, la tabla del análisis y, variable a variable, por qué (25-11-2026).
+            `ap` es lo guardado al aplicar; `param`, el umbral del VIF o la correlación
+            mínima del PCA."""
+            s, filas, de = ap['sel'], ap['filas'], ap['de']
+            quedan = ', '.join(_var(v) for v in s['quedan'])
+            nq = len(s['quedan'])
+            if metodo == 'vif':
+                st.success(i18n.pick(
+                    f'**Con el VIF se quedan {nq} de {de} variables:** {quedan}.',
+                    f'**With the VIF, {nq} of {de} variables stay:** {quedan}.'))
+            else:
+                st.success(i18n.pick(
+                    f'**Con el PCA se quedan {nq} de {de} variables:** {quedan}. Una por '
+                    f"cada eje importante ({len(s['ejes'])} ejes, el "
+                    f"{_num(s['varianza_pct'], 1)} % de la varianza), más las que se quedan "
+                    'siempre.',
+                    f'**With the PCA, {nq} of {de} variables stay:** {quedan}. One for each '
+                    f"important axis ({len(s['ejes'])} axes, {_num(s['varianza_pct'], 1)} % "
+                    'of the variance), plus those that always stay.'))
+            if s['pocas_muestras']:
+                _m = 'VIF' if metodo == 'vif' else 'PCA'
+                st.warning(i18n.pick(
+                    f"Con {ap['n']} muestras y {de} variables el {_m} no es fiable: hacen "
+                    'falta bastantes más muestras que variables.',
+                    f"With {ap['n']} samples and {de} variables the {_m} is not reliable: "
+                    'many more samples than variables are needed.'))
+            k_q = i18n.pick('Qué pasa', 'What happens')
+
+            def que_pasa(f):
+                q = f['que']
+                if q == 'fija':
+                    return i18n.pick('se queda siempre', 'always stays')
+                if q in ('queda', 'elegida'):
+                    if metodo == 'pca' and f['eje']:
+                        return i18n.pick(f"se queda (eje {f['eje']})",
+                                         f"stays (axis {f['eje']})")
+                    return i18n.pick('se queda', 'stays')
+                paso = (i18n.pick(f" (paso {f['paso']})", f" (step {f['paso']})")
+                        if f.get('paso') else '')
+                return (i18n.pick('se quita', 'removed') + paso
+                        + (i18n.pick(': no varía', ': it does not vary')
+                           if q == 'no_varia' else ''))
+
+            def por_que(f):
+                return mr.texto_por_que(f, metodo, _en, nombre=_var, num=_num,
+                                        umbral=param if metodo == 'vif' else None,
+                                        carga=param if metodo == 'pca' else None)
+
+            if metodo == 'vif':
+                def txt_vif(v):
+                    return '—' if v is None else ('∞' if v == float('inf') else _num(v))
+                st.dataframe(pd.DataFrame([{
+                    'Variable': _var(f['variable']),
+                    'VIF': txt_vif(f['vif']),
+                    k_q: que_pasa(f),
+                    i18n.pick('Las demás la explican', 'The others explain it'):
+                        '—' if f['explicado_pct'] is None else f"{_num(f['explicado_pct'], 1)} %",
+                    i18n.pick('Más parecida de las que se quedan',
+                              'Most similar of those that stay'):
+                        f"{_var(f['parecida'])} (r {_num(f['r'])})" if f['parecida'] else '—'}
+                    for f in filas]), hide_index=True, width='stretch')
+                lim = 100 * (1 - 1 / param)
+                lim = _num(lim, 0 if abs(lim - round(lim)) < 0.05 else 1)
+                st.caption(i18n.pick(
+                    'El VIF de una variable es 1 / (1 − R²), con R² lo que las demás juntas '
+                    f'explican de ella: con el umbral {_num(param, 1)}, se quitan las que las '
+                    f'demás explican en más de un {lim} %. Se '
+                    'quita la de VIF más alto, se vuelve a calcular y se sigue mientras alguna '
+                    'pase del umbral. De las que se quedan, su VIF entre ellas; de las que se '
+                    'quitan, el que tenían al quitarlas. ∞: se obtiene exactamente con otras. '
+                    'r es la correlación entre dos variables: cerca de 1 o de −1, dicen casi '
+                    'lo mismo.',
+                    'The VIF of a variable is 1 / (1 − R²), with R² how much of it the others '
+                    f'together explain: with the threshold {_num(param, 1)}, those that the '
+                    f'others explain more than {lim} % are removed. '
+                    'The one with the highest VIF is removed, the VIF is computed again, and so '
+                    'on while any is above the threshold. For those that stay, their VIF among '
+                    'themselves; for those removed, the one they had when removed. ∞: it is '
+                    'obtained exactly from others. r is the correlation between two '
+                    'variables: close to 1 or −1, they say almost the same.'))
+            else:
+                import altair as alt
+                vp = s.get('valores_propios') or []
+                if vp:
+                    t_eje, t_vp = i18n.pick('Eje', 'Axis'), i18n.pick('Valor propio',
+                                                                     'Eigenvalue')
+                    dfv = pd.DataFrame({'eje': list(range(1, len(vp) + 1)), 'vp': vp,
+                                        'imp': [v > mr.PCA_VALOR_PROPIO for v in vp]})
+                    barras = alt.Chart(dfv).mark_bar().encode(
+                        x=alt.X('eje:O', title=t_eje, axis=alt.Axis(labelAngle=0)),
+                        y=alt.Y('vp:Q', title=t_vp),
+                        color=alt.Color('imp:N', legend=None, scale=alt.Scale(
+                            domain=[True, False], range=['#2e7d32', '#bdbdbd'])),
+                        tooltip=[alt.Tooltip('eje:O', title=t_eje),
+                                 alt.Tooltip('vp:Q', title=t_vp, format='.3f')])
+                    regla = alt.Chart(pd.DataFrame({'y': [mr.PCA_VALOR_PROPIO]})).mark_rule(
+                        color='#c62828', strokeDash=[4, 3]).encode(y='y:Q')
+                    st.altair_chart((barras + regla).properties(height=180), width='stretch')
+                    st.caption(i18n.pick(
+                        'Valor propio de cada eje del PCA: cuántas variables «vale» el eje. '
+                        'Los verdes pasan de 1 (la línea roja): resumen más que una variable '
+                        'sola, y de cada uno se queda una variable.',
+                        'Eigenvalue of each PCA axis: how many variables the axis is "worth". '
+                        'The green ones are above 1 (the red line): they summarise more than a '
+                        'single variable, and one variable stays for each.'))
+                k_lig = i18n.pick(f"Ligadas al eje (|r| ≥ {_num(param)})",
+                                  f"Tied to the axis (|r| ≥ {_num(param)})")
+                st.dataframe(pd.DataFrame([{
+                    i18n.pick('Eje', 'Axis'): e['eje'],
+                    i18n.pick('Valor propio', 'Eigenvalue'): _num(e['valor_propio']),
+                    i18n.pick('Varianza (%)', 'Variance (%)'): _num(e['varianza_pct'], 1),
+                    k_lig: ', '.join(f"{_var(d['variable'])} ({_num(d['carga'])})"
+                                     for d in e['variables']) or '—',
+                    i18n.pick('Se queda', 'Stays'):
+                        _var(e['elegida']) if e['elegida'] else '—'}
+                    for e in s['ejes']]), hide_index=True, width='stretch')
+                st.dataframe(pd.DataFrame([{
+                    'Variable': _var(f['variable']),
+                    k_q: que_pasa(f),
+                    i18n.pick('Su eje', 'Its axis'): str(f['eje']) if f['eje'] else '—',
+                    i18n.pick('Correlación con su eje', 'Correlation with its axis'):
+                        '—' if f['carga'] is None else _num(f['carga']),
+                    i18n.pick('Separa sola', 'Separates on its own'):
+                        '—' if f['separa'] is None else _num(f['separa'])}
+                    for f in filas]), hide_index=True, width='stretch')
+                st.caption(i18n.pick(
+                    'Cada eje del PCA resume variables que van juntas. Correlación con el eje: '
+                    'lo ligada que está la variable a él (cerca de 1 o de −1, mucho). Separa '
+                    'sola: lo bien que distingue las categorías ella sola; con dos, de 0 (nada) '
+                    'a 1 (del todo), y con más, la F del ANOVA (cuanto más alta, mejor). Las '
+                    'que se quedan siempre (' + (', '.join(_var(v) for v in s['fijas'])
+                                                  or 'ninguna') + ') no entran en el PCA.',
+                    'Each PCA axis summarises variables that go together. Correlation with the '
+                    'axis: how tied the variable is to it (close to 1 or −1, a lot). Separates '
+                    'on its own: how well it tells the categories apart by itself; with two, '
+                    'from 0 (not at all) to 1 (completely), and with more, the ANOVA F (the '
+                    'higher, the better). Those that always stay (' + (', '.join(
+                        _var(v) for v in s['fijas']) or 'none') + ') are left out of the PCA.'))
+            with st.expander(i18n.pick('Por qué, variable a variable',
+                                       'Why, variable by variable'), expanded=True):
+                st.markdown('\n'.join(
+                    f"- **{_var(f['variable'])}** · {que_pasa(f)}. {por_que(f)}"
+                    for f in filas))
+
         # Por dónde va el trabajo en el nivel elegido. El hueco se rellena al final,
         # cuando las pestañas han hecho sus cuentas, pero queda encima de ellas.
         _estado = st.container()
@@ -4260,36 +4431,49 @@ with tab_tipos:
             # ¿Son bastantes puntos? Dónde está la persona en la curva de Sierra Nevada
             # (24-11, idea de la autora). Solo para el sí o no: la curva se midió ahí.
             if _nivel == mr.NIVEL_SI_NO:
+                # Borreguiles y ausencias por separado (las ausencias, desde el 25-11-2026:
+                # antes, 100 borreguiles y 6 ausencias «llegaban al mínimo»)
                 _nb = sum(c['n'] for c in _res['clases']
                           if c['codigo'] != mr.CODIGO_AUSENCIA)
-                _lp = mr.lectura_puntos(_nm, _nb)
+                _na = sum(c['n'] for c in _res['clases']
+                          if c['codigo'] == mr.CODIGO_AUSENCIA)
+                _lp = mr.lectura_puntos(_nm, _nb, _na)
                 (_mn, _mb), (_rn, _rb) = mr.MINIMO_PUNTOS, mr.RECOMENDADO_PUNTOS
-                _fa, _fb = _lp['faltan'], _lp['faltan_borreguiles']
-                if not _fa:
-                    _falta_es = f'te faltan {_fb} borreguiles'
-                    _falta_en = f'you need {_fb} more borreguiles'
-                elif not _fb:
-                    _falta_es = f'te faltan unos {_fa} puntos'
-                    _falta_en = f'you need about {_fa} more points'
+                _ma, _ra = mr.MINIMO_AUSENCIAS, mr.RECOMENDADO_AUSENCIAS
+                _fb, _fx = _lp['faltan_borreguiles'], _lp['faltan_ausencias']
+
+                def _bor(k, en=False):
+                    return f"{k} borreguil{'' if k == 1 else 'es'}"
+
+                def _aus(k, en=False):
+                    return (f"{k} absence{'' if k == 1 else 's'}" if en
+                            else f"{k} ausencia{'' if k == 1 else 's'}")
+
+                if _fb and _fx:
+                    _falta_es = f'te faltan {_bor(_fb)} y {_aus(_fx)}'
+                    _falta_en = f'you need {_bor(_fb, True)} and {_aus(_fx, True)} more'
+                elif _fx:
+                    _falta_es = f'te faltan {_aus(_fx)}'
+                    _falta_en = f'you need {_aus(_fx, True)} more'
                 else:
-                    _falta_es = (f'te faltan unos {max(_fa, _fb)} puntos, {_fb} de ellos '
-                                 'borreguiles')
-                    _falta_en = (f'you need about {max(_fa, _fb)} more points, {_fb} of '
-                                 'them borreguiles')
-                _tienes_es = (f"**{_nm} muestra{'' if _nm == 1 else 's'} ({_nb} "
-                              f"borreguil{'' if _nb == 1 else 'es'})**")
-                _tienes_en = (f"**{_nm} sample{'' if _nm == 1 else 's'} ({_nb} "
-                              f"borreguil{'' if _nb == 1 else 'es'})**")
+                    _falta_es = f'te faltan {_bor(_fb)}'
+                    _falta_en = f'you need {_bor(_fb, True)} more'
+                _tienes_es = (f"**{_nm} muestra{'' if _nm == 1 else 's'} ({_bor(_nb)} y "
+                              f"{_aus(_na)})**")
+                _tienes_en = (f"**{_nm} sample{'' if _nm == 1 else 's'} ({_bor(_nb, True)} "
+                              f"and {_aus(_na, True)})**")
+                _min_es = f'{_mn} puntos: {_mb} borreguiles y {_ma} ausencias'
+                _min_en = f'{_mn} points: {_mb} borreguiles and {_ma} absences'
                 _auc = _num(_lp['auc'])
                 st.markdown(i18n.pick('**¿Son bastantes puntos?**', '**Are they enough points?**'))
                 if _lp['nivel'] == 'sin_referencia':
                     st.warning(i18n.pick(
                         f'Tienes {_tienes_es}. Con menos de 20 no hay referencia: el acierto '
-                        f'será bajo y muy variable. Para el mínimo ({_mn} puntos, {_mb} '
-                        f'borreguiles), {_falta_es}.',
+                        f'será bajo y muy variable. Para el mínimo ({_min_es}), '
+                        f'{_falta_es}.',
                         f'You have {_tienes_en}. Below 20 there is no reference: accuracy '
-                        f'will be low and very variable. For the minimum ({_mn} points, '
-                        f'{_mb} borreguiles), {_falta_en}.'))
+                        f'will be low and very variable. For the minimum ({_min_en}), '
+                        f'{_falta_en}.'))
                 elif _lp['nivel'] in ('pocos', 'bajo_minimo'):
                     _var_es = (', y cambiaba mucho según qué puntos fueran'
                                if _lp['nivel'] == 'pocos' else '')
@@ -4297,20 +4481,21 @@ with tab_tipos:
                                if _lp['nivel'] == 'pocos' else '')
                     st.warning(i18n.pick(
                         f'Tienes {_tienes_es}. En Sierra Nevada, con {_nm} puntos el AUC en '
-                        f'zonas nuevas era de {_auc}{_var_es}. Para el mínimo ({_mn} '
-                        f'puntos, {_mb} borreguiles), {_falta_es}.',
+                        f'zonas nuevas era de {_auc}{_var_es}. Para el mínimo ({_min_es}), '
+                        f'{_falta_es}.',
                         f'You have {_tienes_en}. In Sierra Nevada, with {_nm} points the AUC '
-                        f'in new areas was {_auc}{_var_en}. For the minimum ({_mn} points, '
-                        f'{_mb} borreguiles), {_falta_en}.'))
+                        f'in new areas was {_auc}{_var_en}. For the minimum ({_min_en}), '
+                        f'{_falta_en}.'))
                 elif _lp['nivel'] == 'minimo':
                     st.info(i18n.pick(
                         f'Tienes {_tienes_es}: llegas al mínimo. En Sierra Nevada, con '
                         f'{_nm} puntos el AUC en zonas nuevas era de {_auc}. Con más, hasta '
-                        f'unos {_rn} ({_rb} borreguiles), el mapa todavía mejora algo.',
+                        f'unos {_rn} ({_rb} borreguiles y {_ra} ausencias), el mapa todavía '
+                        'mejora algo.',
                         f'You have {_tienes_en}: you reach the minimum. In Sierra Nevada, '
                         f'with {_nm} points the AUC in new areas was {_auc}. With more, up '
-                        f'to about {_rn} ({_rb} borreguiles), the map still improves a '
-                        'little.'))
+                        f'to about {_rn} ({_rb} borreguiles and {_ra} absences), the map '
+                        'still improves a little.'))
                 else:
                     st.success(i18n.pick(
                         f'Tienes {_tienes_es}: llegas a lo recomendado. En Sierra Nevada, con '
@@ -4319,6 +4504,50 @@ with tab_tipos:
                         f'You have {_tienes_en}: you reach the recommended number. In Sierra '
                         f'Nevada, with {_nm} points the AUC in new areas was {_auc}; with more '
                         'points it hardly changes.'))
+                # Borreguiles y ausencias, siempre a la vista (25-11-2026, la autora: «no
+                # veo lo de las ausencias»: si se llegaba, solo salían entre paréntesis)
+                def _meta(tienes, hace_falta):
+                    return (f'{hace_falta} ✓' if tienes >= hace_falta else
+                            i18n.pick(f'{hace_falta} (faltan {hace_falta - tienes})',
+                                      f'{hace_falta} ({hace_falta - tienes} to go)'))
+                # El total va primero: es el número de la gráfica (100 = 33 + 67); sin él,
+                # «mínimo 33» y «mínimo 100 puntos» parecían contradecirse (25-11-2026)
+                st.dataframe(pd.DataFrame([
+                    {i18n.pick('Muestras', 'Samples'):
+                         i18n.pick('Total (los puntos de la gráfica)',
+                                   'Total (the points in the chart)'),
+                     i18n.pick('Tienes', 'You have'): str(_nm),
+                     i18n.pick('Mínimo', 'Minimum'): _meta(_nm, _mn),
+                     i18n.pick('Recomendado', 'Recommended'): _meta(_nm, _rn)},
+                    {i18n.pick('Muestras', 'Samples'): i18n.pick('· borreguiles',
+                                                                 '· borreguiles'),
+                     i18n.pick('Tienes', 'You have'): str(_nb),
+                     i18n.pick('Mínimo', 'Minimum'): _meta(_nb, _mb),
+                     i18n.pick('Recomendado', 'Recommended'): _meta(_nb, _rb)},
+                    {i18n.pick('Muestras', 'Samples'):
+                         i18n.pick('· ausencias (no borreguil)',
+                                   '· absences (not a borreguil)'),
+                     i18n.pick('Tienes', 'You have'): str(_na),
+                     i18n.pick('Mínimo', 'Minimum'): _meta(_na, _ma),
+                     i18n.pick('Recomendado', 'Recommended'): _meta(_na, _ra)}]),
+                    hide_index=True, width='stretch')
+                st.caption(i18n.pick(
+                    f'El mínimo de la gráfica, {_mn} puntos, es la suma de {_mb} borreguiles y '
+                    f'{_ma} ausencias; lo recomendado, {_rn} = {_rb} + {_ra}. Hacen falta los '
+                    'dos: muchos borreguiles no suplen las ausencias que faltan. '
+                    'Las ausencias son los sitios que has comprobado que **no** son '
+                    'borreguil: `presence` = 0 en tu fichero, «✗ Marcar como no borreguil '
+                    'verificado» al revisar un punto o «✗ Aquí no hay» al pinchar en el mapa. '
+                    'La app no se las inventa. Para buscarlas donde no has muestreado, genera '
+                    'puntos al azar «lejos de tus puntos de campo» y revísalos.',
+                    f'The minimum in the chart, {_mn} points, is the sum of {_mb} borreguiles '
+                    f'and {_ma} absences; the recommended one, {_rn} = {_rb} + {_ra}. Both '
+                    'are needed: many borreguiles do not make up for missing absences. '
+                    'Absences are the places you have checked are **not** a borreguil: '
+                    '`presence` = 0 in your file, "✗ Mark as verified non-borreguil" when '
+                    'reviewing a point or "✗ There is none" when clicking on the map. The app '
+                    'never invents them. To look for them where you have not sampled, '
+                    'generate random points "far from your field points" and review them.'))
                 st.altair_chart(pp.chart_curva_puntos(
                     mr.CURVA_PUNTOS_SN, n=_nm,
                     marcas=[(_mn, i18n.pick('Mínimo', 'Minimum')),
@@ -4326,15 +4555,22 @@ with tab_tipos:
                     width='stretch')
                 st.caption(i18n.pick(
                     'Referencia de Sierra Nevada: el mapa entrenado con distintos números de '
-                    'puntos revisados y medido en zonas que no había visto. En una montaña '
-                    'más variada pueden hacer falta más, y los puntos repartidos por toda la '
-                    'zona enseñan más que los concentrados en pocos valles. Más en '
-                    '📖 Documentación.',
+                    'puntos revisados y medido en zonas que no había visto. La curva se hizo '
+                    'con 1 borreguil por cada 2 ausencias; de ahí salen los borreguiles y las '
+                    'ausencias del mínimo y de lo recomendado (no se probaron otras '
+                    'proporciones). En una montaña más variada pueden hacer falta más, y los '
+                    'puntos repartidos por toda la zona enseñan más que los concentrados en '
+                    'pocos valles. La curva con tus propios puntos se calcula en «3 · '
+                    'Modelo», después de entrenar. Más en 📖 Documentación.',
                     'Sierra Nevada reference: the map trained with different numbers of '
-                    'reviewed points and measured in areas it had not seen. A more varied '
-                    'mountain may need more, and points spread over the whole area teach '
-                    'more than points concentrated in a few valleys. More under '
-                    '📖 Documentation.'))
+                    'reviewed points and measured in areas it had not seen. The curve was '
+                    'made with 1 borreguil for every 2 absences; that is where the '
+                    'borreguiles and absences of the minimum and the recommended numbers come '
+                    'from (other proportions were not tested). A more varied mountain may '
+                    'need more, and points spread over the whole area teach more than points '
+                    'concentrated in a few valleys. The curve with your own points is '
+                    'computed under "3 · Model", after training. More under 📖 '
+                    'Documentation.'))
 
             # Qué puntos no entran, y por qué
             if _res['excluidos']:
@@ -4418,10 +4654,36 @@ with tab_tipos:
                 st.error(i18n.pick('Elige al menos una variable.',
                                    'Choose at least one variable.'))
 
+            # Lo que ya está leído en Earth Engine de cada muestra («2 · Tabla»). Vale
+            # mientras no cambien los años, la zona UTM de la rejilla ni la manera de
+            # calcular las variables (geb.VERSION_PILA). Se calcula aquí porque el VIF y
+            # el PCA se aplican en esta pestaña, con esos valores.
+            import gee_backend as geb
+            try:
+                _anios = list(bp.parse_years(years_str))
+            except Exception:
+                _anios = []
+            _usadas = [f for f in _res['tabla'] if f['usada']]
+            _epsg = (geb.utm_de([(float(f['lon']), float(f['lat'])) for f in _usadas])
+                     if _usadas else None)
+            _lect = st.session_state.get('mrf_lectura')
+            if _lect and (_lect.get('anios') != _anios or _lect.get('epsg') != _epsg
+                          or (_lect.get('info') or {}).get('version') != geb.VERSION_PILA):
+                _lect = None
+            _leidos = (_lect or {}).get('valores', {})
+            _pend = [f for f in _usadas
+                     if mr.clave_punto(f['lon'], f['lat']) not in _leidos]
+            # La tabla de entrenamiento con todas las variables elegidas (la de «2 ·
+            # Tabla» antes de quitar las repetidas), si ya hay algo leído
+            _tab_todas = (mr.construir_tabla(_res, _leidos, _predictores)
+                          if _predictores and any(mr.clave_punto(f['lon'], f['lat'])
+                                                  in _leidos for f in _usadas) else None)
+
             # ---- Variables repetidas: con el VIF o con un PCA. Desde el 24-11 se decide
-            # aquí, junto a las variables (lo pidió la autora). Se calcula en «2 · Tabla»,
-            # con los valores de las muestras (la lectura trae siempre todas las
-            # variables), y aquí se dice cuántas se quedan. De entrada no se quita nada.
+            # aquí, junto a las variables (lo pidió la autora), y desde el 25-11 se
+            # aplica aquí con un botón, que enseña qué variables se quedan y por qué. Se
+            # calcula con los valores de las muestras (la lectura de «2 · Tabla» trae
+            # siempre todas las variables). De entrada no se quita nada.
             st.markdown(i18n.pick('**Variables repetidas**', '**Repeated variables**'))
             _met_txt = {'ninguno': i18n.pick('No quitar ninguna', 'Remove none'),
                         'vif': i18n.pick('Con el VIF', 'With the VIF'),
@@ -4442,7 +4704,8 @@ with tab_tipos:
                     'queda una variable: entre las muy ligadas a él, la que mejor separa '
                     'las categorías por sí sola.\n\n'
                     'Los dos se calculan con los valores de las muestras, que se leen en '
-                    '«2 · Tabla»; allí sale qué variables se quedan. El Random Forest no los '
+                    '«2 · Tabla». Después, al pulsar **Aplicar**, sale aquí mismo qué '
+                    'variables se quedan y por qué. El Random Forest no los '
                     'necesita para acertar, pero con menos variables el modelo es más '
                     'sencillo y su peso, en «5 · Peso», se lee mejor. En Sierra Nevada, el '
                     'VIF dejó 14 variables y el PCA con la altitud, 4, con el mismo acierto '
@@ -4460,7 +4723,8 @@ with tab_tipos:
                     '(eigenvalue above 1): among those strongly tied to it, the one that '
                     'best separates the categories on its own.\n\n'
                     'Both are computed with the values of the samples, which are read under '
-                    '"2 · Table"; which variables stay is shown there. The Random Forest '
+                    '"2 · Table". Then, when you press **Apply**, which variables stay and '
+                    'why is shown right here. The Random Forest '
                     'does not need them to be right, but with fewer variables the model is '
                     'simpler and its weights, under "5 · Weights", are easier to read. In '
                     'Sierra Nevada, the VIF kept 14 variables and the PCA with elevation 4, '
@@ -4470,7 +4734,8 @@ with tab_tipos:
                     'validates better (the comparison is at the end of "3 · Model").'))
             _vif_si, _pca_si = _metodo == 'vif', _metodo == 'pca'
             _vif_u, _vif_f = float(mr.VIF_UMBRAL), list(mr.VIF_FIJAS)
-            _pca_c, _vif_linea = float(mr.PCA_CARGA), None
+            # _sel_vig: lo aplicado con el botón, si sigue valiendo (si no, None)
+            _pca_c, _sel_vig = float(mr.PCA_CARGA), None
             if _metodo != 'ninguno':
                 # Los valores de partida se ponen justo antes de dibujar los controles
                 # (si no, el navegador no los enseña); las fijas, solo las elegidas.
@@ -4528,13 +4793,84 @@ with tab_tipos:
                         'and added). Elevation comes selected: anywhere, borreguiles are wet '
                         'high-mountain meadows.\n\n'
                         '**Recommended: elevation.**'))
-                # Cuántas se quedan: lo escribe «2 · Tabla» cuando lo calcula.
-                _vif_linea = st.empty()
-                _vif_linea.caption(i18n.pick(
-                    'Se calculará con los valores de las muestras, al leerlos en '
-                    '«2 · Tabla».',
-                    'It will be computed with the values of the samples, once they are '
-                    'read under "2 · Table".'))
+                # ---- Aplicar (25-11-2026, la autora: «que haya un botón de aplicar y te
+                # muestre en esta misma pestaña qué variables se han quedado y algún
+                # output del análisis para entender por qué»). Lo aplicado se guarda por
+                # nivel y método, y vale mientras no cambien sus ajustes, las variables
+                # elegidas ni las muestras (o sus valores). Si cambian, hay que volver a
+                # aplicarlo; mientras, se usan todas las variables elegidas.
+                _nom_met = (i18n.pick('el VIF', 'the VIF') if _vif_si
+                            else i18n.pick('el PCA', 'the PCA'))
+                _lista = bool(_tab_todas is not None and _tab_todas['listo']
+                              and len(_tab_todas['filas']) >= 3)
+                _fijas_t = ([v for v in _vif_f if v in _tab_todas['predictores']]
+                            if _tab_todas is not None else [])
+                _firma = ((_metodo, round(float(_vif_u if _vif_si else _pca_c), 6),
+                           tuple(sorted(_fijas_t)), tuple(_tab_todas['predictores']),
+                           tuple((round(float(f['lon']), 7), round(float(f['lat']), 7),
+                                  f['codigo']) for f in _tab_todas['filas']),
+                           (_lect or {}).get('cuando'))
+                          if _lista else None)
+                _aplicadas = st.session_state.setdefault('mrf_sel_aplicada', {})
+                _clave_ap = f'{_nivel}|{_metodo}'
+                if st.button(i18n.pick(f'✔ Aplicar {_nom_met}', f'✔ Apply {_nom_met}'),
+                             key='mrf_aplicar_sel', type='primary', disabled=not _lista,
+                             help=i18n.pick(
+                                 'Calcula qué variables se quedan con los valores de las '
+                                 'muestras. El modelo, el mapa y el peso usarán solo esas.',
+                                 'Works out which variables stay from the values of the '
+                                 'samples. The model, the map and the weights will use only '
+                                 'those.')):
+                    if _vif_si:
+                        _s = mr.elegir_por_vif(_tab_todas['X'], _tab_todas['predictores'],
+                                               _vif_u, _fijas_t)
+                        _fl = mr.por_que_vif(_tab_todas['X'], _tab_todas['predictores'], _s)
+                    else:
+                        _s = mr.elegir_por_pca(_tab_todas['X'], _tab_todas['y'],
+                                               _tab_todas['predictores'], _fijas_t, _pca_c)
+                        _fl = mr.por_que_pca(_s, _tab_todas['predictores'])
+                    _aplicadas[_clave_ap] = {'firma': _firma, 'sel': _s, 'filas': _fl,
+                                             'de': len(_tab_todas['predictores']),
+                                             'n': len(_tab_todas['filas'])}
+                _ap = _aplicadas.get(_clave_ap)
+                if _ap and _firma is not None and _ap['firma'] == _firma:
+                    _sel_vig = _ap
+                _n_todas = len(_predictores)
+                if _sel_vig is None:
+                    if _tab_todas is None:
+                        st.caption(i18n.pick(
+                            'Para aplicarlo hacen falta los valores de las muestras: léelos '
+                            'en «2 · Tabla» (botón «📥 Leer las variables…») y vuelve aquí. '
+                            f'Mientras, se usan las {_n_todas} variables.',
+                            'Applying it needs the values of the samples: read them under '
+                            '"2 · Table" ("📥 Read the variables…" button) and come back '
+                            f'here. Meanwhile, the {_n_todas} variables are used.'))
+                    elif not _lista:
+                        st.caption(i18n.pick(
+                            'Se podrá aplicar cuando la tabla de entrenamiento esté lista '
+                            f'(mira «2 · Tabla»). Mientras, se usan las {_n_todas} variables.',
+                            'It can be applied once the training table is ready (see '
+                            f'"2 · Table"). Meanwhile, the {_n_todas} variables are used.'))
+                    elif _ap:
+                        st.warning(i18n.pick(
+                            'Has cambiado algo desde que lo aplicaste (las variables, el '
+                            'ajuste, las que se quedan siempre o las muestras): vuelve a '
+                            f'pulsar «✔ Aplicar {_nom_met}». Mientras, se usan las '
+                            f'{_n_todas} variables.',
+                            'Something has changed since you applied it (the variables, the '
+                            'setting, those that always stay or the samples): press '
+                            f'"✔ Apply {_nom_met}" again. Meanwhile, the {_n_todas} '
+                            'variables are used.'))
+                    else:
+                        st.info(i18n.pick(
+                            f'Pulsa «✔ Aplicar {_nom_met}» para ver qué variables se quedan '
+                            f'y por qué. Mientras no lo apliques, se usan las {_n_todas} '
+                            'variables.',
+                            f'Press "✔ Apply {_nom_met}" to see which variables stay and '
+                            f'why. Until you apply it, the {_n_todas} variables are used.'))
+                else:
+                    _mostrar_seleccion(_sel_vig, 'vif' if _vif_si else 'pca',
+                                       _vif_u if _vif_si else _pca_c)
             with st.expander(i18n.pick('Qué mide cada variable', 'What each variable measures')):
                 st.caption(i18n.pick(
                     'Las **estadísticas de jun – sep** (media, mínimo, máximo y '
@@ -4573,23 +4909,9 @@ with tab_tipos:
                 'of each sample: the same pixel that will later be classified. That is why '
                 'the values the points already have, which are means over a 50–60 m '
                 'window around the point, are not used.'))
+            # (lo ya leído de cada muestra, _lect/_leidos/_pend, se calcula en
+            # «1 · Datos», que lo usa para el VIF y el PCA)
             import gee_backend as geb
-            try:
-                _anios = list(bp.parse_years(years_str))
-            except Exception:
-                _anios = []
-            _usadas = [f for f in _res['tabla'] if f['usada']]
-            _epsg = (geb.utm_de([(float(f['lon']), float(f['lat'])) for f in _usadas])
-                     if _usadas else None)
-            # Lo ya leído vale mientras no cambien los años, la zona UTM de la rejilla
-            # ni la manera de calcular las variables (geb.VERSION_PILA).
-            _lect = st.session_state.get('mrf_lectura')
-            if _lect and (_lect.get('anios') != _anios or _lect.get('epsg') != _epsg
-                          or (_lect.get('info') or {}).get('version') != geb.VERSION_PILA):
-                _lect = None
-            _leidos = (_lect or {}).get('valores', {})
-            _pend = [f for f in _usadas
-                     if mr.clave_punto(f['lon'], f['lat']) not in _leidos]
 
             # El proyecto de Earth Engine es el del panel lateral (ya no se vuelve a pedir
             # aquí, 24-11-2026). Si allí está elegido Planetary Computer, el último con
@@ -4685,9 +5007,8 @@ with tab_tipos:
 
             # La tabla, con lo que ya está leído
             _tab = None
-            if _predictores and any(mr.clave_punto(f['lon'], f['lat']) in _leidos
-                                    for f in _usadas):
-                _tab = mr.construir_tabla(_res, _leidos, _predictores)
+            if _tab_todas is not None:          # hecha en «1 · Datos», con lo leído
+                _tab = _tab_todas
                 _nt = len(_tab['filas'])
                 st.markdown(i18n.pick(
                     f"**{_nt} muestra{'' if _nt == 1 else 's'} con todas sus variables** "
@@ -4786,144 +5107,46 @@ with tab_tipos:
                         'figures are computed in each year and then averaged across years · '
                         'the relief comes at 30 m and is smoothed to 10 m.'))
 
-                # ---- Variables repetidas (VIF). Se decide en «1 · Datos», junto a las
-                # variables; aquí se calcula con los valores de las muestras de esta
-                # tabla, y el modelo, el mapa y el peso usan después la tabla con las que
-                # se quedan.
+                # ---- Variables repetidas (VIF o PCA). Se eligen y se aplican en
+                # «1 · Datos», que enseña cuáles se quedan y por qué (25-11-2026); aquí se
+                # sigue con la tabla de las que se quedan, que es la que usan el modelo, el
+                # mapa y el peso.
                 if _metodo == 'ninguno':
                     st.caption(i18n.pick(
                         'Para quitar las variables repetidas, elige el VIF o un PCA en '
                         '«1 · Datos», debajo de las variables.',
                         'To remove repeated variables, choose the VIF or a PCA under '
                         '"1 · Data", below the variables.'))
-                elif _pca_si:
-                    st.markdown(i18n.pick('#### Variables repetidas (PCA)',
-                                          '#### Repeated variables (PCA)'))
-                    _vif_f = [v for v in _vif_f if v in _tab['predictores']]
-                    if not _tab['listo'] or len(_tab['filas']) < 3:
-                        st.info(i18n.pick(
-                            'El PCA se calcula cuando la tabla esté lista para entrenar.',
-                            'The PCA is computed once the table is ready for training.'))
-                    else:
-                        _selp = mr.elegir_por_pca(_tab['X'], _tab['y'], _tab['predictores'],
-                                                  _vif_f, _pca_c)
-                        _de_pca = len(_tab['predictores'])
-                        if _vif_linea is not None:          # la línea de «1 · Datos»
-                            _vif_linea.markdown(i18n.pick(
-                                f"Con el PCA se quedan **{len(_selp['quedan'])} de "
-                                f"{_de_pca}** variables (detalle en «2 · Tabla»).",
-                                f"With the PCA, **{len(_selp['quedan'])} of {_de_pca}** "
-                                'variables stay (details under "2 · Table").'))
-                        st.markdown(i18n.pick(
-                            f"**Se quedan {len(_selp['quedan'])} de {_de_pca} variables**: "
-                            f"una por cada eje importante del PCA ({len(_selp['ejes'])} "
-                            f"ejes, el {_num(_selp['varianza_pct'], 1)} % de la varianza), "
-                            'más las que se quedan siempre. El modelo, el mapa y el peso '
-                            'usan solo estas.',
-                            f"**{len(_selp['quedan'])} of {_de_pca} variables stay**: one "
-                            f"for each important axis of the PCA ({len(_selp['ejes'])} axes, "
-                            f"{_num(_selp['varianza_pct'], 1)} % of the variance), plus "
-                            'those that always stay. The model, the map and the weights use '
-                            'only these.'))
-                        if _selp['pocas_muestras']:
-                            st.warning(i18n.pick(
-                                f"Con {len(_tab['filas'])} muestras y {_de_pca} variables el "
-                                'PCA no es fiable: hacen falta bastantes más muestras que '
-                                'variables.',
-                                f"With {len(_tab['filas'])} samples and {_de_pca} variables "
-                                'the PCA is not reliable: many more samples than variables '
-                                'are needed.'))
-                        _k_lig = i18n.pick(f"Ligadas al eje (|r| ≥ {_num(_pca_c, 2)})",
-                                           f"Tied to the axis (|r| ≥ {_num(_pca_c, 2)})")
-                        st.dataframe(pd.DataFrame([{
-                            i18n.pick('Eje', 'Axis'): e['eje'],
-                            i18n.pick('Valor propio', 'Eigenvalue'): _num(e['valor_propio'], 2),
-                            i18n.pick('Varianza (%)', 'Variance (%)'): _num(e['varianza_pct'], 1),
-                            _k_lig: ', '.join(f"{_var(d['variable'])} ({_num(d['carga'], 2)})"
-                                              for d in e['variables']) or '—',
-                            i18n.pick('Se queda', 'Stays'):
-                                _var(e['elegida']) if e['elegida'] else '—'}
-                            for e in _selp['ejes']]), hide_index=True, width='stretch')
-                        st.caption(i18n.pick(
-                            'Cada fila es un eje del PCA con valor propio mayor que 1. Entre '
-                            'paréntesis, la correlación de cada variable con el eje. De cada '
-                            'eje se queda la que mejor separa las categorías por sí sola. '
-                            'Las que se quedan siempre (' + (', '.join(_var(v) for v in
-                            _selp['fijas']) or 'ninguna') + ') no entran en el PCA.',
-                            'Each row is an axis of the PCA with an eigenvalue above 1. In '
-                            'brackets, the correlation of each variable with the axis. From '
-                            'each axis, the one that best separates the categories on its '
-                            'own stays. Those that always stay (' + (', '.join(_var(v) for v
-                            in _selp['fijas']) or 'none') + ') are left out of the PCA.'))
-                        # La tabla con la que se sigue: solo con las que se quedan.
-                        _tab = mr.construir_tabla(_res, _leidos, _selp['quedan'])
-                        _tab['pca'] = {'metodo': 'pca', 'carga': float(_pca_c),
-                                       'fijas': list(_selp['fijas']), 'de': _de_pca,
-                                       'ejes': len(_selp['ejes'])}
+                elif _sel_vig is None:
+                    st.info(i18n.pick(
+                        f'Has elegido quitar las variables repetidas con {_nom_met}, pero no '
+                        f"está aplicado: se usan las {len(_tab['predictores'])} variables. "
+                        f'Para aplicarlo, pulsa «✔ Aplicar {_nom_met}» en «1 · Datos».',
+                        f'You chose to remove repeated variables with {_nom_met}, but it is '
+                        f"not applied: the {len(_tab['predictores'])} variables are used. To "
+                        f'apply it, press "✔ Apply {_nom_met}" under "1 · Data".'))
                 else:
-                    st.markdown(i18n.pick('#### Variables repetidas (VIF)',
-                                          '#### Repeated variables (VIF)'))
-                    # que las fijas sean de las que hay en la tabla
-                    _vif_f = [v for v in _vif_f if v in _tab['predictores']]
-                    if not _tab['listo'] or len(_tab['filas']) < 3:
-                        st.info(i18n.pick(
-                            'El VIF se calcula cuando la tabla esté lista para entrenar.',
-                            'The VIF is computed once the table is ready for training.'))
-                    else:
-                        _sel = mr.elegir_por_vif(_tab['X'], _tab['predictores'], _vif_u, _vif_f)
-                        _de_vif = len(_tab['predictores'])
-                        if _vif_linea is not None:          # la línea de «1 · Datos»
-                            _vif_linea.markdown(i18n.pick(
-                                f"Con el VIF se quedan **{len(_sel['quedan'])} de "
-                                f"{_de_vif}** variables (detalle en «2 · Tabla»).",
-                                f"With the VIF, **{len(_sel['quedan'])} of {_de_vif}** "
-                                'variables stay (details under "2 · Table").'))
-                        st.markdown(i18n.pick(
-                            f"**Se quedan {len(_sel['quedan'])} de {_de_vif} variables.** "
-                            'El modelo, el mapa y el peso usan solo estas.',
-                            f"**{len(_sel['quedan'])} of {_de_vif} variables stay.** The "
-                            'model, the map and the weights use only these.'))
-                        if _sel['pocas_muestras']:
-                            st.warning(i18n.pick(
-                                f"Con {len(_tab['filas'])} muestras y {_de_vif} variables el "
-                                'VIF no es fiable: hacen falta bastantes más muestras que '
-                                'variables.',
-                                f"With {len(_tab['filas'])} samples and {_de_vif} variables "
-                                'the VIF is not reliable: many more samples than variables '
-                                'are needed.'))
-
-                        def _txt_vif(v):
-                            return '—' if v is None else ('∞' if v == float('inf')
-                                                          else _num(v))
-                        _k_q = i18n.pick('Qué pasa', 'What happens')
-                        st.dataframe(pd.DataFrame(
-                            [{'Variable': _var(n), 'VIF': _txt_vif(_sel['vif'][n]),
-                              _k_q: (i18n.pick('se queda siempre', 'always stays')
-                                     if n in _sel['fijas'] else i18n.pick('se queda', 'stays'))}
-                             for n in _sel['quedan']]
-                            + [{'Variable': _var(q['variable']), 'VIF': _txt_vif(q['vif']),
-                                _k_q: i18n.pick(f"se quita (paso {q['paso']})",
-                                                f"removed (step {q['paso']})")
-                                + (i18n.pick(': no varía', ': it does not vary')
-                                   if q['vif'] is None else '')}
-                               for q in _sel['quitadas']]),
-                            hide_index=True, width='stretch')
-                        st.caption(i18n.pick(
-                            'De las que se quedan, su VIF entre ellas; de las que se quitan, '
-                            'el que tenían al quitarlas. ∞: se obtiene exactamente con '
-                            'otras (la caída del NDVI, por ejemplo, es el NDVI de inicio '
-                            'menos el de fin de verano).',
-                            'For those that stay, their VIF among themselves; for those '
-                            'removed, the one they had when removed. ∞: it is obtained '
-                            'exactly from others (the NDVI drop, for instance, is the '
-                            'early-summer NDVI minus the late-summer one).'))
-                        # La tabla con la que se sigue: solo con las que se quedan (puede
-                        # recuperar muestras a las que solo les faltaba una de las quitadas).
-                        _tab = mr.construir_tabla(_res, _leidos, _sel['quedan'])
+                    _s_ap = _sel_vig['sel']
+                    _m_ap = 'VIF' if _vif_si else 'PCA'
+                    st.markdown(i18n.pick(
+                        f"**Variables repetidas ({_m_ap}):** se quedan "
+                        f"{len(_s_ap['quedan'])} de {_sel_vig['de']}; cuáles y por qué, en "
+                        '«1 · Datos». El modelo, el mapa y el peso usan solo esas.',
+                        f"**Repeated variables ({_m_ap}):** {len(_s_ap['quedan'])} of "
+                        f"{_sel_vig['de']} stay; which ones and why, under \"1 · Data\". "
+                        'The model, the map and the weights use only those.'))
+                    # La tabla con la que se sigue: solo con las que se quedan (puede
+                    # recuperar muestras a las que solo les faltaba una de las quitadas).
+                    _tab = mr.construir_tabla(_res, _leidos, _s_ap['quedan'])
+                    if _vif_si:
                         _tab['vif'] = {'metodo': 'vif', 'umbral': float(_vif_u),
-                                       'fijas': list(_sel['fijas']),
-                                       'de': _de_vif,
-                                       'quitadas': [q['variable'] for q in _sel['quitadas']]}
+                                       'fijas': list(_s_ap['fijas']),
+                                       'de': _sel_vig['de'],
+                                       'quitadas': [q['variable'] for q in _s_ap['quitadas']]}
+                    else:
+                        _tab['pca'] = {'metodo': 'pca', 'carga': float(_pca_c),
+                                       'fijas': list(_s_ap['fijas']), 'de': _sel_vig['de'],
+                                       'ejes': len(_s_ap['ejes'])}
 
         # ------------------------------------------------------ 3 · Modelo
         # Validar (por zonas) y entrenar el modelo final son dos procesos
@@ -5525,6 +5748,130 @@ with tab_tipos:
                         i18n.pick('Muestras', 'Samples'): _bal['original'][c],
                         i18n.pick('Usadas al entrenar', 'Used to train'): _bal['final'][c]}
                         for c in _bal['original']]), hide_index=True, width='stretch')
+
+                # ---- ¿Mejoraría con más puntos? La curva con los puntos de esta zona
+                # (25-11-2026, la autora: «¿los puntos mínimos son solo para Sierra
+                # Nevada?»). La de Sierra Nevada, en «1 · Datos», es una referencia; esta
+                # repite la validación de este modelo con menos puntos
+                # (mapeo_rf.curva_propia). Se guarda en el propio modelo: al volver a
+                # entrenar, desaparece.
+                if ('_validacion' in _mod and _tab is not None
+                        and _mod['firma'] == mr.firma_tabla(_tab)):
+                    st.markdown(i18n.pick('#### ¿Mejoraría con más puntos?',
+                                          '#### Would more points help?'))
+                    _n_ent = mr.entrenamientos_curva(_mod)
+                    st.caption(i18n.pick(
+                        'El mínimo de puntos de «1 · Datos» sale de Sierra Nevada: en otra '
+                        'zona es solo una referencia. Esta curva se hace con **tus puntos**. '
+                        'Repite la validación por zonas de este modelo, con las mismas '
+                        'partes, pero el modelo aprende solo con el 25, el 50 o el 75 % de '
+                        'los puntos, elegidos al azar (3 sorteos de cada uno). Las zonas '
+                        'apartadas se predicen siempre enteras. Si de la mitad de los '
+                        'puntos a todos (el doble) el acierto todavía sube, más puntos '
+                        'mejorarán el mapa. '
+                        f'Entrena {_n_ent} modelos: con unos mil puntos, medio minuto.',
+                        'The minimum number of points under "1 · Data" comes from Sierra '
+                        'Nevada: elsewhere it is only a reference. This curve is made with '
+                        '**your points**. It repeats this model\'s validation by zones, '
+                        'with the same folds, but the model learns from only 25, 50 or 75 % '
+                        'of the points, chosen at random (3 draws of each). The held-out '
+                        'zones are always predicted in full. If accuracy still rises from '
+                        'half of the points to all of them (twice as many), more points '
+                        'will improve the map. '
+                        f'It trains {_n_ent} models: with about a thousand points, half a '
+                        'minute.'))
+                    if st.button(i18n.pick('📈 Calcular la curva con mis puntos',
+                                           '📈 Compute the curve with my points'),
+                                 key='mrf_curva'):
+                        _barra = st.progress(0.0, text=i18n.pick(
+                            'Entrenando con menos puntos…', 'Training with fewer points…'))
+                        try:
+                            _mod['_curva'] = mr.curva_propia(
+                                _tab, _mod, al_avanzar=lambda f: _barra.progress(
+                                    min(1.0, f), text=i18n.pick(
+                                        f'Entrenando con menos puntos… {round(f * 100)} %',
+                                        f'Training with fewer points… {round(f * 100)} %')))
+                        except ValueError as _e:
+                            st.error(i18n.pick(f'No se ha podido calcular: {_e}',
+                                               f'It could not be computed: {_e}'))
+                        _barra.empty()
+                    _curva = _mod.get('_curva')
+                    if _curva and _curva['firma'] == _mod['firma']:
+                        _cc = mr.cifras_curva(_curva, _mod)
+                        _md = _cc['medida']
+                        _todo, _mit = _cc['filas'][-1], _cc['mitad']
+                        _que = (i18n.pick('el AUC en zonas nuevas', 'the AUC in new areas')
+                                if _md == 'auc' else
+                                i18n.pick('el F1 medio en zonas nuevas',
+                                          'the mean F1 in new areas'))
+                        _dicho = i18n.pick(
+                            'De la mitad de tus puntos a todos (el modelo aprende con unos '
+                            f"{round(_mit['n_puntos'])} y con unos "
+                            f"{round(_todo['n_puntos'])} en cada parte), {_que} pasa de "
+                            f"**{_num(_mit[_md])}** a **{_num(_todo[_md])}** "
+                            f"({_num(_cc['ganancia'], signo=True)}).",
+                            'From half of your points to all of them (the model learns '
+                            f"from about {round(_mit['n_puntos'])} and about "
+                            f"{round(_todo['n_puntos'])} in each fold), {_que} goes from "
+                            f"**{_num(_mit[_md])}** to **{_num(_todo[_md])}** "
+                            f"({_num(_cc['ganancia'], signo=True)}).")
+                        if _cc['lectura'] == 'sube':
+                            st.info(_dicho + i18n.pick(
+                                ' **Todavía sube**: si vuelves a doblar los puntos, cabe '
+                                'esperar que suba algo parecido, o algo menos. Busca sobre '
+                                'todo en las zonas y los ambientes donde tienes pocos, y '
+                                'revisa tanto borreguiles como ausencias.',
+                                ' **It is still rising**: if you double the points again, '
+                                'expect it to rise by about as much, or a little less. Look '
+                                'above all in the areas and settings where you have few, '
+                                'and review both borreguiles and absences.'))
+                        else:
+                            st.success(_dicho + i18n.pick(
+                                ' **Ya casi no sube**: aunque dobles los puntos, si son '
+                                'parecidos a los que tienes, el mapa apenas cambiará. Si el '
+                                'acierto te parece bajo, lo que falta no es cantidad: '
+                                'revisa las muestras mal clasificadas, añade puntos de '
+                                'sitios distintos (otros valles, otras altitudes) o prueba '
+                                'otras variables.',
+                                ' **It has almost stopped rising**: even if you double the '
+                                'points, if they are like the ones you have, the map will '
+                                'hardly change. If the accuracy seems low to you, what is '
+                                'missing is not quantity: review the misclassified '
+                                'samples, add points from different places (other valleys, '
+                                'other altitudes) or try other variables.'))
+                        st.altair_chart(pp.chart_curva_propia(_cc), width='stretch')
+                        _k_parte = i18n.pick('Parte de tus puntos', 'Share of your points')
+                        _k_np = i18n.pick('Puntos con los que aprende',
+                                          'Points it learns from')
+                        _k_nb = i18n.pick('de ellos, borreguiles', 'of which borreguiles')
+                        _k_lo = i18n.pick('peor sorteo', 'worst draw')
+                        _k_hi = i18n.pick('mejor sorteo', 'best draw')
+                        _k_f1m = i18n.pick('F1 medio', 'Mean F1')
+                        st.dataframe(_con_coma(pd.DataFrame([{
+                            _k_parte: f"{round(f['fraccion'] * 100)} %",
+                            _k_np: int(round(f['n_puntos'])),
+                            _k_nb: int(round(f['n_borreguiles'])),
+                            **({'AUC': f['auc'], f'AUC · {_k_lo}': f['auc_min'],
+                                f'AUC · {_k_hi}': f['auc_max']} if _md == 'auc' else {}),
+                            _k_f1m: f['f1']} for f in _cc['filas']])),
+                            hide_index=True, width='stretch')
+                        st.caption(i18n.pick(
+                            'En cada parte de la validación, el modelo aprende con los '
+                            'puntos de las otras zonas (unas 4 de cada 5 partes del total) '
+                            'y predice los de la zona apartada. El 100 % es la validación '
+                            'de este modelo, con un solo resultado; las demás son la media '
+                            'de 3 sorteos, y la franja va del peor al mejor. Con pocos '
+                            'puntos la curva baila: mira la franja antes de sacar '
+                            'conclusiones. El F1 medio usa el umbral de «¿Borreguil o no?» '
+                            'elegido de la misma manera.',
+                            'In each fold of the validation, the model learns from the '
+                            'points of the other zones (about 4 out of 5 parts of the '
+                            'total) and predicts those of the held-out zone. 100 % is this '
+                            'model\'s validation, a single result; the others are the mean '
+                            'of 3 draws, and the band goes from the worst to the best. With '
+                            'few points the curve wobbles: look at the band before drawing '
+                            'conclusions. The mean F1 uses the "Borreguil or not?" '
+                            'threshold chosen in the same way.'))
 
             # ---- Con qué variables acierta más. Cada modelo entrenado en la sesión deja
             # aquí su acierto en la validación por zonas; se comparan los del mismo nivel
