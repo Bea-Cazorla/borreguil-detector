@@ -4638,26 +4638,11 @@ with tab_tipos:
                 f'over the territory. There are {len(mr.PREDICTORES)} today: those the app '
                 'computes in Earth Engine from Sentinel-2 and the elevation model. They '
                 'are all selected; remove the ones you do not want to use.'))
-            _elegidas = []
-            for _gi, _g in enumerate(mr.GRUPOS):
-                _ops = mr.nombres_predictores([_g])
-                # Solo el nombre: con la descripción al lado las etiquetas se cortaban.
-                # Qué mide cada una está en la tabla de debajo.
-                _elegidas += st.multiselect(
-                    mr.nombre_grupo(_g, _en), _ops, default=_ops, key=f'mrf_vars_{_gi}',
-                    format_func=_var)
-            _predictores = mr.ordenar_predictores(_elegidas)
-            st.markdown(i18n.pick(
-                f'**{len(_predictores)} de {len(mr.PREDICTORES)} variables seleccionadas.**',
-                f'**{len(_predictores)} of {len(mr.PREDICTORES)} variables selected.**'))
-            if not _predictores:
-                st.error(i18n.pick('Elige al menos una variable.',
-                                   'Choose at least one variable.'))
-
             # Lo que ya está leído en Earth Engine de cada muestra («2 · Tabla»). Vale
             # mientras no cambien los años, la zona UTM de la rejilla ni la manera de
             # calcular las variables (geb.VERSION_PILA). Se calcula aquí porque el VIF y
-            # el PCA se aplican en esta pestaña, con esos valores.
+            # el PCA se aplican en esta pestaña, con esos valores (y antes de las casillas
+            # de las variables, que el VIF o el PCA cambian al aplicarse).
             import gee_backend as geb
             try:
                 _anios = list(bp.parse_years(years_str))
@@ -4673,6 +4658,120 @@ with tab_tipos:
             _leidos = (_lect or {}).get('valores', {})
             _pend = [f for f in _usadas
                      if mr.clave_punto(f['lon'], f['lat']) not in _leidos]
+
+            def _firma_sel(metodo, param, fijas, tab_base):
+                """De qué sale lo aplicado con el VIF o el PCA: vale mientras no cambien
+                el método, su ajuste, las fijas, las variables de partida, las muestras
+                ni su lectura."""
+                return (metodo, round(float(param), 6), tuple(sorted(fijas)),
+                        tuple(tab_base['predictores']),
+                        tuple((round(float(f['lon']), 7), round(float(f['lat']), 7),
+                               f['codigo']) for f in tab_base['filas']),
+                        (_lect or {}).get('cuando'))
+
+            def _marcar(variables):
+                """Deja marcadas en las casillas solo `variables`. Solo vale antes de
+                dibujarlas (o en el on_click de un botón)."""
+                for gi, g in enumerate(mr.GRUPOS):
+                    st.session_state[f'mrf_vars_{gi}'] = [
+                        v for v in mr.nombres_predictores([g]) if v in variables]
+
+            # ---- Aplicar el VIF o el PCA (25-11-2026, la autora: «al aplicar el vif o
+            # pca me gustaría que en variables predictoras se queden las que han
+            # quedado»). El botón (más abajo) solo deja el aviso '_mrf_aplicar'; se aplica
+            # aquí, en la pasada siguiente y antes de dibujar las casillas, para poder
+            # dejar marcadas solo las que quedan. (Con st.rerun() en el botón, Streamlit
+            # olvidaba lo elegido en los controles de debajo, que esa pasada no llegaba
+            # a dibujar.) Se parte de las que había marcadas antes de aplicarlo, si
+            # siguen marcadas las que quedaron; si no, de las marcadas ahora.
+            if st.session_state.pop('_mrf_aplicar', False):
+                _m0 = st.session_state.get('mrf_seleccion', 'ninguno')
+                _ahora0 = mr.ordenar_predictores([
+                    v for gi, g in enumerate(mr.GRUPOS)
+                    for v in st.session_state.get(f'mrf_vars_{gi}',
+                                                  mr.nombres_predictores([g]))])
+                _a0 = st.session_state.get('mrf_vars_antes')
+                _b0 = (list(_a0['vars']) if _a0 and set(_ahora0) == set(_a0['resultado'])
+                       else _ahora0)
+                _tb0 = mr.construir_tabla(_res, _leidos, _b0) if _b0 else None
+                if (_m0 in ('vif', 'pca') and _tb0 is not None and _tb0['listo']
+                        and len(_tb0['filas']) >= 3):
+                    _p0 = float(st.session_state.get(
+                        'mrf_vif_umbral' if _m0 == 'vif' else 'mrf_pca_carga',
+                        mr.VIF_UMBRAL if _m0 == 'vif' else mr.PCA_CARGA))
+                    _f0 = [v for v in st.session_state.get('mrf_vif_fijas', mr.VIF_FIJAS)
+                           if v in _tb0['predictores']]
+                    if _m0 == 'vif':
+                        _s0 = mr.elegir_por_vif(_tb0['X'], _tb0['predictores'], _p0, _f0)
+                        _fl0 = mr.por_que_vif(_tb0['X'], _tb0['predictores'], _s0)
+                    else:
+                        _s0 = mr.elegir_por_pca(_tb0['X'], _tb0['y'], _tb0['predictores'],
+                                                _f0, _p0)
+                        _fl0 = mr.por_que_pca(_s0, _tb0['predictores'])
+                    st.session_state.setdefault('mrf_sel_aplicada', {})[f'{_nivel}|{_m0}'] = {
+                        'firma': _firma_sel(_m0, _p0, _f0, _tb0), 'sel': _s0,
+                        'filas': _fl0, 'de': len(_tb0['predictores']),
+                        'n': len(_tb0['filas'])}
+                    _q0 = mr.ordenar_predictores(_s0['quedan'])
+                    st.session_state['mrf_vars_antes'] = {
+                        'vars': list(_tb0['predictores']), 'metodo': _m0, 'resultado': _q0}
+                    _marcar(_q0)
+
+            def _volver_a_las_de_antes():
+                """«↺ Volver a marcar…»: las que había antes de aplicar el VIF o el PCA;
+                lo aplicado se deshace."""
+                a = st.session_state.pop('mrf_vars_antes', None)
+                if a:
+                    _marcar(a['vars'])
+                st.session_state.pop('mrf_sel_aplicada', None)
+
+            # Las casillas no llevan `default`: el valor de partida (todas) se pone en
+            # session_state, que es lo que cambian el VIF o el PCA al aplicarse.
+            _elegidas = []
+            for _gi, _g in enumerate(mr.GRUPOS):
+                _ops = mr.nombres_predictores([_g])
+                st.session_state.setdefault(f'mrf_vars_{_gi}', list(_ops))
+                # Solo el nombre: con la descripción al lado las etiquetas se cortaban.
+                # Qué mide cada una está en la tabla de debajo.
+                _elegidas += st.multiselect(
+                    mr.nombre_grupo(_g, _en), _ops, key=f'mrf_vars_{_gi}',
+                    format_func=_var,
+                    placeholder=i18n.pick('Ninguna marcada', 'None selected'))
+            _predictores = mr.ordenar_predictores(_elegidas)
+            st.markdown(i18n.pick(
+                f'**{len(_predictores)} de {len(mr.PREDICTORES)} variables seleccionadas.**',
+                f'**{len(_predictores)} of {len(mr.PREDICTORES)} variables selected.**'))
+            if not _predictores:
+                st.error(i18n.pick('Elige al menos una variable.',
+                                   'Choose at least one variable.'))
+            # Las que había marcadas antes de aplicar el VIF o el PCA: de ellas parte el
+            # VIF o el PCA si se vuelve a aplicar (con otro umbral, o el otro método), y
+            # se pueden volver a marcar con un botón. Si la persona cambia las casillas a
+            # mano, lo que marca pasa a ser el punto de partida.
+            _antes = st.session_state.get('mrf_vars_antes')
+            if _antes and set(_predictores) != set(_antes['resultado']):
+                st.session_state.pop('mrf_vars_antes', None)
+                _antes = None
+            if _antes and set(_antes['vars']) != set(_predictores):
+                _nom_antes = (i18n.pick('el VIF', 'the VIF') if _antes['metodo'] == 'vif'
+                              else i18n.pick('el PCA', 'the PCA'))
+                _na = len(_antes['vars'])
+                st.caption(i18n.pick(
+                    f'Están marcadas las que dejó {_nom_antes}. Antes de aplicarlo había '
+                    f'{_na} marcadas.',
+                    f'The ones {_nom_antes} kept are selected. Before applying it there '
+                    f'were {_na} selected.'))
+                st.button(i18n.pick(f'↺ Volver a marcar las {_na} de antes',
+                                    f'↺ Select the {_na} from before again'),
+                          key='mrf_vars_volver', on_click=_volver_a_las_de_antes,
+                          help=i18n.pick(
+                              'Vuelve a marcar las variables que había antes de aplicar el '
+                              'VIF o el PCA, por ejemplo para entrenar con todas y '
+                              'comparar. Lo aplicado se deshace.',
+                              'Selects again the variables there were before applying the '
+                              'VIF or the PCA, for instance to train with all of them and '
+                              'compare. What was applied is undone.'))
+
             # La tabla de entrenamiento con todas las variables elegidas (la de «2 ·
             # Tabla» antes de quitar las repetidas), si ya hay algo leído
             _tab_todas = (mr.construir_tabla(_res, _leidos, _predictores)
@@ -4705,7 +4804,8 @@ with tab_tipos:
                     'las categorías por sí sola.\n\n'
                     'Los dos se calculan con los valores de las muestras, que se leen en '
                     '«2 · Tabla». Después, al pulsar **Aplicar**, sale aquí mismo qué '
-                    'variables se quedan y por qué. El Random Forest no los '
+                    'variables se quedan y por qué, y arriba se quedan marcadas solo esas '
+                    '(«↺ Volver a marcar…» devuelve las de antes). El Random Forest no los '
                     'necesita para acertar, pero con menos variables el modelo es más '
                     'sencillo y su peso, en «5 · Peso», se lee mejor. En Sierra Nevada, el '
                     'VIF dejó 14 variables y el PCA con la altitud, 4, con el mismo acierto '
@@ -4724,7 +4824,8 @@ with tab_tipos:
                     'best separates the categories on its own.\n\n'
                     'Both are computed with the values of the samples, which are read under '
                     '"2 · Table". Then, when you press **Apply**, which variables stay and '
-                    'why is shown right here. The Random Forest '
+                    'why is shown right here, and only those stay selected above ("↺ Select '
+                    '… again" brings back the previous ones). The Random Forest '
                     'does not need them to be right, but with fewer variables the model is '
                     'simpler and its weights, under "5 · Weights", are easier to read. In '
                     'Sierra Nevada, the VIF kept 14 variables and the PCA with elevation 4, '
@@ -4801,39 +4902,37 @@ with tab_tipos:
                 # aplicarlo; mientras, se usan todas las variables elegidas.
                 _nom_met = (i18n.pick('el VIF', 'the VIF') if _vif_si
                             else i18n.pick('el PCA', 'the PCA'))
-                _lista = bool(_tab_todas is not None and _tab_todas['listo']
-                              and len(_tab_todas['filas']) >= 3)
-                _fijas_t = ([v for v in _vif_f if v in _tab_todas['predictores']]
-                            if _tab_todas is not None else [])
-                _firma = ((_metodo, round(float(_vif_u if _vif_si else _pca_c), 6),
-                           tuple(sorted(_fijas_t)), tuple(_tab_todas['predictores']),
-                           tuple((round(float(f['lon']), 7), round(float(f['lat']), 7),
-                                  f['codigo']) for f in _tab_todas['filas']),
-                           (_lect or {}).get('cuando'))
-                          if _lista else None)
+                # De qué variables parte: las que había marcadas antes de aplicarlo (si
+                # ya se aplicó y siguen marcadas las que quedaron) o las marcadas ahora.
+                _base = list(_antes['vars']) if _antes else list(_predictores)
+                _tab_base = (None if _tab_todas is None else _tab_todas
+                             if _base == list(_predictores)
+                             else mr.construir_tabla(_res, _leidos, _base))
+                _lista = bool(_tab_base is not None and _tab_base['listo']
+                              and len(_tab_base['filas']) >= 3)
+                _fijas_t = ([v for v in _vif_f if v in _tab_base['predictores']]
+                            if _tab_base is not None else [])
+                # Lo aplicado vale mientras no cambien el ajuste, las fijas, las variables
+                # de partida, las muestras ni su lectura, y sigan marcadas las que quedaron.
+                _firma = (_firma_sel(_metodo, _vif_u if _vif_si else _pca_c, _fijas_t,
+                                     _tab_base) if _lista else None)
                 _aplicadas = st.session_state.setdefault('mrf_sel_aplicada', {})
                 _clave_ap = f'{_nivel}|{_metodo}'
-                if st.button(i18n.pick(f'✔ Aplicar {_nom_met}', f'✔ Apply {_nom_met}'),
-                             key='mrf_aplicar_sel', type='primary', disabled=not _lista,
-                             help=i18n.pick(
-                                 'Calcula qué variables se quedan con los valores de las '
-                                 'muestras. El modelo, el mapa y el peso usarán solo esas.',
-                                 'Works out which variables stay from the values of the '
-                                 'samples. The model, the map and the weights will use only '
-                                 'those.')):
-                    if _vif_si:
-                        _s = mr.elegir_por_vif(_tab_todas['X'], _tab_todas['predictores'],
-                                               _vif_u, _fijas_t)
-                        _fl = mr.por_que_vif(_tab_todas['X'], _tab_todas['predictores'], _s)
-                    else:
-                        _s = mr.elegir_por_pca(_tab_todas['X'], _tab_todas['y'],
-                                               _tab_todas['predictores'], _fijas_t, _pca_c)
-                        _fl = mr.por_que_pca(_s, _tab_todas['predictores'])
-                    _aplicadas[_clave_ap] = {'firma': _firma, 'sel': _s, 'filas': _fl,
-                                             'de': len(_tab_todas['predictores']),
-                                             'n': len(_tab_todas['filas'])}
+                st.button(i18n.pick(f'✔ Aplicar {_nom_met}', f'✔ Apply {_nom_met}'),
+                          key='mrf_aplicar_sel', type='primary', disabled=not _lista,
+                          on_click=lambda: st.session_state.__setitem__('_mrf_aplicar', True),
+                          help=i18n.pick(
+                              'Calcula qué variables se quedan con los valores de las '
+                              'muestras y deja marcadas arriba solo esas. El modelo, el '
+                              'mapa y el peso usarán solo esas. Para volver a las de antes, '
+                              '«↺ Volver a marcar…», debajo de las variables.',
+                              'Works out which variables stay from the values of the '
+                              'samples and leaves only those selected above. The model, the '
+                              'map and the weights will use only those. To go back to the '
+                              'previous ones, "↺ Select … again", below the variables.'))
                 _ap = _aplicadas.get(_clave_ap)
-                if _ap and _firma is not None and _ap['firma'] == _firma:
+                if (_ap and _firma is not None and _ap['firma'] == _firma
+                        and mr.ordenar_predictores(_ap['sel']['quedan']) == _predictores):
                     _sel_vig = _ap
                 _n_todas = len(_predictores)
                 if _sel_vig is None:

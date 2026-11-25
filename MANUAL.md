@@ -970,10 +970,21 @@ en **2 · Tabla de entrenamiento** (la lectura trae siempre todas las variables)
 Después, el botón **✔ Aplicar el VIF** (o **✔ Aplicar el PCA**) enseña ahí mismo, en
 **1 · Datos**, qué variables se quedan, la tabla del análisis y, en **Por qué,
 variable a variable**, una frase para cada una. Hasta que se aplica no se quita
-ninguna. Si después cambias el ajuste, las variables que se quedan siempre, las
-variables elegidas o las muestras, la app pide volver a aplicarlo y, mientras, usa
-todas. Lo aplicado se recuerda para cada nivel y cada método: se puede aplicar el VIF,
-entrenar, pasar al PCA, aplicarlo y entrenar otra vez para compararlos.
+ninguna.
+
+Al aplicarlo, en **Variables predictoras** quedan **marcadas solo las que se quedan**
+(«14 de 34 variables seleccionadas»), y debajo la app dice cuántas había antes. El
+botón **↺ Volver a marcar las 34 de antes** las devuelve y deshace lo aplicado, por
+ejemplo para entrenar con todas y comparar.
+
+- Si cambias el umbral o pasas al otro método y vuelves a aplicar, se calcula con las
+  que había marcadas **antes** de aplicarlo, no con las que dejó el anterior.
+- Si cambias las casillas a mano, lo que marques pasa a ser el punto de partida.
+- Si cambias el ajuste, las variables que se quedan siempre o las muestras, la app pide
+  volver a aplicarlo y, mientras, usa las marcadas.
+
+Así se puede aplicar el VIF y entrenar, volver a las de antes, aplicar el PCA y
+entrenar otra vez. La tabla del final de **3 · Modelo** compara los modelos.
 
 *Con el VIF.*
 El VIF de una variable dice qué parte de ella se puede adivinar con todas las demás

@@ -1579,9 +1579,20 @@ def guion_tabla(lang):
               and tabla_con_columna(at, 'Qué pasa', 'What happens') is None,
               'al elegir el VIF no se quita nada hasta pulsar «Aplicar» (lo dicen «1 · Datos» '
               'y «2 · Tabla»)')
+    # Lo elegido en otros pasos no se pierde al aplicar (25-11-2026: con st.rerun() en
+    # el botón, Streamlit olvidaba los controles que esa pasada no llegaba a dibujar)
+    control(at, 'number_input', 'mrf_p_semilla').set_value(43)
+    at.run()
+    boton = control(at, 'button', 'mrf_aplicar_sel')
     boton.click()
     at.run()
     sin_error(at, 'T7 · aplicar')
+    semilla = control(at, 'number_input', 'mrf_p_semilla')
+    comprobar(semilla is not None and semilla.value == 43,
+              'al aplicar el VIF, lo elegido en «3 · Modelo» se queda como estaba',
+              str(semilla.value) if semilla else 'no está')
+    semilla.set_value(42)
+    at.run()
     vif_t = tabla_con_columna(at, 'Qué pasa', 'What happens')
     de_nombre = {V(n, en): n for n in mr.nombres_predictores()}   # nombre legible → código
     quedan = [] if vif_t is None else [
@@ -1601,6 +1612,22 @@ def guion_tabla(lang):
               'al aplicarlo dice cuáles se quedan (la altitud, siempre) y cuáles se quitan; '
               '«2 · Tabla» sigue con esas; con 22 muestras y 20 variables, avisa de que el '
               'VIF no es fiable', str(quedan))
+
+    def marcadas():
+        return sorted(v for i in range(len(mr.GRUPOS))
+                      for v in control(at, 'multiselect', f'mrf_vars_{i}').value)
+
+    # 25-11-2026, la autora: «al aplicar el vif o pca me gustaría que en variables
+    # predictoras se queden las que han quedado»
+    comprobar(marcadas() == sorted(quedan)
+              and hay(at, T(f'{len(quedan)} de {len(mr.PREDICTORES)} variables seleccionadas',
+                            f'{len(quedan)} of {len(mr.PREDICTORES)} variables selected'))
+              and hay(at, T('Están marcadas las que dejó el VIF. Antes de aplicarlo había 20 '
+                            'marcadas.', 'The ones the VIF kept are selected. Before applying '
+                            'it there were 20 selected.'))
+              and control(at, 'button', 'mrf_vars_volver') is not None,
+              'al aplicarlo, en «Variables predictoras» quedan marcadas solo las que se '
+              'quedan, y se puede volver a las 20', str(marcadas()))
     _datos = pestana_datos()
     _md_datos = [str(m.value) for m in _datos[0].markdown] if _datos else []
     comprobar(_datos
@@ -1621,10 +1648,13 @@ def guion_tabla(lang):
     sin_error(at, 'T7 · otro umbral')
     comprobar(hay(at, T('Has cambiado algo desde que lo aplicaste',
                         'Something has changed since you applied it'))
-              and hay(at, T('2 · Tabla · 22 muestras, 20 variables',
-                            '2 · Table · 22 samples, 20 variables'))
+              and hay(at, T(f'2 · Tabla · 22 muestras, {len(quedan)} variables',
+                            f'2 · Table · 22 samples, {len(quedan)} variables'))
+              and not hay(at, f'{len(quedan)} variables (VIF)')
+              and marcadas() == sorted(quedan)
               and tabla_con_columna(at, 'Qué pasa', 'What happens') is None,
-              'si cambia el umbral, hay que volver a aplicarlo; mientras, se usan las 20')
+              'si cambia el umbral, hay que volver a aplicarlo; mientras, se usan las '
+              'marcadas')
     control(at, 'number_input', 'mrf_vif_umbral').set_value(10.0)
     at.run()
     sin_error(at, 'T7 · umbral de antes')
@@ -1656,12 +1686,23 @@ def guion_tabla(lang):
     control(at, 'radio', 'mrf_seleccion').set_value('ninguno')
     at.run()
     sin_error(at, 'T7 · sin VIF')
-    comprobar(hay(at, T('2 · Tabla · 22 muestras, 20 variables',
-                        '2 · Table · 22 samples, 20 variables'))
+    comprobar(hay(at, T(f'2 · Tabla · 22 muestras, {len(quedan)} variables',
+                        f'2 · Table · 22 samples, {len(quedan)} variables'))
               and not hay(at, f'{len(quedan)} variables (VIF)')
-              and control(at, 'number_input', 'mrf_vif_umbral') is None and hay(at, aviso_tabla),
-              'sin la opción vuelven las 20 variables, y el modelo del VIF queda como de otra '
-              'tabla')
+              and marcadas() == sorted(quedan)
+              and control(at, 'number_input', 'mrf_vif_umbral') is None
+              and not hay(at, aviso_tabla),
+              'sin la opción siguen marcadas las que dejó el VIF (es la misma tabla: el '
+              'modelo sigue al día)')
+    control(at, 'button', 'mrf_vars_volver').click()
+    at.run()
+    sin_error(at, 'T7 · volver a las 20')
+    comprobar(len(marcadas()) == 20
+              and hay(at, T('2 · Tabla · 22 muestras, 20 variables',
+                            '2 · Table · 22 samples, 20 variables'))
+              and control(at, 'button', 'mrf_vars_volver') is None and hay(at, aviso_tabla),
+              '«↺ Volver a marcar las 20 de antes» devuelve las 20, y el modelo del VIF queda '
+              'como de otra tabla')
 
     print('  T7b · elegir las variables con un PCA')
     control(at, 'radio', 'mrf_seleccion').set_value('pca')
@@ -1694,6 +1735,11 @@ def guion_tabla(lang):
               'una variable por eje del PCA, más la altitud; lo dicen «1 · Datos», «2 · Tabla» '
               'y la línea de estado; con 22 muestras avisa de que no es fiable',
               str(elegidas))
+    comprobar(marcadas() == sorted(quedan_p)
+              and hay(at, T('Están marcadas las que dejó el PCA. Antes de aplicarlo había 20 '
+                            'marcadas.', 'The ones the PCA kept are selected. Before applying '
+                            'it there were 20 selected.')),
+              'con el PCA también quedan marcadas solo las que se quedan', str(marcadas()))
     var_t = tabla_con_columna(at, 'Su eje', 'Its axis')
     quedan_t = [] if var_t is None else sorted(
         de_nombre[v] for v, q in zip(var_t['Variable'], var_t.iloc[:, 1])
@@ -1714,6 +1760,35 @@ def guion_tabla(lang):
               and any(f.startswith('▶') and T('una por eje del PCA', 'one per PCA axis') in f
                       for f in filas),
               'el modelo usa solo las del PCA y sale en la comparación', str(filas))
+    # Con el PCA aplicado, el VIF se vuelve a aplicar desde las 20 de antes, no desde
+    # las que dejó el PCA
+    control(at, 'radio', 'mrf_seleccion').set_value('vif')
+    at.run()
+    sin_error(at, 'T7b · otra vez el VIF')
+    comprobar(hay(at, T('Has cambiado algo desde que lo aplicaste',
+                        'Something has changed since you applied it'))
+              or hay(at, T('Pulsa «✔ Aplicar el VIF»', 'Press "✔ Apply the VIF"')),
+              'al volver al VIF, lo del PCA no cuenta como aplicado con el VIF')
+    control(at, 'button', 'mrf_aplicar_sel').click()
+    at.run()
+    sin_error(at, 'T7b · el VIF desde las 20')
+    comprobar(marcadas() == sorted(quedan)
+              and hay(at, T(f'**Con el VIF se quedan {len(quedan)} de 20 variables:**',
+                            f'**With the VIF, {len(quedan)} of 20 variables stay:**')),
+              'el VIF parte de las 20 de antes y deja las mismas que la primera vez',
+              str(marcadas()))
+    # Volver a las 20 con el VIF elegido: el VIF sigue elegido, con su umbral y su botón
+    control(at, 'button', 'mrf_vars_volver').click()
+    at.run()
+    sin_error(at, 'T7b · volver a las 20')
+    comprobar(len(marcadas()) == 20
+              and control(at, 'radio', 'mrf_seleccion').value == 'vif'
+              and control(at, 'number_input', 'mrf_vif_umbral') is not None
+              and control(at, 'button', 'mrf_aplicar_sel') is not None
+              and hay(at, T('Pulsa «✔ Aplicar el VIF»', 'Press "✔ Apply the VIF"'))
+              and hay(at, T('2 · Tabla · 22 muestras, 20 variables',
+                            '2 · Table · 22 samples, 20 variables')),
+              'al volver a las 20, el VIF sigue elegido y hay que volver a aplicarlo')
     control(at, 'radio', 'mrf_seleccion').set_value('ninguno')
     at.run()
     sin_error(at, 'T7b · sin PCA')
