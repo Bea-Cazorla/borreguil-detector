@@ -526,7 +526,7 @@ def render_docs():
         f'- **Con menos de {mr.POCOS_PUNTOS}**, el acierto baja y depende mucho de qué '
         'puntos sean.\n\n'
         'Las **ausencias** son los sitios que has comprobado que no son borreguil: '
-        '`presence` = 0 en tu fichero, «✗ Marcar como no borreguil verificado» al revisar un '
+        '`presence` = 0 en tu fichero, «No» en «¿Es borreguil?» al revisar un '
         'punto o «✗ Aquí no hay» al pinchar en el mapa. La app no se las inventa. Para buscarlas en sitios que no has '
         'muestreado, genera puntos al azar «lejos de tus puntos de campo» y revísalos.\n\n'
         'Es la referencia de Sierra Nevada: en una montaña más variada pueden hacer falta '
@@ -554,7 +554,7 @@ def render_docs():
         f'- **With fewer than {mr.POCOS_PUNTOS}**, the accuracy drops and depends a lot on '
         'which points they are.\n\n'
         '**Absences** are the places you have checked are not a borreguil: `presence` = 0 '
-        'in your file, "✗ Mark as verified non-borreguil" when reviewing a point or "✗ '
+        'in your file, "No" under "Is it a borreguil?" when reviewing a point or "✗ '
         'There is none" when clicking on the map. The app never invents them. To look for them in places you '
         'have not sampled, generate random points "far from your field points" and review '
         'them.\n\n'
@@ -3325,16 +3325,18 @@ with tab_analisis:
 
         with tab2:
             st.caption(i18n.pick(
-                'Selecciona una o varias filas (casilla izquierda). El **último punto '
-                'seleccionado** centra el mapa y muestra su imagen, sin perder los '
-                'anteriores. Con varias seleccionadas puedes **marcarlas como borreguil o '
-                'como no borreguil verificado**. Si has marcado «Sumar mis puntos a los del '
-                'modelo y reentrenarlo», además se reentrena el modelo.',
-                'Select one or several rows (left checkbox). The **last selected point** '
-                'centres the map and shows its image, without losing the previous ones. '
-                'With several selected you can **mark them as verified borreguil or '
-                'non-borreguil**. If you ticked "Add my points to the model\'s and retrain '
-                'it", the model is also retrained.'))
+                'Selecciona una o varias filas (casilla izquierda). Debajo sale el mapa del '
+                '**último punto seleccionado** y, a su lado, su revisión en dos pasos: '
+                '**¿es borreguil?** y, si lo es, **su tipo**, con un solo botón para '
+                'guardarlo todo (con varias filas, se aplica a todas). Si has marcado «Sumar '
+                'mis puntos a los del modelo y reentrenarlo», al cambiar el sí o el no se '
+                'reentrena el modelo.',
+                'Select one or several rows (left checkbox). Below appears the map of the '
+                '**last selected point** and, next to it, its review in two steps: **is it '
+                'a borreguil?** and, if it is, **its type**, with a single button to save '
+                'it all (with several rows, it applies to all of them). If you ticked "Add '
+                'my points to the model\'s and retrain it", the model is retrained when the '
+                'yes or no changes.'))
             _aviso_rev = st.session_state.pop('_rev_msg', None)
             if _aviso_rev:
                 st.success(_aviso_rev)
@@ -3449,12 +3451,27 @@ with tab_analisis:
                 sel_rows = (_selo.get('rows') if isinstance(_selo, dict)
                             else getattr(_selo, 'rows', [])) or []
 
-            # --- Verificar (o quitar) los puntos seleccionados ---
-            if sel_rows:
-                sel_ids = [rows[i].get('ID') for i in sel_rows if i < len(rows)]
-                _ya = sum(1 for i in sel_rows if i < len(rows)
-                          and bp._txt(rows[i].get('Borreguil')).lower() in ('si', 'no'))
+            # --- Revisar los puntos seleccionados: una sola revisión en dos pasos -----
+            # (25-11-2026, la autora: «¿no te parece que está muy desconectado borreguil sí
+            # o no con el tipo?» → «haz este cambio que me propones»). 1 · ¿Es borreguil?
+            # (sí, no o no estoy seguro) y la certidumbre; 2 · si es sí, el tipo, con la
+            # propuesta de la app puesta. Un solo botón guarda todo, y el formulario va al
+            # lado del mapa del punto, para mirar y decidir a la vez. Antes: botones de
+            # verificar arriba y, aparte, «Revisar el tipo» con su propio botón.
+            focus_idx = st.session_state.get('sel_idx')
+            _sel_ok = [i for i in sel_rows if i < len(rows)]
+            if _sel_ok:
+                sel_ids = [rows[i].get('ID') for i in _sel_ok]
                 _n = len(sel_ids)
+
+                def _estado(r):
+                    """'si', 'no' o 'duda' según lo revisado del punto (None si nada)."""
+                    if bp._txt(r.get('Duda')).lower() == 'si':
+                        return 'duda'
+                    b = bp._txt(r.get('Borreguil')).lower()
+                    return b if b in ('si', 'no') else None
+
+                _ya = sum(1 for i in _sel_ok if _estado(rows[i]) in ('si', 'no'))
                 _ya_txt = ('' if not _ya else
                            i18n.pick(' · ya verificado', ' · already verified') if _n == 1 else
                            i18n.pick(f" · {_ya} ya verificado{'s' if _ya > 1 else ''}",
@@ -3463,259 +3480,16 @@ with tab_analisis:
                            if _propio else i18n.pick('Guardando…', 'Saving…'))
                 _reentrenado = i18n.pick(' Modelo reentrenado sumando tus puntos.',
                                          ' Model retrained adding your points.')
-                cA, cB, cC = st.columns([3, 2, 2])
-                with cA:
-                    st.markdown(i18n.pick(
-                        f"**{_n} punto{'' if _n == 1 else 's'} seleccionado"
-                        f"{'' if _n == 1 else 's'}**{_ya_txt}",
-                        f"**{_n} point{'' if _n == 1 else 's'} selected**{_ya_txt}"))
-                    st.radio(i18n.pick('Certidumbre (opcional)', 'Certainty (optional)'),
-                             list(bp.CERTIDUMBRES), index=None, horizontal=True,
-                             format_func=_CERT_TXT.get, key='rev_certidumbre',
-                             help=_CERT_AYUDA)
-                _nom, _per = _quien()
-                _cert = st.session_state.get('rev_certidumbre') or ''
-                with cB:
-                    # Sin la casilla «Sumar mis puntos…» no se reentrena nada: el modelo
-                    # de partida da la misma probabilidad a los demás puntos.
-                    if st.button(i18n.pick('✓ Marcar como borreguil verificado y reentrenar',
-                                           '✓ Mark as verified borreguil and retrain')
-                                 if _propio else
-                                 i18n.pick('✓ Marcar como borreguil verificado',
-                                           '✓ Mark as verified borreguil'),
-                                 type='primary', key='mark_verified'):
-                        with st.spinner(_espera):
-                            rows2 = [dict(r) for r in rows]
-                            sset = set(sel_ids)
-                            for r in rows2:
-                                if r.get('ID') in sset:
-                                    r['Borreguil'] = 'si'; r['origin'] = 'verificado'
-                                    # Verificarlo a mano resuelve la duda de campo: si
-                                    # siguiera «dudoso», no entraría en el entrenamiento.
-                                    r['Duda'] = ''
-                                    bp.anotar_revision(r, _nom, _per, _cert)
-                            _nuevos = len(sset - set(base_truth_ids))
-                            info2 = _recalcular_y_guardar(
-                                rows2, set(base_truth_ids) | sset,
-                                f'verdad-terreno (+{_nuevos})', _nuevos)
-                            st.session_state.sel_point = None
-                        # El aviso se guarda para la pasada siguiente: con st.success
-                        # antes de st.rerun() no llegaba a verse.
-                        st.session_state['_rev_msg'] = _msg_puntos(
-                            sel_ids, 'marcado como borreguil verificado',
-                            'marcados como borreguil verificado',
-                            'marked as verified borreguil', 'marked as verified borreguil'
-                        ) + (_reentrenado if (info2 or {}).get('sumado') else '')
-                        st.rerun()
-                with cC:
-                    if st.button('🗑 Quitar del análisis', key='remove_pts',
-                                 help='Elimina los puntos seleccionados del mapa, la tabla '
-                                      'y las descargas (no reentrena el modelo).'):
-                        drop = set(sel_rows)
-                        keep = [r for i, r in enumerate(rows) if i not in drop]
-                        if not keep:
-                            st.warning(i18n.pick('No puedes quitar todos los puntos.',
-                                                 'You cannot remove all the points.'))
-                        else:
-                            bp.save_csv(keep, work / 'classification.csv')
-                            bp.save_points_geojson(keep, work / 'puntos.geojson')
-                            bp.save_xlsx(keep, work / 'Clasificacion_puntos.xlsx',
-                                         threshold=threshold)
-                            bp.save_map(keep, work / 'mapa.html', study_geom=sg)
-                            st.session_state.rows = keep
-                            st.session_state.sel_point = None
-                            st.session_state.sel_idx = None
-                            st.session_state.prev_sel_set = set()
-                            st.session_state['_vaciar_seleccion'] = True
-                            st.session_state['_rev_msg'] = _msg_puntos(
-                                sel_ids, 'quitado del análisis', 'quitados del análisis',
-                                'removed from the analysis', 'removed from the analysis')
-                            st.rerun()
-                # Lo contrario de verificar como borreguil: un punto que una persona ha
-                # mirado y NO lo es (por ejemplo, uno generado al azar). Queda como
-                # ausencia verificada, igual que las de campo, y el modelo la usa para
-                # aprender qué no es borreguil. Un no borreguil no tiene tipo: si tenía
-                # uno revisado, se le quita.
-                if st.button(i18n.pick('✗ Marcar como no borreguil verificado y reentrenar',
-                                       '✗ Mark as verified non-borreguil and retrain')
-                             if _propio else
-                             i18n.pick('✗ Marcar como no borreguil verificado',
-                                       '✗ Mark as verified non-borreguil'),
-                             key='mark_absent',
-                             help=i18n.pick(
-                                 'Para los puntos que has mirado (con la ortofoto o en campo) '
-                                 'y no son borreguil. Quedan como «No borreguil verificado», '
-                                 'igual que las ausencias que traías de campo, y sirven para '
-                                 'el mapa de tipos. Si has marcado «Sumar mis puntos a los '
-                                 'del modelo y reentrenarlo», el modelo los usa además para '
-                                 'aprender qué no es borreguil.',
-                                 'For the points you have looked at (with the orthophoto or '
-                                 'in the field) that are not a borreguil. They become '
-                                 '"Verified non-borreguil", like the absences you brought '
-                                 'from the field, and are used for the type map. If you '
-                                 'ticked "Add my points to the model\'s and retrain it", '
-                                 'the model also uses them to learn what is not a '
-                                 'borreguil.')):
-                    with st.spinner(_espera):
-                        rows2 = [dict(r) for r in rows]
-                        sset = set(sel_ids)
-                        for r in rows2:
-                            if r.get('ID') in sset:
-                                r['Borreguil'] = 'no'; r['origin'] = 'verificado'
-                                r['Duda'] = ''
-                                bp.anotar_revision(r, _nom, _per, _cert)
-                                if bp.tipo_revisado(r):
-                                    bp.clear_tipo_revisado(r)
-                        info2 = _recalcular_y_guardar(
-                            rows2, set(base_truth_ids) - sset,
-                            f'ausencias verificadas (+{len(sset)})', len(sset))
-                        st.session_state.sel_point = None
-                    st.session_state['_rev_msg'] = _msg_puntos(
-                        sel_ids, 'marcado como no borreguil verificado',
-                        'marcados como no borreguil verificado',
-                        'marked as verified non-borreguil', 'marked as verified non-borreguil'
-                    ) + (_reentrenado if (info2 or {}).get('sumado') else '')
-                    st.rerun()
-
-            # --- Revisión del TIPO de borreguil (ambiente / humedad / pureza) ---
-            # La app propone el tipo por reglas; aquí una persona lo confirma o lo
-            # corrige. Solo los puntos revisados servirán para entrenar el modelo de
-            # tipos: una etiqueta sin revisar es la propia regla.
-            if sel_rows:
-                _sel_ok = [i for i in sel_rows if i < len(rows)]
-                _idx_tipo = [i for i in _sel_ok
-                             if pp.is_borreguil_decision(rows[i].get('decision', ''))
-                             or bp.tipo_revisado(rows[i])]
-                with st.expander('🌿 Revisar el tipo de borreguil de los puntos seleccionados',
-                                 expanded=True):
-                    if not _idx_tipo:
-                        st.info('Los puntos seleccionados no están clasificados como '
-                                'borreguil, así que no tienen tipo. Si alguno lo es, '
-                                'márcalo primero como borreguil verificado.')
-                    else:
-                        st.caption(i18n.pick(
-                            'Decide con la ortofoto o con datos de campo, no por lo que '
-                            'propone la app. **Ambiente**: dónde está el prado (junto a un '
-                            'arroyo, junto a una laguna o en ladera). **Humedad**: aplica '
-                            'siempre el mismo criterio a todos los puntos. **Pureza**: '
-                            '«mixto-agua» si hay agua dentro del píxel de 10 m, «mixto-roca» '
-                            'si hay roca o suelo desnudo, «puro» si todo es prado. **Cada '
-                            'nivel cuenta por separado:** elige solo lo que hayas podido '
-                            'ver; lo que dejes en «(sin cambio)» no cuenta como revisado. '
-                            'Para dar por buena la propuesta de la app, elígela.',
-                            'Decide with the orthophoto or with field data, not by what the '
-                            'app proposes. **Environment**: where the meadow is (by a '
-                            'stream, by a lake or on a slope). **Moisture**: always apply '
-                            'the same criterion to all points. **Purity**: "mixed-water" if '
-                            'there is water inside the 10 m pixel, "mixed-rock" if there is '
-                            'rock or bare soil, "pure" if it is all meadow. **Each level '
-                            'counts separately:** choose only what you could see; what you '
-                            'leave at "(no change)" does not count as reviewed. To accept '
-                            "the app's proposal, choose it."))
-                        import hashlib as _hl
-                        # La clave de los desplegables depende de QUÉ puntos hay
-                        # seleccionados (por ID, no por posición: al quitar un punto
-                        # las posiciones se corren) y de cuántas veces se ha guardado
-                        # o deshecho. Así arrancan siempre con el tipo vigente de la
-                        # selección, nunca con lo elegido para otro punto.
-                        _firma = _hl.md5('|'.join(
-                            [str(rows[i].get('ID')) for i in _idx_tipo]
-                            + [str(st.session_state.get('_rev_n', 0))]
-                        ).encode()).hexdigest()[:10]
-                        _SIN = '(sin cambio)'
-                        _uno = rows[_idx_tipo[0]] if len(_idx_tipo) == 1 else None
-                        _eleccion = {}
-                        for _col, (_niv, _etq) in zip(st.columns(3), (
-                                ('ambiente', 'Ambiente'), ('humedad', 'Humedad'),
-                                ('pureza', 'Pureza'))):
-                            _ops = [_SIN] + list(bp.NIVELES_TIPO[_niv])
-                            # arranca con lo revisado; un nivel sin revisar, en «(sin
-                            # cambio)», para que guardar no lo dé por revisado sin mirarlo
-                            _act = (_uno.get(_niv) if _uno and _niv in bp.niveles_revisados(_uno)
-                                    else None)
-                            _prop = bp._txt(_uno.get(_niv + '_regla')) if _uno else ''
-                            with _col:
-                                _eleccion[_niv] = st.selectbox(
-                                    i18n.tr(_etq) + (i18n.pick(
-                                        f' (propuesta: {i18n.tv(_prop)})',
-                                        f' (proposal: {i18n.tv(_prop)})') if _prop else ''),
-                                    _ops,
-                                    index=_ops.index(_act) if _act in _ops else 0,
-                                    key=f'rev_{_niv}_{_firma}',
-                                    format_func=lambda o: (i18n.tr(o) if o == '(sin cambio)'
-                                                           else i18n.tv(o)))
-                        _b1, _b2, _b3 = st.columns([2, 2, 3])
-                        with _b1:
-                            _guardar = st.button('✓ Guardar tipo revisado', type='primary',
-                                                 key='rev_save')
-                        with _b2:
-                            _deshacer = st.button(
-                                '↩ Deshacer revisión', key='rev_undo',
-                                help='Devuelve los puntos seleccionados a la propuesta '
-                                     'de la app.')
-                        with _b3:
-                            _n_fuera = len(_sel_ok) - len(_idx_tipo)
-                            st.caption(i18n.pick(
-                                f'{len(_idx_tipo)} punto(s) a revisar'
-                                + (f' · {_n_fuera} no son borreguil y se ignoran'
-                                   if _n_fuera else ''),
-                                f'{len(_idx_tipo)} point(s) to review'
-                                + (f' · {_n_fuera} are not borreguil and are skipped'
-                                   if _n_fuera else '')))
-                        _elegidos = {n: v for n, v in _eleccion.items() if v != _SIN}
-                        if _guardar and not _elegidos:
-                            st.warning(i18n.pick(
-                                'No has elegido ningún nivel: no hay nada que guardar.',
-                                'You have not chosen any level: there is nothing to save.'))
-                            _guardar = False
-                        if _guardar or _deshacer:
-                            rows2 = [dict(r) for r in rows]
-                            _errores = []
-                            for i in _idx_tipo:
-                                try:
-                                    if _guardar:
-                                        bp.set_niveles_revisados(rows2[i], **_elegidos)
-                                        # aquí se revisa con la ortofoto (plantilla:
-                                        # `method`); lo que traía el fichero se respeta
-                                        if not bp._txt(rows2[i].get('method')):
-                                            rows2[i]['method'] = 'orthophoto'
-                                    else:
-                                        bp.clear_tipo_revisado(rows2[i])
-                                except ValueError as _e:
-                                    _errores.append(f"{rows2[i].get('ID', '?')}: {_e}")
-                            if _errores:
-                                # Todo o nada: con un solo punto inválido no se guarda
-                                # ninguno, para no dejar la selección a medias.
-                                st.error(i18n.pick('No se ha guardado nada. ',
-                                                   'Nothing was saved. ')
-                                         + ' · '.join(_errores[:5]))
-                            else:
-                                bp.apply_typology(rows2, pp.is_borreguil_decision)
-                                bp.save_csv(rows2, work / 'classification.csv')
-                                bp.save_points_geojson(rows2, work / 'puntos.geojson')
-                                bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx',
-                                             threshold=threshold)
-                                bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
-                                st.session_state.rows = rows2
-                                st.session_state['_rev_n'] = \
-                                    st.session_state.get('_rev_n', 0) + 1
-                                st.session_state['_rev_msg'] = (
-                                    i18n.pick(f'Tipo revisado guardado en {len(_idx_tipo)} '
-                                              'punto(s): ' + ', '.join(_elegidos) + '.',
-                                              f'Reviewed type saved for {len(_idx_tipo)} '
-                                              'point(s): ' + ', '.join(
-                                                  bp.COLUMNA_TIPO_EN[n] for n in _elegidos)
-                                              + '.')
-                                    if _guardar else
-                                    i18n.pick(f'Revisión deshecha en {len(_idx_tipo)} '
-                                              'punto(s).',
-                                              f'Review undone for {len(_idx_tipo)} '
-                                              'point(s).'))
-                                st.rerun()
-
-            focus_idx = st.session_state.get('sel_idx')
-            if focus_idx is not None and focus_idx < len(rows):
-                idx = focus_idx
+                _nombres_sel = bp.nombres_de_punto([r.get('ID') for r in rows],
+                                                   i18n.pick('Punto', 'Point'))
+                st.markdown(i18n.pick(
+                    f"**{_n} punto{'' if _n == 1 else 's'} seleccionado"
+                    f"{'' if _n == 1 else 's'}**{_ya_txt}"
+                    + ('' if _n == 1 else ': lo que guardes se aplica a todos.'),
+                    f"**{_n} point{'' if _n == 1 else 's'} selected**{_ya_txt}"
+                    + ('' if _n == 1 else ': what you save applies to all of them.')))
+                idx = (focus_idx if focus_idx is not None and focus_idx < len(rows)
+                       else _sel_ok[-1])
                 sel = st.session_state.get('sel_point') or dict(rows[idx])
                 colL, colR = st.columns([3, 2])
                 with colL:
@@ -3747,53 +3521,280 @@ with tab_analisis:
                         'which shows the shape of the terrain (gullies and small '
                         'streams: stream or slope), and to turn on the contour lines.'))
                 with colR:
-                    # El nombre, en un tamaño contenido y partiéndose por los
-                    # separadores: los ID largos quedaban troceados por cualquier
-                    # letra en tres líneas de titular.
+                    # El punto que se ve en el mapa
                     st.markdown(
-                        "<h4 style='margin:0 0 .4rem 0;padding:0;font-size:1.15rem;"
+                        "<h4 style='margin:0 0 .3rem 0;padding:0;font-size:1.1rem;"
                         "line-height:1.3;overflow-wrap:anywhere;'>"
-                        f"{bp.nombre_html(sel.get('ID', '?'))}</h4>",
+                        f"{bp.nombre_html(_nombres_sel[idx])}</h4>",
                         unsafe_allow_html=True)
-                    st.markdown(f"**{i18n.tv_decision(sel.get('decision') or '—')}**")
-                    if sel.get('tipo_borreguil'):
-                        st.markdown(
-                            f"🌿 {i18n.tv(sel['tipo_borreguil'])} — "
-                            + (i18n.pick('**revisado**', '**reviewed**')
-                               if bp.tipo_revisado(sel)
-                               else i18n.pick('propuesta de la app, sin revisar',
-                                              "app's proposal, not reviewed")))
                     rfp = sel.get('rf_proba')
-                    if isinstance(rfp, (int, float)) and not _m.isnan(rfp):
-                        st.metric('Probabilidad RF', f'{rfp*100:.0f}%')
-                    # (Sin la imagen aérea de ~550 m de la que salen las texturas: el
-                    # mapa de la izquierda ya enseña el sitio, y mejor. Quitada el
-                    # 24-11-2026 a petición de la autora; se sigue descargando.)
-                    _n = _num                       # 3 decimales, con coma en español
-                    # Las 3 variables que más pesan en el modelo, una por grupo de
-                    # parecidas (antes eran NDVI, clorofila y EVI de fin de verano, que
-                    # dicen casi lo mismo: correlación 0,94–0,98).
-                    _rs_sel = load_ref_stats(MODEL_PATH)
-                    _mf = set((_rs_sel or {}).get('model_features') or []) or None
-                    _clave3 = pp.variables_clave((_rs_sel or {}).get('importances'), _mf, 3)
-                    _ya = {k['feat'] for k in _clave3}
-                    # (sin las que no tienen dato)
-                    _terreno = ' · '.join(
-                        f"{pp.etiqueta(f)}: **{_n(sel.get(f))}**"
-                        for f in ('elev_dem_m', 'slope_deg')
-                        if f not in _ya and _n(sel.get(f)) != '—')
-                    _mas_peso = ' · '.join(
-                        f"{pp.etiqueta(k['feat'])}: **{_n(sel.get(k['feat']))}**"
-                        + ('' if k['peso'] is None else f" ({100 * k['peso']:.0f} %)")
-                        for k in _clave3)
-                    st.markdown(
-                        i18n.pick('Lo que más pesa en el modelo: ',
-                                  'What weighs most in the model: ') + _mas_peso + '\n\n'
-                        + (_terreno + '\n\n' if _terreno else '')
-                        # (sin el «Patrón»: era un código interno, BORREGUIL_LIKE…)
-                        + f"Coords: {_num(sel.get('lat'), 5)}{i18n.pick('; ', ', ')}{_num(sel.get('lon'), 5)}")
-                    gmaps = f"https://www.google.com/maps/search/?api=1&query={sel.get('lat')},{sel.get('lon')}"
-                    st.markdown(f'[Abrir en Google Maps]({gmaps})')
+                    _rf_txt = (f' ({rfp * 100:.0f} %)' if isinstance(rfp, (int, float))
+                               and not _m.isnan(rfp) else '')
+                    st.caption(i18n.pick('El modelo dice: ', 'The model says: ')
+                               + f"**{i18n.tv_decision(sel.get('decision') or '—')}**{_rf_txt}"
+                               + (f" · {i18n.tv(sel['tipo_borreguil'])} — "
+                                  + (i18n.pick('tipo **revisado**', 'type **reviewed**')
+                                     if bp.tipo_revisado(sel) else
+                                     i18n.pick('propuesta de la app, sin revisar',
+                                               "app's proposal, not reviewed"))
+                                  if sel.get('tipo_borreguil') else ''))
+                    import hashlib as _hl
+                    # La clave de los controles depende de QUÉ puntos hay seleccionados
+                    # (por ID: al quitar uno las posiciones se corren) y de cuántas veces
+                    # se ha guardado o deshecho: arrancan con lo vigente de la selección,
+                    # nunca con lo elegido para otro punto.
+                    _firma = _hl.md5('|'.join(
+                        [str(x) for x in sel_ids] + [str(st.session_state.get('_rev_n', 0))]
+                    ).encode()).hexdigest()[:10]
+                    _estados = {_estado(rows[i]) for i in _sel_ok}
+                    _es_ini = next(iter(_estados)) if len(_estados) == 1 else None
+                    _ES_TXT = {'si': i18n.pick('Sí', 'Yes'), 'no': 'No',
+                               'duda': i18n.pick('No estoy seguro', 'Not sure')}
+                    _es = st.radio(
+                        i18n.pick('1 · ¿Es borreguil?', '1 · Is it a borreguil?'),
+                        list(_ES_TXT), horizontal=True, format_func=_ES_TXT.get,
+                        index=list(_ES_TXT).index(_es_ini) if _es_ini else None,
+                        key=f'rev_es_{_firma}',
+                        help=i18n.pick(
+                            'Míralo en la ortofoto (o con tus datos de campo). **Sí** o '
+                            '**No** lo dejan verificado; **No estoy seguro** lo deja como '
+                            'dudoso: no entrena ni cuenta en el acierto, y no tiene tipo.',
+                            'Look at it on the orthophoto (or with your field data). '
+                            '**Yes** or **No** leave it verified; **Not sure** leaves it as '
+                            'doubtful: it does not train or count in the accuracy, and has '
+                            'no type.'))
+                    st.radio(i18n.pick('Certidumbre (opcional)', 'Certainty (optional)'),
+                             list(bp.CERTIDUMBRES), index=None, horizontal=True,
+                             format_func=_CERT_TXT.get, key='rev_certidumbre',
+                             help=_CERT_AYUDA, disabled=_es == 'duda')
+                    _nom, _per = _quien()
+                    _cert = '' if _es == 'duda' else (st.session_state.get('rev_certidumbre')
+                                                      or '')
+                    st.markdown(i18n.pick('**2 · Tipo**', '**2 · Type**')
+                                + (i18n.pick(
+                                    ' · elige «Sí» para revisarlo',
+                                    ' · choose "Yes" to review it') if _es is None else
+                                   i18n.pick(' · un punto que no es borreguil no tiene tipo',
+                                             ' · a point that is not a borreguil has no '
+                                             'type') if _es == 'no' else
+                                   i18n.pick(' · un punto dudoso no tiene tipo',
+                                             ' · a doubtful point has no type')
+                                   if _es == 'duda' else ''))
+                    _SIN = '(sin cambio)'
+                    _uno = rows[_sel_ok[0]] if _n == 1 else None
+                    for _niv, _etq in (('ambiente', 'Ambiente'), ('humedad', 'Humedad'),
+                                       ('pureza', 'Pureza')):
+                        _ops = [_SIN] + list(bp.NIVELES_TIPO[_niv])
+                        # Con un punto: lo revisado o, si no, la propuesta de la app, para
+                        # aceptarla o corregirla. Con varios, «sin cambio»: cada uno se
+                        # queda con lo suyo.
+                        _rev = (_uno.get(_niv) if _uno and _niv in bp.niveles_revisados(_uno)
+                                else None)
+                        _prop = bp._txt(_uno.get(_niv + '_regla')) if _uno else ''
+                        _ini = _rev if _rev in _ops else (_prop if _prop in _ops else _SIN)
+                        st.selectbox(
+                            i18n.tr(_etq), _ops, index=_ops.index(_ini),
+                            key=f'rev_{_niv}_{_firma}', disabled=_es != 'si',
+                            format_func=lambda o, p=_prop: (
+                                i18n.pick('No lo he podido ver (sin cambio)',
+                                          "I couldn't see it (no change)") if o == _SIN
+                                else i18n.tv(o) + (i18n.pick(' (propuesta de la app)',
+                                                             " (app's proposal)")
+                                                   if o == p else '')))
+                    st.caption(i18n.pick(
+                        'Decide con la ortofoto o con datos de campo, no por lo que propone '
+                        'la app. **Ambiente**: dónde está el prado (junto a un arroyo, junto '
+                        'a una laguna o en ladera). **Humedad**: aplica siempre el mismo '
+                        'criterio. **Pureza**: «mixto-agua» si hay agua dentro del píxel de '
+                        '10 m (el recuadro amarillo), «mixto-roca» si hay roca o suelo '
+                        'desnudo, «puro» si todo es prado. Cada nivel cuenta por separado: lo '
+                        'que dejes en «No lo he podido ver» no cuenta como revisado.',
+                        'Decide with the orthophoto or with field data, not by what the app '
+                        'proposes. **Environment**: where the meadow is (by a stream, by a '
+                        'lake or on a slope). **Moisture**: always apply the same criterion. '
+                        '**Purity**: "mixed-water" if there is water inside the 10 m pixel '
+                        '(the yellow square), "mixed-rock" if there is rock or bare soil, '
+                        '"pure" if it is all meadow. Each level counts separately: what you '
+                        'leave at "I couldn\'t see it" does not count as reviewed.'))
+                    _snap = st.session_state.get('_rev_deshacer')
+                    _guardar = st.button(
+                        i18n.pick('💾 Guardar la revisión', '💾 Save the review'),
+                        type='primary', key='rev_guardar', width='stretch',
+                        help=i18n.pick(
+                            'Guarda a la vez si es borreguil, la certidumbre, quién revisa y '
+                            'el tipo. Si has marcado «Sumar mis puntos a los del modelo y '
+                            'reentrenarlo» y cambia el sí o el no, el modelo se reentrena.',
+                            'Saves at once whether it is a borreguil, the certainty, who '
+                            'reviews and the type. If you ticked "Add my points to the '
+                            "model's and retrain it\" and the yes or no changes, the model "
+                            'is retrained.'))
+                    _b1, _b2 = st.columns(2)
+                    with _b1:
+                        _deshacer = st.button(
+                            i18n.pick('↩ Deshacer', '↩ Undo'), key='rev_deshacer',
+                            width='stretch', disabled=not _snap,
+                            help=i18n.pick('Deshace la última revisión guardada.',
+                                           'Undoes the last saved review.'))
+                    with _b2:
+                        if st.button('🗑 Quitar del análisis', key='remove_pts',
+                                     help='Elimina los puntos seleccionados del mapa, la tabla '
+                                          'y las descargas (no reentrena el modelo).'):
+                            drop = set(sel_rows)
+                            keep = [r for i, r in enumerate(rows) if i not in drop]
+                            if not keep:
+                                st.warning(i18n.pick('No puedes quitar todos los puntos.',
+                                                     'You cannot remove all the points.'))
+                            else:
+                                bp.save_csv(keep, work / 'classification.csv')
+                                bp.save_points_geojson(keep, work / 'puntos.geojson')
+                                bp.save_xlsx(keep, work / 'Clasificacion_puntos.xlsx',
+                                             threshold=threshold)
+                                bp.save_map(keep, work / 'mapa.html', study_geom=sg)
+                                st.session_state.rows = keep
+                                st.session_state.sel_point = None
+                                st.session_state.sel_idx = None
+                                st.session_state.prev_sel_set = set()
+                                st.session_state['_vaciar_seleccion'] = True
+                                st.session_state['_rev_msg'] = _msg_puntos(
+                                    sel_ids, 'quitado del análisis', 'quitados del análisis',
+                                    'removed from the analysis', 'removed from the analysis')
+                                st.rerun()
+
+                    if _guardar and _es is None:
+                        st.warning(i18n.pick('Elige primero si es borreguil.',
+                                             'First choose whether it is a borreguil.'))
+                    elif _guardar:
+                        _elegidos = {}
+                        if _es == 'si':
+                            _elegidos = {n: st.session_state.get(f'rev_{n}_{_firma}')
+                                         for n in bp.NIVELES_TIPO}
+                            _elegidos = {n: v for n, v in _elegidos.items()
+                                         if v and v != _SIN}
+                        rows2 = [dict(r) for r in rows]
+                        sset = set(sel_ids)
+                        _errores, _sin_tipo = [], 0
+                        for r in rows2:
+                            if r.get('ID') not in sset:
+                                continue
+                            if _es == 'si':
+                                r['Borreguil'] = 'si'; r['origin'] = 'verificado'
+                                # verificarlo resuelve una duda de campo: si siguiera
+                                # «dudoso», no entraría en el entrenamiento
+                                r['Duda'] = ''
+                                bp.anotar_revision(r, _nom, _per, _cert)
+                                if _elegidos:
+                                    try:
+                                        bp.set_niveles_revisados(r, **_elegidos)
+                                        # aquí se revisa con la ortofoto (plantilla:
+                                        # `method`); lo que traía el fichero se respeta
+                                        if not bp._txt(r.get('method')):
+                                            r['method'] = 'orthophoto'
+                                    except ValueError as _e:
+                                        _errores.append(f"{r.get('ID', '?')}: {_e}")
+                            else:
+                                # no borreguil (verificado) o dudoso: sin tipo revisado
+                                r['Borreguil'] = 'no' if _es == 'no' else ''
+                                r['Duda'] = 'si' if _es == 'duda' else ''
+                                r['origin'] = 'verificado' if _es == 'no' else 'dudoso'
+                                bp.anotar_revision(r, _nom, _per, _cert)
+                                if bp.tipo_revisado(r):
+                                    bp.clear_tipo_revisado(r)
+                                    _sin_tipo += 1
+                        if _errores:
+                            # Todo o nada: con un solo punto inválido no se guarda ninguno
+                            st.error(i18n.pick('No se ha guardado nada. ',
+                                               'Nothing was saved. ')
+                                     + ' · '.join(_errores[:5]))
+                        else:
+                            # Para «↩ Deshacer»: cómo estaba todo antes de guardar
+                            st.session_state['_rev_deshacer'] = {
+                                'rows': [dict(r) for r in rows],
+                                'base': list(base_truth_ids)}
+                            _cambia = any(_estado(rows[i]) != _es for i in _sel_ok)
+                            info2 = None
+                            if _cambia:
+                                with st.spinner(_espera):
+                                    _base = set(base_truth_ids)
+                                    _nb = (_base | sset if _es == 'si' else _base - sset)
+                                    info2 = _recalcular_y_guardar(
+                                        rows2, _nb, {'si': 'verdad-terreno',
+                                                     'no': 'ausencias verificadas',
+                                                     'duda': 'dudosos'}[_es]
+                                        + f' (+{len(sset)})', len(sset))
+                            else:
+                                # el sí o el no no cambia: solo el tipo, sin reentrenar
+                                bp.apply_typology(rows2, pp.is_borreguil_decision)
+                                bp.save_csv(rows2, work / 'classification.csv')
+                                bp.save_points_geojson(rows2, work / 'puntos.geojson')
+                                bp.save_xlsx(rows2, work / 'Clasificacion_puntos.xlsx',
+                                             threshold=threshold)
+                                bp.save_map(rows2, work / 'mapa.html', study_geom=sg)
+                                st.session_state.rows = rows2
+                            st.session_state.sel_point = None
+                            st.session_state['_rev_n'] = st.session_state.get('_rev_n', 0) + 1
+                            _que = {
+                                'si': ('marcado como borreguil verificado',
+                                       'marcados como borreguil verificado',
+                                       'marked as verified borreguil',
+                                       'marked as verified borreguil'),
+                                'no': ('marcado como no borreguil verificado',
+                                       'marcados como no borreguil verificado',
+                                       'marked as verified non-borreguil',
+                                       'marked as verified non-borreguil'),
+                                'duda': ('marcado como dudoso (no entrena)',
+                                         'marcados como dudosos (no entrenan)',
+                                         'marked as doubtful (it does not train)',
+                                         'marked as doubtful (they do not train)')}[_es]
+                            _extra = ''
+                            if _elegidos:
+                                _extra = i18n.pick(
+                                    ' Tipo revisado: ' + ', '.join(_elegidos) + '.',
+                                    ' Type reviewed: ' + ', '.join(
+                                        bp.COLUMNA_TIPO_EN[n] for n in _elegidos) + '.')
+                            elif _sin_tipo:
+                                _extra = i18n.pick(' Se le ha quitado el tipo revisado.',
+                                                   ' Its reviewed type was removed.')
+                            st.session_state['_rev_msg'] = (
+                                _msg_puntos(sel_ids, *_que) + _extra
+                                + (_reentrenado if (info2 or {}).get('sumado') else ''))
+                            st.rerun()
+                    if _deshacer and _snap:
+                        st.session_state.pop('_rev_deshacer', None)
+                        with st.spinner(_espera):
+                            _recalcular_y_guardar([dict(r) for r in _snap['rows']],
+                                                  set(_snap['base']), 'deshacer', 0)
+                        st.session_state.sel_point = None
+                        st.session_state['_rev_n'] = st.session_state.get('_rev_n', 0) + 1
+                        st.session_state['_rev_msg'] = i18n.pick(
+                            'Revisión deshecha: los puntos vuelven a como estaban.',
+                            'Review undone: the points are back to how they were.')
+                        st.rerun()
+                # Debajo del mapa y del formulario: los valores del punto y su ficha
+                _n = _num                       # 3 decimales, con coma en español
+                # Las 3 variables que más pesan en el modelo, una por grupo de
+                # parecidas (antes eran NDVI, clorofila y EVI de fin de verano, que
+                # dicen casi lo mismo: correlación 0,94–0,98).
+                _rs_sel = load_ref_stats(MODEL_PATH)
+                _mf = set((_rs_sel or {}).get('model_features') or []) or None
+                _clave3 = pp.variables_clave((_rs_sel or {}).get('importances'), _mf, 3)
+                _ya = {k['feat'] for k in _clave3}
+                # (sin las que no tienen dato)
+                _terreno = ' · '.join(
+                    f"{pp.etiqueta(f)}: **{_n(sel.get(f))}**"
+                    for f in ('elev_dem_m', 'slope_deg')
+                    if f not in _ya and _n(sel.get(f)) != '—')
+                _mas_peso = ' · '.join(
+                    f"{pp.etiqueta(k['feat'])}: **{_n(sel.get(k['feat']))}**"
+                    + ('' if k['peso'] is None else f" ({100 * k['peso']:.0f} %)")
+                    for k in _clave3)
+                st.markdown(
+                    i18n.pick('Lo que más pesa en el modelo: ',
+                              'What weighs most in the model: ') + _mas_peso + '\n\n'
+                    + (_terreno + '\n\n' if _terreno else '')
+                    # (sin el «Patrón»: era un código interno, BORREGUIL_LIKE…)
+                    + f"Coords: {_num(sel.get('lat'), 5)}{i18n.pick('; ', ', ')}{_num(sel.get('lon'), 5)}")
+                gmaps = f"https://www.google.com/maps/search/?api=1&query={sel.get('lat')},{sel.get('lon')}"
+                st.markdown(f'[Abrir en Google Maps]({gmaps})')
                 rs = load_ref_stats(MODEL_PATH)
                 with st.expander(i18n.pick('📈 Este punto frente a los borreguiles verdaderos',
                                            '📈 This point vs the real borreguiles'),
@@ -4676,15 +4677,15 @@ with tab_tipos:
                     f'{_ma} ausencias; lo recomendado, {_rn} = {_rb} + {_ra}. Hacen falta los '
                     'dos: muchos borreguiles no suplen las ausencias que faltan. '
                     'Las ausencias son los sitios que has comprobado que **no** son '
-                    'borreguil: `presence` = 0 en tu fichero, «✗ Marcar como no borreguil '
-                    'verificado» al revisar un punto o «✗ Aquí no hay» al pinchar en el mapa. '
+                    'borreguil: `presence` = 0 en tu fichero, «No» en «¿Es borreguil?» al '
+                    'revisar un punto o «✗ Aquí no hay» al pinchar en el mapa. '
                     'La app no se las inventa. Para buscarlas donde no has muestreado, genera '
                     'puntos al azar «lejos de tus puntos de campo» y revísalos.',
                     f'The minimum in the chart, {_mn} points, is the sum of {_mb} borreguiles '
                     f'and {_ma} absences; the recommended one, {_rn} = {_rb} + {_ra}. Both '
                     'are needed: many borreguiles do not make up for missing absences. '
                     'Absences are the places you have checked are **not** a borreguil: '
-                    '`presence` = 0 in your file, "✗ Mark as verified non-borreguil" when '
+                    '`presence` = 0 in your file, "No" under "Is it a borreguil?" when '
                     'reviewing a point or "✗ There is none" when clicking on the map. The app '
                     'never invents them. To look for them where you have not sampled, '
                     'generate random points "far from your field points" and review them.'))

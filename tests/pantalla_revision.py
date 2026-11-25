@@ -189,6 +189,12 @@ def desplegable(at, nivel):
     return cs[0] if cs else None
 
 
+def es_borreguil(at):
+    """La pregunta «1 · ¿Es borreguil?» de la revisión (su clave cambia con la selección)."""
+    rs = [r for r in at.radio if (r.key or '').startswith('rev_es_')]
+    return rs[0] if rs else None
+
+
 def boton(at, clave):
     bs = [b for b in at.button if b.key == clave]
     return bs[0] if bs else None
@@ -400,7 +406,8 @@ def guion(lang):
     n_b = len(BORR) + 1
     comprobar(hay(at, f'Type reviewed: 0 of {n_b}' if en else f'Tipo revisado: 0 de {n_b}'),
               f'contador a cero sobre {n_b} borreguiles')
-    comprobar(boton(at, 'rev_save') is None, 'sin selección no aparece el panel de revisión')
+    comprobar(boton(at, 'rev_guardar') is None and es_borreguil(at) is None,
+              'sin selección no aparece el panel de revisión')
     T = (lambda es_, en_: en_ if en else es_)
     # Por defecto, el modelo de partida, y la pantalla lo dice
     comprobar(hay(at, T('Modelo usado: el de partida', 'Model used: the starting model'))
@@ -569,31 +576,33 @@ def guion(lang):
               str(list(df['ID'])[:3]) if df is not None else 'sin tabla')
     comprobar(len(set(df['ID'])) == len(set(ids)), 'y siguen distinguiéndose unos de otros')
 
-    # --- B · seleccionar un borreguil
+    # --- B · seleccionar un borreguil: la revisión unida (25-11-2026, la autora: sí o
+    # no y el tipo, en un solo recorrido y con un solo botón)
     print('  B · seleccionar un borreguil')
     i1 = BORR[0]
     seleccionar(at, [i1])
     sin_error(at, 'B')
-    etiquetas = [e.label for e in at.expander]
-    esperado = ('🌿 Review the borreguil type of the selected points' if en else
-                '🌿 Revisar el tipo de borreguil de los puntos seleccionados')
-    comprobar(esperado in etiquetas, 'aparece el panel de revisión', str(etiquetas))
     r1 = dict(filas(at)[i1])
+    es = es_borreguil(at)
+    comprobar(es is not None and es.value is None
+              and list(es.options) == ([T('Sí', 'Yes'), 'No', T('No estoy seguro', 'Not sure')]),
+              'aparece «1 · ¿Es borreguil?», sin nada elegido',
+              str(list(es.options)) if es is not None else 'no está')
     for niv in bp.NIVELES_TIPO:
         d = desplegable(at, niv)
-        # sin revisar, arranca en «(sin cambio)» (guardar no lo da por revisado sin
-        # mirarlo) y la propuesta de la app se lee en la etiqueta
-        comprobar(d is not None and d.value == '(sin cambio)'
-                  and i18n_valor(r1[niv], en) in d.label,
-                  f'el desplegable de {niv} arranca sin revisar y enseña la propuesta '
-                  f'({r1[niv]})', f'{d.value!r} · {d.label!r}' if d is not None else 'no existe')
+        # con un punto, el tipo trae la propuesta de la app, apagado hasta decir que sí
+        comprobar(d is not None and d.value == r1[niv] and d.disabled
+                  and any(T('(propuesta de la app)', "(app's proposal)") in o for o in d.options),
+                  f'el tipo ({niv}) trae la propuesta de la app y está apagado hasta decir que sí',
+                  f'{d.value!r} · {d.disabled}' if d is not None else 'no existe')
     comprobar(hay(at, 'Orthophoto background' if en else 'Ortofoto de fondo'),
               'el mapa del punto anuncia la ortofoto y el píxel de 10 m')
     comprobar(hay(at, "app's proposal, not reviewed" if en else
                   'propuesta de la app, sin revisar'),
-              'la ficha del punto dice que el tipo está sin revisar')
-    comprobar(hay(at, bp.nombre_html(r1['ID'])),
-              'la ficha muestra el nombre completo, con cortes en los separadores')
+              'junto al formulario se dice que el tipo está sin revisar')
+    nombre1 = bp.nombres_de_punto([r['ID'] for r in filas(at)], T('Punto', 'Point'))[i1]
+    comprobar(hay(at, bp.nombre_html(nombre1)),
+              'el punto se llama como en el globo del mapa', nombre1)
     _alt = N(r1.get('elev_dem_m'), en)
     comprobar(hay(at, f"**{_alt}**") and len(_alt.split('.' if en else ',')[1]) == 3
               and not hay(at, str(r1.get('elev_dem_m'))),
@@ -605,146 +614,175 @@ def guion(lang):
               and hay(at, T('Cada punto de color es **el punto que estás mirando**',
                             'Each coloured dot is **the point you are looking at**')),
               'la gráfica de la ficha lleva su leyenda de colores')
-    d = desplegable(at, 'ambiente')
-    opciones = list(d.options) if d is not None else []
-    comprobar(opciones == (['(no change)', 'stream', 'lake', 'slope'] if en else
-                           ['(sin cambio)', 'arroyo', 'laguna', 'ladera']),
-              'opciones de ambiente en el idioma elegido', str(opciones))
-    comprobar([b.label for b in at.button if b.key == 'rev_save']
-              == ['✓ Save reviewed type' if en else '✓ Guardar tipo revisado'],
-              'botón de guardar en el idioma elegido')
+    opciones = list(desplegable(at, 'ambiente').options)
+    comprobar(len(opciones) == 4 and opciones[0] == T('No lo he podido ver (sin cambio)',
+                                                      "I couldn't see it (no change)")
+              and any(o.startswith(T('laguna', 'lake')) for o in opciones),
+              'opciones de ambiente en el idioma elegido, con «No lo he podido ver»',
+              str(opciones))
+    comprobar([b.label for b in at.button if b.key == 'rev_guardar']
+              == [T('💾 Guardar la revisión', '💾 Save the review')]
+              and boton(at, 'rev_deshacer').disabled,
+              'un solo botón de guardar, en el idioma elegido; deshacer, apagado')
+    boton(at, 'rev_guardar').click()      # sin st.rerun(): el aviso se queda en pantalla
+    at.run()
+    sin_error(at, 'B (guardar sin elegir)')
+    comprobar(hay(at, T('Elige primero si es borreguil', 'First choose whether it is a borreguil'))
+              and bp._txt(filas(at)[i1].get('Borreguil')) == ''
+              and not bp.tipo_revisado(filas(at)[i1]),
+              'guardar sin decir si es borreguil avisa y no guarda nada')
 
-    # --- C · corregir la humedad y guardar
-    print('  C · corregir la humedad y guardar')
+    # --- C · decir que sí, corregir la humedad y guardar: las dos cosas a la vez
+    print('  C · decir que sí, corregir la humedad y guardar')
+    es_borreguil(at).set_value('si')
+    at.run()
+    sin_error(at, 'C (sí)')
+    comprobar(all(not desplegable(at, n).disabled for n in bp.NIVELES_TIPO),
+              'al decir que sí se enciende el tipo')
     nueva_hum = 'seco' if r1['humedad'] == 'húmedo' else 'húmedo'
     desplegable(at, 'humedad').select(nueva_hum)
-    msgs = pulsar(at, boton(at, 'rev_save'), 'C')
+    msgs = pulsar(at, boton(at, 'rev_guardar'), 'C')
     r = filas(at)[i1]
-    comprobar(bp.niveles_revisados(r) == ['humedad'],
-              'el punto queda revisado solo en la humedad', str(bp.niveles_revisados(r)))
-    comprobar(r['humedad'] == nueva_hum and r['humedad_regla'] == r1['humedad'],
+    comprobar(r['Borreguil'] == 'si' and r['decision'] == 'BORREGUIL VERIFICADO',
+              'el punto queda verificado como borreguil', r['decision'])
+    comprobar(bp.niveles_revisados(r) == list(bp.NIVELES_TIPO),
+              'y su tipo, revisado en los tres niveles (la propuesta aceptada en ambiente y '
+              'pureza, la humedad corregida)', str(bp.niveles_revisados(r)))
+    comprobar(r['humedad'] == nueva_hum and r['humedad_regla'] == r1['humedad']
+              and r['ambiente'] == r1['ambiente'] and r['pureza'] == r1['pureza'],
               'humedad corregida y propuesta de la app conservada',
               f"{r.get('humedad')} / {r.get('humedad_regla')}")
-    comprobar(r['ambiente'] == r1['ambiente'] and r['pureza'] == r1['pureza'],
-              'los niveles no tocados siguen con la propuesta, sin revisar')
     comprobar(bool(r.get('tipo_revisado_fecha')) and r.get('method') == 'orthophoto',
               'queda la fecha de la revisión, y que se hizo con la ortofoto')
-    comprobar(any(('Reviewed type saved for 1 point(s): moisture.' if en else
-                   'Tipo revisado guardado en 1 punto(s): humedad.') in m for m in msgs),
-              'mensaje de confirmación, con el nivel revisado')
-    comprobar(hay(at, f'Type reviewed: 1 of {n_b}' if en else f'Tipo revisado: 1 de {n_b}'),
-              'el contador pasa a 1 revisado')
+    comprobar(any(T('marcado como borreguil verificado', 'marked as verified borreguil') in m
+                  and T('Tipo revisado: ambiente, humedad, pureza.',
+                        'Type reviewed: environment, moisture, purity.') in m for m in msgs),
+              'un solo aviso con las dos cosas: verificado y tipo revisado',
+              str([m[:120] for m in msgs if 'erifi' in m][:2]))
+    # (al guardar se recalculan las decisiones: el punto sin datos ya no cuenta como
+    # borreguil, así que el total se cuenta ahora)
+    n_b2 = sum(1 for x in filas(at) if pp.is_borreguil_decision(x.get('decision', '')))
+    comprobar(hay(at, f'Type reviewed: 1 of {n_b2}' if en else f'Tipo revisado: 1 de {n_b2}'),
+              'el contador pasa a 1 revisado',
+              str([x[:160] for x in textos(at) if 'revisado:' in x or 'reviewed:' in x]))
     comprobar(hay(at, 'moisture 1' if en else 'humedad 1'),
               'el contador registra 1 corrección de humedad')
     df = tabla_principal(at)
-    comprobar(df is not None and df[col_rev].iloc[i1] == ('moisture' if en else 'humedad')
+    comprobar(df is not None and df[col_rev].iloc[i1] == T('sí', 'yes')
               and (df[col_rev] != '').sum() == 1,
-              'la tabla marca solo ese punto, con el nivel revisado')
+              'la tabla marca solo ese punto, con los tres niveles revisados')
     for nombre in ('classification.csv', 'puntos.geojson', 'Clasificacion_puntos.xlsx',
                    'mapa.html'):
         comprobar((work / nombre).exists(), f'se ha guardado {nombre}')
     gj = json.loads((work / 'puntos.geojson').read_text(encoding='utf-8'))
     props = {f['properties']['ID']: f['properties'] for f in gj['features']}
     comprobar(props[r['ID']]['moisture'] == bp.TIPO_EN[nueva_hum]
-              and props[r['ID']]['environment'] is None
-              and props[r['ID']]['method'] == 'orthophoto',
-              'puntos.geojson lleva la revisión con las columnas de la plantilla, solo el '
-              'nivel revisado')
-    d = desplegable(at, 'humedad')
-    comprobar(d is not None and d.value == nueva_hum,
-              'tras guardar, el desplegable muestra el valor guardado',
-              repr(d.value) if d is not None else 'no existe')
-    comprobar(hay(at, '**reviewed**' if en else '**revisado**'),
-              'la ficha del punto pasa a decir «revisado»')
-    comprobar(SELECCION['rows'] == [i1], 'la selección se conserva al guardar')
+              and props[r['ID']]['environment'] == bp.TIPO_EN[r1['ambiente']]
+              and props[r['ID']]['method'] == 'orthophoto' and props[r['ID']]['presence'] == 1,
+              'puntos.geojson lleva la revisión con las columnas de la plantilla')
+    comprobar(es_borreguil(at).value == 'si' and desplegable(at, 'humedad').value == nueva_hum,
+              'tras guardar, el formulario muestra lo guardado')
+    comprobar(hay(at, T('tipo **revisado**', 'type **reviewed**')),
+              'junto al formulario pasa a decir «tipo revisado»')
+    comprobar(SELECCION['rows'] == [i1] and not boton(at, 'rev_deshacer').disabled,
+              'la selección se conserva al guardar, y se puede deshacer')
 
-    # --- D · deshacer
+    # --- D · deshacer: el punto vuelve a como estaba (sin verificar y con la propuesta)
     print('  D · deshacer la revisión')
-    msgs = pulsar(at, boton(at, 'rev_undo'), 'D')
+    msgs = pulsar(at, boton(at, 'rev_deshacer'), 'D')
     r = filas(at)[i1]
-    comprobar(not bp.tipo_revisado(r) and r['humedad'] == r1['humedad'],
-              'el punto vuelve a la propuesta de la app',
-              f"{r.get('tipo_revisado')!r} / {r.get('humedad')}")
-    comprobar(any(('Review undone for 1 point(s).' if en else
-                   'Revisión deshecha en 1 punto(s).') in m for m in msgs),
+    comprobar(not bp.tipo_revisado(r) and bp._txt(r.get('Borreguil')) == ''
+              and r['decision'] == r1['decision'] and r['humedad'] == r1['humedad'],
+              'deshacer devuelve el punto a como estaba: sin verificar y con la propuesta',
+              f"{r.get('Borreguil')!r} / {r['decision']} / {r.get('humedad')}")
+    comprobar(any(T('Revisión deshecha', 'Review undone') in m for m in msgs),
               'mensaje de deshacer')
-    d = desplegable(at, 'humedad')
-    comprobar(d is not None and d.value == '(sin cambio)',
-              'tras deshacer, el desplegable vuelve a «(sin cambio)»',
-              repr(d.value) if d is not None else 'no existe')
+    comprobar(es_borreguil(at).value is None and boton(at, 'rev_deshacer').disabled,
+              'tras deshacer, el formulario vuelve a empezar y no hay nada más que deshacer')
 
-    # --- E · varios puntos a la vez (dos borreguiles y un no borreguil)
+    # --- E · varios puntos a la vez (dos borreguiles y un no borreguil): sí para los
+    # tres y la pureza
     print('  E · varios puntos a la vez')
     i2, j = BORR[1], NOB[0]
     antes = {i: dict(filas(at)[i]) for i in (i1, i2, j)}
     seleccionar(at, [i1, i2, j])
     sin_error(at, 'E (selección)')
-    comprobar(hay(at, '2 point(s) to review · 1 are not borreguil and are skipped' if en else
-                  '2 punto(s) a revisar · 1 no son borreguil y se ignoran'),
-              'avisa de cuántos se revisan y cuántos se ignoran')
-    comprobar(all(desplegable(at, n).value == '(sin cambio)' for n in bp.NIVELES_TIPO),
-              'con varios puntos los desplegables arrancan en «(sin cambio)»')
+    comprobar(hay(at, T('3 puntos seleccionados', '3 points selected'))
+              and hay(at, T('lo que guardes se aplica a todos',
+                            'what you save applies to all of them')),
+              'dice cuántos hay seleccionados y que lo guardado se aplica a todos')
+    comprobar(es_borreguil(at).value is None
+              and all(desplegable(at, n).value == '(sin cambio)' for n in bp.NIVELES_TIPO),
+              'con varios puntos no hay nada elegido y el tipo arranca en «sin cambio»')
+    es_borreguil(at).set_value('si')
+    at.run()
     desplegable(at, 'pureza').select('mixto-roca')
-    pulsar(at, boton(at, 'rev_save'), 'E (guardar)')
-    comprobar(all(desplegable(at, n).value == '(sin cambio)' for n in bp.NIVELES_TIPO),
-              'tras guardar varios, los desplegables vuelven a «(sin cambio)»')
+    msgs = pulsar(at, boton(at, 'rev_guardar'), 'E (guardar)')
+    comprobar(any(T('3 puntos marcados como borreguil verificado',
+                    '3 points marked as verified borreguil') in m for m in msgs),
+              'aviso con los tres puntos')
+    for i in (i1, i2, j):
+        r = filas(at)[i]
+        comprobar(r['Borreguil'] == 'si' and r['decision'] == 'BORREGUIL VERIFICADO'
+                  and bp.niveles_revisados(r) == ['pureza'] and r['pureza'] == 'mixto-roca',
+                  f"{r['ID']}: borreguil verificado y pureza revisada")
     for i in (i1, i2):
         r = filas(at)[i]
-        comprobar(bp.niveles_revisados(r) == ['pureza'] and r['pureza'] == 'mixto-roca'
-                  and r['ambiente'] == antes[i]['ambiente']
-                  and r['humedad'] == antes[i]['humedad'],
-                  f"{r['ID']}: pureza revisada; ambiente y humedad, sin tocar")
-    r = filas(at)[j]
-    comprobar(not bp.tipo_revisado(r) and r.get('ambiente', '') == '',
-              'el no borreguil seleccionado no se toca')
-    # --- E2 · completar uno a uno el ambiente y la humedad (dando por buena la
-    # propuesta, eligiéndola): el nivel revisado antes se conserva
+        comprobar(r['ambiente'] == antes[i]['ambiente'] and r['humedad'] == antes[i]['humedad'],
+                  f"{r['ID']}: ambiente y humedad, sin tocar")
+    # --- E2 · completar uno a uno el ambiente y la humedad dando por buena la propuesta:
+    # el sí ya estaba, así que no se reentrena, y la pureza revisada se conserva
     print('  E2 · completar los otros niveles de cada punto')
     for i in (i1, i2):
         seleccionar(at, [i])
         sin_error(at, 'E2 (selección)')
-        comprobar(desplegable(at, 'pureza').value == 'mixto-roca'
-                  and desplegable(at, 'humedad').value == '(sin cambio)',
-                  f"{filas(at)[i]['ID']}: arranca con lo revisado y el resto sin revisar")
-        desplegable(at, 'ambiente').select(antes[i]['ambiente'])
-        desplegable(at, 'humedad').select(antes[i]['humedad'])
-        pulsar(at, boton(at, 'rev_save'), 'E2 (guardar)')
+        comprobar(es_borreguil(at).value == 'si'
+                  and desplegable(at, 'pureza').value == 'mixto-roca'
+                  and desplegable(at, 'humedad').value == antes[i]['humedad']
+                  and not desplegable(at, 'humedad').disabled,
+                  f"{filas(at)[i]['ID']}: arranca con el sí, lo revisado y, en lo demás, la "
+                  'propuesta')
+        pulsar(at, boton(at, 'rev_guardar'), 'E2 (guardar)')
         r = filas(at)[i]
         comprobar(bp.niveles_revisados(r) == list(bp.NIVELES_TIPO)
                   and (r['ambiente'], r['humedad'], r['pureza'])
                   == (antes[i]['ambiente'], antes[i]['humedad'], 'mixto-roca'),
                   f"{r['ID']}: los tres niveles revisados, sin perder la pureza")
 
-    # --- F · solo no borreguiles
-    print('  F · selección sin borreguiles')
-    seleccionar(at, NOB[:2])
+    # --- F · decir que no o que no está seguro apaga el tipo (sin guardar)
+    print('  F · no y no estoy seguro')
+    seleccionar(at, NOB[1:3])
     sin_error(at, 'F')
-    comprobar(hay(at, 'The selected points are not classified as borreguil' if en else
-                  'Los puntos seleccionados no están clasificados como borreguil'),
-              'explica que esos puntos no tienen tipo')
-    comprobar(boton(at, 'rev_save') is None, 'no ofrece guardar')
+    es_borreguil(at).set_value('no')
+    at.run()
+    comprobar(all(desplegable(at, n).disabled for n in bp.NIVELES_TIPO)
+              and hay(at, T('un punto que no es borreguil no tiene tipo',
+                            'a point that is not a borreguil has no type')),
+              'con «No», el tipo se apaga y se dice por qué')
+    es_borreguil(at).set_value('duda')
+    at.run()
+    comprobar(all(desplegable(at, n).disabled for n in bp.NIVELES_TIPO)
+              and control(at, 'radio', 'rev_certidumbre').disabled
+              and hay(at, T('un punto dudoso no tiene tipo', 'a doubtful point has no type')),
+              'con «No estoy seguro», tampoco hay tipo ni certidumbre')
 
-    # --- G · sin elegir nada no se guarda; un punto sin datos se revisa por niveles
-    print('  G · guardar sin elegir nada, y un punto sin datos')
+    # --- G · un punto sin datos se revisa igual, y por niveles
+    print('  G · un punto sin datos')
     i3 = BORR[2]
     seleccionar(at, [i3, SIN])
     sin_error(at, 'G (selección)')
-    boton(at, 'rev_save').click()       # sin st.rerun(): el aviso se queda en pantalla
+    es_borreguil(at).set_value('si')
     at.run()
-    sin_error(at, 'G (guardar sin elegir)')
-    comprobar(hay(at, 'You have not chosen any level' if en else
-                  'No has elegido ningún nivel'),
-              'sin elegir ningún nivel, avisa de que no hay nada que guardar')
-    comprobar(not bp.tipo_revisado(filas(at)[i3]) and not bp.tipo_revisado(filas(at)[SIN]),
-              'ninguno de los dos queda revisado')
     desplegable(at, 'humedad').select('seco')
-    pulsar(at, boton(at, 'rev_save'), 'G (guardar la humedad)')
+    pulsar(at, boton(at, 'rev_guardar'), 'G (guardar la humedad)')
     comprobar(all(bp.niveles_revisados(filas(at)[k]) == ['humedad']
                   and filas(at)[k]['humedad'] == 'seco' for k in (i3, SIN)),
               'la humedad se guarda en los dos, también en el que no tiene datos')
+    seleccionar(at, [i3, SIN])
+    comprobar(es_borreguil(at).value == 'si', 'los dos arrancan ya con el sí')
     for niv, val in (('ambiente', 'ladera'), ('humedad', 'seco'), ('pureza', 'puro')):
         desplegable(at, niv).select(val)
-    pulsar(at, boton(at, 'rev_save'), 'G (guardar eligiendo los tres)')
+    pulsar(at, boton(at, 'rev_guardar'), 'G (guardar eligiendo los tres)')
     r = filas(at)[SIN]
     comprobar(bp.niveles_revisados(r) == list(bp.NIVELES_TIPO)
               and (r['ambiente'], r['humedad'], r['pureza']) == ('ladera', 'seco', 'puro'),
@@ -845,18 +883,19 @@ def guion(lang):
     print('  H · marcar como verificado y reentrenar')
     revisados = {r['ID']: (r['ambiente'], r['humedad'], r['pureza'])
                  for r in filas(at) if bp.tipo_revisado(r)}
-    comprobar(len(revisados) == 4, 'hay 4 puntos revisados antes de reentrenar',
+    comprobar(len(revisados) == 5, 'hay 5 puntos revisados antes de reentrenar',
               str(len(revisados)))
     k = NOB[1]
     seleccionar(at, [i1, k, D2])
-    comprobar(not any(p in boton(at, 'mark_verified').label for p in ('reentrenar', 'retrain')),
-              'sin la casilla del modelo propio, verificar no promete reentrenar',
-              boton(at, 'mark_verified').label)
+    comprobar(not any(p in boton(at, 'rev_guardar').label for p in ('reentrenar', 'retrain')),
+              'sin la casilla del modelo propio, guardar no promete reentrenar',
+              boton(at, 'rev_guardar').label)
+    es_borreguil(at).set_value('si')
     # quién revisa, su perfil y la certidumbre se apuntan en los puntos verificados
     control(at, 'text_input', 'revisor_nombre').input('Ana')
     control(at, 'selectbox', 'revisor_perfil').set_value('researcher')
     control(at, 'radio', 'rev_certidumbre').set_value('medium')
-    msgs_h = pulsar(at, boton(at, 'mark_verified'), 'H')
+    msgs_h = pulsar(at, boton(at, 'rev_guardar'), 'H')
     _ids = {filas(at)[i].get('ID') for i in (i1, k, D2)}
     _ver = [r for r in filas(at) if r.get('ID') in _ids]
     comprobar(len(_ver) == 3 and all((r.get('observer'), r.get('expertise'),
@@ -992,7 +1031,7 @@ def guion(lang):
     comprobar(len(filas(at)) == n0 - 1
               and id_quitado not in {r['ID'] for r in filas(at)}, 'el punto desaparece')
     comprobar(SELECCION['rows'] == [] and boton(at, 'remove_pts') is None
-              and boton(at, 'rev_save') is None,
+              and boton(at, 'rev_guardar') is None,
               'tras quitar, no queda ningún punto seleccionado', str(SELECCION['rows']))
     despues = {r['ID']: (r['ambiente'], r['humedad'], r['pureza'])
                for r in filas(at) if bp.tipo_revisado(r)}
@@ -1035,11 +1074,12 @@ def guion(lang):
                      sin_etiqueta[0]['ID'])
     con_tipo = next(r['ID'] for r in filas(at) if bp.tipo_revisado(r))
     seleccionar(at, [ids.index(sin_mirar), ids.index(con_tipo)])
-    comprobar(boton(at, 'mark_absent') is not None and boton(at, 'mark_verified') is not None
+    comprobar(es_borreguil(at) is not None and boton(at, 'rev_guardar') is not None
               and boton(at, 'remove_pts') is not None,
-              'con puntos seleccionados está también el botón de marcarlos como no borreguil, '
-              'además de los que ya había')
-    msgs_m = pulsar(at, boton(at, 'mark_absent'), 'M')
+              'con puntos seleccionados están la pregunta, guardar y quitar')
+    es_borreguil(at).set_value('no')
+    at.run()
+    msgs_m = pulsar(at, boton(at, 'rev_guardar'), 'M')
     comprobar(any(T('2 puntos marcados como no borreguil verificado',
                     '2 points marked as verified non-borreguil') in m
                   and T('Modelo reentrenado sumando tus puntos',

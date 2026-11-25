@@ -100,10 +100,11 @@ En **Revisar puntos**, selecciona una o varias filas. El **último punto
 seleccionado** centra el mapa y abre su ficha: la ortofoto con, en amarillo, el
 píxel de 10 m del punto (capas Google Satélite, Relieve LiDAR y curvas de nivel), las
 variables que más pesan, la gráfica «📈 Este punto frente a los borreguiles
-verdaderos» y un enlace a Google Maps. Con puntos seleccionados:
-**«✓ Marcar como borreguil verificado»**, **«✗ Marcar como no borreguil
-verificado»** (con su **certidumbre**: alta, media o baja) o **«🗑 Quitar del
-análisis»**. Encima de las pestañas se indica **quién revisa** y su **perfil**
+verdaderos» y un enlace a Google Maps. Junto al mapa del punto está la **revisión, en
+dos pasos**: **¿Es borreguil?** (sí, no o no estoy seguro, con su **certidumbre**) y,
+si es sí, su **tipo**, con la propuesta de la app puesta; un solo botón,
+**«💾 Guardar la revisión»**, lo guarda todo, y **«🗑 Quitar del análisis»** quita
+puntos. Encima de las pestañas se indica **quién revisa** y su **perfil**
 (estudiante, gestor/a, investigador/a); todo sale en las descargas.
 
 En **Mapa de los puntos**, **«➕ Añadir puntos pinchando en el mapa»** añade sitios
@@ -111,9 +112,8 @@ que conoces como un dato de campo más. Con **«Sumar mis puntos a los del model
 reentrenarlo»** marcada, cada punto verificado o añadido reentrena el modelo al
 momento, sin volver a ejecutar.
 
-Con borreguiles seleccionados aparece además el panel **«🌿 Revisar el tipo de
-borreguil»**: la app propone ambiente, humedad y pureza por reglas, y aquí una
-persona los confirma o corrige mirando la ortofoto. Lo revisado queda marcado, no
+El tipo lo propone la app por reglas (ambiente, humedad y pureza), y en la revisión una
+persona lo confirma o corrige mirando la ortofoto. Lo revisado queda marcado, no
 se pisa al reentrenar y se guarda en `puntos.geojson`, que puede volver a cargarse
 en otra sesión. Detalles en el [manual](MANUAL.md#10-clasificación-jerárquica-del-tipo).
 

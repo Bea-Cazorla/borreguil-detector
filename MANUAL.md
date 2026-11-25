@@ -539,19 +539,38 @@ Muchas variables son casi iguales: por ejemplo, 13 índices de verdor de Sentine
 tienen una correlación de 0,89 o más entre sí. El modelo usa una de cada grupo (ver
 la sección 8), y la ficha enseña una de cada grupo: las demás dirían lo mismo.
 
-Con varias filas seleccionadas puedes **marcarlas como borreguil verificado**,
-**quitarlas del análisis** o, debajo, **marcarlas como no borreguil verificado**:
-quedan como «NO BORREGUIL VERIFICADO», igual que las ausencias de tu
-verdad-terreno, y sirven de ausencias para el mapa de tipos. Si alguna tenía un tipo
-revisado, se le quita: un no borreguil no tiene tipo. Al lado del número de puntos
-seleccionados está la **certidumbre** (alta, media o baja): se guarda en cada punto
-que marques, con quién revisa y su perfil (ver el principio de esta sección).
+**Revisar un punto: una sola revisión en dos pasos.** Al seleccionar uno o varios
+puntos en la tabla, debajo sale el **mapa del punto** (ortofoto, con su píxel de 10 m
+en amarillo) y, a su lado, el formulario de revisión:
+
+1. **¿Es borreguil?** — **Sí**, **No** o **No estoy seguro**, y la **certidumbre**
+   (alta, media o baja), que se guarda con quién revisa y su perfil (ver el principio
+   de esta sección).
+2. **Tipo** — solo si dices **Sí**: ambiente, humedad y pureza, con la propuesta de la
+   app ya puesta para aceptarla o corregirla. Lo que dejes en **No lo he podido ver**
+   no cuenta como revisado. Con **No** o **No estoy seguro** el tipo se apaga.
+
+Un solo botón, **💾 Guardar la revisión**, guarda todo a la vez:
+
+| Respuesta | Queda como | Tipo |
+|---|---|---|
+| Sí | «BORREGUIL VERIFICADO» | los niveles elegidos, revisados |
+| No | «NO BORREGUIL VERIFICADO», igual que las ausencias de tu verdad-terreno: sirve de ausencia para el mapa | sin tipo (si tenía uno revisado, se le quita) |
+| No estoy seguro | dudoso: no entrena ni cuenta en el acierto | sin tipo |
+
+Con **varios puntos** seleccionados, lo que guardes se aplica a todos; el tipo
+arranca en «No lo he podido ver», y cada uno se queda con lo suyo en los niveles que
+no elijas. **↩ Deshacer** deshace la última revisión guardada, y **🗑 Quitar del
+análisis** quita los puntos seleccionados. Guardar sin decir si es borreguil no
+guarda nada: la app pide elegirlo primero. (Hasta el 25-11-2026 el sí o no y el tipo
+se guardaban por separado, con dos botones.)
 
 Lo que verificas cuenta en el recuadro «🧭 Modelo usado» para medir cuánto acierta
 el modelo. Con el modelo de partida, la probabilidad de los demás puntos no cambia.
-Con la casilla **Sumar mis puntos a los del modelo y reentrenarlo** marcada, los
-botones dicen «… y reentrenar» y el modelo se vuelve a entrenar con lo verificado
-(aprendizaje activo), sumado a los puntos de Sierra Nevada.
+Con la casilla **Sumar mis puntos a los del modelo y reentrenarlo** marcada, al
+guardar una revisión que cambia el sí o el no, el modelo se vuelve a entrenar con lo
+verificado (aprendizaje activo), sumado a los puntos de Sierra Nevada; si solo
+cambia el tipo, no se reentrena.
 
 **Ausencias fuera de tus puntos.** El modelo solo sabe decir «no» en sitios
 parecidos a tus ausencias. Si todas están en la misma parte de la sierra, en las
@@ -566,23 +585,23 @@ tener ausencias repartidas por toda la zona:
    0: algunos puntos caerán junto a los tuyos (en Sierra Nevada, unos 30 de cada 200),
    y basta con dejarlos sin marcar.
 2. Ejecuta el análisis.
-3. En **Revisar puntos**, mira cada punto `rand_…` con la ortofoto: si no es borreguil,
-   **✗ Marcar como no borreguil verificado**; si lo es, **✓ Marcar como borreguil
-   verificado** y revisa su tipo. Lo que no tengas claro, déjalo sin marcar.
+3. En **Revisar puntos**, mira cada punto `rand_…` con la ortofoto y contesta
+   **¿Es borreguil?**: **No** si no lo es; **Sí** si lo es, revisando su tipo en el
+   mismo sitio; **No estoy seguro**, o nada, si no lo tienes claro. Después,
+   **💾 Guardar la revisión**.
 4. Al terminar, descarga `puntos.geojson`: guarda todo lo que has marcado.
 
 Son ausencias revisadas por ti, no inventadas: la app no da ningún punto por
 ausencia sin que una persona lo haya mirado.
 
-Con las filas de borreguil seleccionadas aparece también el panel **🌿 Revisar el
-tipo de borreguil**, para confirmar o corregir el ambiente, la humedad y la pureza
-de cada punto (ver [sección 10](#10-clasificación-jerárquica-del-tipo)). Encima de
-la tabla, un contador dice cuántos tipos llevas revisados: son las muestras del
-mapa de tipos, que se hace en la pestaña **🌿 Mapa Modelo RF**.
+El tipo (ambiente, humedad y pureza) se revisa en el mismo formulario, después de
+decir que sí (ver [sección 10](#10-clasificación-jerárquica-del-tipo)). Encima de la
+tabla, un contador dice cuántos tipos llevas revisados: son las muestras del mapa de
+tipos, que se hace en la pestaña **🌿 Mapa Modelo RF**.
 
-Debajo, el mapa del punto seleccionado usa la **ortofoto** de fondo, dibuja el
-punto sin relleno y marca en amarillo su **píxel Sentinel-2 de 10 m**. Con el
-control de capas puedes cambiar a Google Satélite, que admite más zoom.
+El mapa del punto seleccionado usa la **ortofoto** de fondo, dibuja el punto sin
+relleno y marca en amarillo su **píxel Sentinel-2 de 10 m**. Con el control de capas
+puedes cambiar a Google Satélite, que admite más zoom.
 
 Al **quitar puntos del análisis** la selección se vacía: así ninguna acción
 posterior recae sobre un punto que no has elegido.
@@ -694,23 +713,26 @@ revisarlo mirando el terreno.
 **Cómo se revisa**
 
 1. Pestaña **Revisar puntos** → selecciona uno o varios borreguiles.
-2. Mira el punto en el mapa de debajo (ortofoto y píxel de 10 m en amarillo) o
+2. Mira el punto en el mapa de la izquierda (ortofoto y píxel de 10 m en amarillo) o
    usa tus datos de campo.
-3. En **🌿 Revisar el tipo de borreguil** elige lo que hayas podido ver: ambiente,
-   humedad, pureza, o solo alguno. Junto a cada nivel se lee lo que propone la app;
-   para darlo por bueno, **elígelo**.
-4. **✓ Guardar tipo revisado**. Quedan revisados **los niveles elegidos**, con su
-   fecha, y se anota que se revisó con la ortofoto (`method = orthophoto`).
+3. En el formulario de la derecha, **¿Es borreguil? → Sí**. Se enciende el tipo, con
+   la propuesta de la app puesta en cada nivel («arroyo (propuesta de la app)»).
+   Déjala si la ves bien, cámbiala si no, o elige **No lo he podido ver**.
+4. **💾 Guardar la revisión**. El punto queda como borreguil verificado y quedan
+   revisados **los niveles elegidos**, con su fecha, y se anota que se revisó con la
+   ortofoto (`method = orthophoto`).
 
-**Cada nivel cuenta por separado.** Lo que dejes en **(sin cambio)** no se da por
-revisado: si solo sabes la humedad de un punto, elige la humedad; ese punto ya sirve
-para el modelo de humedad, aunque no para el de ambiente ni el de pureza. Un nivel ya
-revisado aparece elegido al volver al punto, y otro nivel se suma a los que había.
+**Cada nivel cuenta por separado.** Lo que dejes en **No lo he podido ver** no se da
+por revisado: si solo sabes la humedad de un punto, deja los otros dos así; ese punto
+ya sirve para el modelo de humedad, aunque no para el de ambiente ni el de pureza. Un
+nivel ya revisado aparece elegido al volver al punto, y otro nivel se suma a los que
+había. Ojo: con un solo punto, la propuesta viene puesta; si guardas sin mirarla, se
+da por revisada.
 
-**↩ Deshacer revisión** devuelve los puntos seleccionados a la propuesta de la app.
+**↩ Deshacer** deshace la última revisión guardada: el punto vuelve a como estaba.
 
 Con **varios puntos** seleccionados, lo que elijas se guarda en todos; lo que dejes en
-«(sin cambio)» se queda como estaba en cada uno.
+«No lo he podido ver» se queda como estaba en cada uno.
 
 **Criterios** — decide siempre con la misma regla para todos los puntos:
 
@@ -910,7 +932,7 @@ cuentan aparte desde el 25-11-2026: antes, 100 borreguiles con 6 ausencias «lle
 al mínimo»). La curva se hizo con 1 borreguil de cada 3 y no se probaron otras
 proporciones: los borreguiles y las ausencias de cada nivel son los que había en ella.
 Las **ausencias** son los sitios que has comprobado que no son borreguil: `presence` = 0
-en tu fichero, **✗ Marcar como no borreguil verificado** al revisar un punto o **✗ Aquí
+en tu fichero, **No** en «¿Es borreguil?» al revisar un punto o **✗ Aquí
 no hay** al pinchar en el mapa; la app no se las inventa. Para buscarlas en sitios que
 no has muestreado, genera puntos al azar con **Lejos de tus puntos de campo** (300 m) y
 revísalos. Si faltan ausencias, el aviso lo recuerda.

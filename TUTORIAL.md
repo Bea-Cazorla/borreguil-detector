@@ -265,19 +265,20 @@ variables que más pesan y la gráfica **📈 Este punto frente a los borreguile
 verdaderos**, que dice en cada una dónde cae el punto entre los borreguiles con los
 que se entrenó el modelo.
 
-Con puntos seleccionados: **✓ Marcar como borreguil verificado**, **✗ Marcar como no
-borreguil verificado** o **🗑 Quitar del análisis**. Con «Sumar mis puntos…» marcada,
-el botón dice «… y reentrenar» y el modelo se reentrena al momento.
+Con puntos seleccionados, junto al mapa del punto (ortofoto, con el píxel de 10 m en
+amarillo) sale la revisión, en dos pasos:
 
-Si el punto es un borreguil, aparece el panel **🌿 Revisar el tipo de borreguil**:
-la app propone ambiente, humedad y pureza, y tú los confirmas o corriges mirando la
-ortofoto del mapa de debajo (el recuadro amarillo es el píxel de 10 m del punto).
-Pulsa **✓ Guardar tipo revisado** y el punto queda marcado como revisado.
+1. **¿Es borreguil?** Sí, No o No estoy seguro, con la certidumbre.
+2. **Tipo**, solo si es sí: la app propone ambiente, humedad y pureza, y tú los
+   aceptas, los corriges o eliges «No lo he podido ver».
+
+**💾 Guardar la revisión** guarda las dos cosas a la vez; **↩ Deshacer** deshace la
+última, y **🗑 Quitar del análisis** quita los puntos. Con «Sumar mis puntos…» marcada,
+si cambia el sí o el no, el modelo se reentrena al momento.
 
 Encima de las pestañas puedes poner **quién revisa** y su **perfil** (estudiante,
-gestor/a o investigador/a). Al marcar un punto como borreguil o no borreguil
-verificado, indica también la **certidumbre** (alta, media o baja). Todo se guarda en
-el punto y sale en las descargas.
+gestor/a o investigador/a). Al revisar un punto, indica también la **certidumbre**
+(alta, media o baja). Todo se guarda en el punto y sale en las descargas.
 
 ### Probabilidades
 
