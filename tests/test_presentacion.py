@@ -125,6 +125,158 @@ def test_globo_en_otro_idioma():
     assert 'BORREGUIL_LIKE' not in h and 'Pattern' not in h
 
 
+def test_en_el_globo_el_punto_se_llama_por_su_numero():
+    """25-11-2026, la autora: «este nombre de la capa cámbialo»."""
+    ids = [f'all_borreguil_lagunas500ptos_epsg25830.{n}' for n in (1, 21, 663)]
+    assert bp.nombres_de_punto(ids) == ['Punto 1', 'Punto 21', 'Punto 663']
+    assert bp.nombres_de_punto(ids, 'Point')[2] == 'Point 663'
+    # Los cortos y los de otra capa se quedan como están
+    assert bp.nombres_de_punto(['SN_001', 'campo.5', None] + ids[:1]) == [
+        'SN_001', 'campo.5', '', 'Punto 1']
+    otra = 'otra_capa_de_puntos_de_campo.7'
+    assert bp.nombres_de_punto(ids + [otra])[-1] == otra
+    # Si dos puntos distintos se llamaran igual, no se cambia ninguno
+    dobles = [ids[0], 'Punto 1']
+    assert bp.nombres_de_punto(dobles) == dobles
+    assert bp.nombres_de_punto(['p1', 'p2']) == ['p1', 'p2']
+
+
+def test_globo_con_las_variables_que_mas_pesan():
+    """25-11-2026, la autora: «las variables que aparezcan que sean las tres que más
+    peso tienen en el RF, como en el otro sitio» (la tabla de Revisar puntos)."""
+    h = bp.popup_html(punto(), nombre='Punto 21',
+                      variables=[('Altitud (m)', 'elev_dem_m'),
+                                 ('Caída NDVI estacional', 'ndvi_drop'),
+                                 ('NDVI fin verano', 'ndvi_late')],
+                      num=lambda v: '—' if v is None else f'{v:.3f}'.replace('.', ','))
+    assert '<b>Punto 21</b>' in h and ID_LARGO not in h
+    assert '<i>Las que más pesan en el modelo:</i><br>Altitud (m)' in h      # y lo dice
+    assert 'Altitud (m): 2935,835<br>' in h and 'Caída NDVI estacional: —' in h
+    assert 'NDVI fin verano: 0,219' in h
+    assert 'Clre' not in h and 'Pendiente' not in h      # solo las que se piden
+
+
+def test_cajas_con_las_variables_que_mas_pesan_y_su_peso():
+    """25-11-2026, la autora: «aquí deberían mostrarse las que más peso tienen en el
+    modelo y que lo indique» (Tipos y distribuciones)."""
+    import point_profile as pp
+    imp = {'elev_dem_m': 0.30, 'ndvi_drop': 0.20, 'ndvi_late': 0.12, 'evi_late': 0.10,
+           'slope_deg': 0.05}
+    v = pp.vars_boxplots(imp, n=3)
+    assert [f for f, _ in v][0] == 'elev_dem_m' and len(v) == 3
+    assert v[0][1] == f"{pp.etiqueta('elev_dem_m')} · 39 %"      # 0,30 de 0,77
+    assert pp.vars_boxplots(None) == list(pp.BOX_VARS)
+    rows = [dict(punto(), decision='BORREGUIL PROBABLE'),
+            dict(punto(), decision='NO BORREGUIL', elev_dem_m=2500.0)]
+    ch, n_borr = pp.chart_boxplots(rows, v, en=False)
+    d = ch.to_dict()
+    spec = str(d)
+    assert n_borr == 1 and "replace(format(datum.value, '~r'), '.', ',')" in spec
+    assert "'axis': None" in spec               # sin los nombres que se pisaban debajo
+    assert v[0][1] in spec
+    # Al pasar el ratón: en palabras y con 3 decimales, sin «min of null» (25-11-2026)
+    assert 'boxplot' not in spec and 'of null' not in spec
+    datos = [x for ds in d['datasets'].values() for x in ds]
+    alt_b = [x for x in datos if x['parte'] == 'caja' and x['variable'] == v[0][1]
+             and x['clase'] == 'Borreguil'][0]
+    assert alt_b['med_txt'] == '2935,835' and alt_b['n'] == '1'
+    assert "'title': 'Mediana'" in spec and "'title': 'Bigotes'" in spec
+
+
+def _puntos_vistas():
+    """30 borreguiles (húmedos de arroyo y secos de ladera) y 30 del resto, con la
+    altitud y la caída del NDVI más altas en los borreguiles."""
+    import random
+    azar = random.Random(3)
+    rows = []
+    for i in range(30):
+        hum = i % 2 == 0
+        rows.append({'ID': f'b{i}', 'decision': 'BORREGUIL PROBABLE',
+                     'humedad': 'húmedo' if hum else 'seco',
+                     'ambiente': 'arroyo' if hum else 'ladera',
+                     'elev_dem_m': 2800 + azar.gauss(0, 80), 'ndvi_drop': 0.12 + azar.gauss(0, 0.02),
+                     'slope_deg': 12 + azar.gauss(0, 3), 'rf_proba': 0.8})
+    for i in range(30):
+        rows.append({'ID': f'n{i}', 'decision': 'NO BORREGUIL',
+                     'elev_dem_m': 2500 + azar.gauss(0, 80), 'ndvi_drop': 0.04 + azar.gauss(0, 0.02),
+                     'slope_deg': 20 + azar.gauss(0, 3), 'rf_proba': 0.1})
+    rows[0]['humedad'] = ''                      # un borreguil sin humedad
+    return rows
+
+
+VARS_VISTAS = [('elev_dem_m', 'Altitud (m) · 40 %'), ('ndvi_drop', 'Caída NDVI · 30 %'),
+               ('slope_deg', 'Pendiente (°) · 10 %')]
+
+
+def test_grupos_para_comparar():
+    """25-11-2026, la autora: «sí, hazlo con comparar por tipo»."""
+    import point_profile as pp
+    rows = _puntos_vistas()
+    g, orden, resto = pp.grupos_puntos(rows, 'borreguil', en=False)
+    assert [o[0] for o in orden] == ['Borreguil', 'No / resto'] and resto == 'No / resto'
+    assert g.count('Borreguil') == 30
+    g, orden, resto = pp.grupos_puntos(rows, 'humedad', en=False)
+    assert [o[0] for o in orden] == ['húmedo', 'seco', 'sin tipo', 'Resto']
+    assert g[0] == 'sin tipo' and g.count('húmedo') == 14 and g.count('Resto') == 30
+    g, orden, _ = pp.grupos_puntos(rows, 'ambiente', en=True,
+                                   traduce={'arroyo': 'stream', 'ladera': 'slope'}.get)
+    assert [o[0] for o in orden] == ['stream', 'slope', 'Rest']
+    try:
+        pp.grupos_puntos(rows, 'pureza')
+        raise AssertionError('tenía que negarse')
+    except ValueError:
+        pass
+
+
+def test_las_cuatro_vistas_se_dibujan_comparando_por_tipo():
+    import point_profile as pp
+    rows = _puntos_vistas()
+    for comparar in pp.COMPARAR:
+        ch, n_borr = pp.chart_boxplots(rows, VARS_VISTAS, en=False, comparar=comparar)
+        assert n_borr == 30 and ch.to_dict()
+        assert pp.chart_densidades(rows, VARS_VISTAS, en=False, comparar=comparar).to_dict()
+        assert pp.chart_diferencias(rows, VARS_VISTAS, en=False, comparar=comparar).to_dict()
+        ch = pp.chart_dos_variables(rows, 'elev_dem_m', 'ndvi_drop', 'Altitud (m)',
+                                    'Caída NDVI', en=False, comparar=comparar)
+        assert "'title': 'Probabilidad del modelo'" in str(ch.to_dict())
+    # las curvas: 80 puntos por grupo y variable, y cada una encierra un área de 1
+    d = pp.chart_densidades(rows, VARS_VISTAS, en=False).to_dict()
+    datos = [x for ds in d['datasets'].values() for x in ds]
+    curva = [x for x in datos if x['variable'] == 'Altitud (m) · 40 %'
+             and x['grupo'] == 'Borreguil']
+    assert len(curva) == 80
+    paso = curva[1]['x'] - curva[0]['x']
+    assert 0.5 < sum(x['densidad'] for x in curva) * paso <= 1.01
+
+
+def test_diferencias_en_desviaciones_tipicas():
+    import point_profile as pp
+    rows = _puntos_vistas()
+    f = pp.tabla_diferencias(rows, VARS_VISTAS, en=False)
+    por = {x['variable']: x for x in f}
+    assert por['Altitud (m) · 40 %']['d'] > 1 and por['Pendiente (°) · 10 %']['d'] < -1
+    assert [x['variable'] for x in f] == [lab for _, lab in VARS_VISTAS]
+    f = pp.tabla_diferencias(rows, VARS_VISTAS, en=False, comparar='humedad')
+    # «sin tipo» tiene 1 punto: menos de MIN_GRUPO, no se dibuja (su mediana engañaría)
+    assert {x['grupo'] for x in f} == {'húmedo', 'seco'} and pp.MIN_GRUPO == 5
+    d = pp.chart_densidades(rows, VARS_VISTAS, en=False, comparar='humedad').to_dict()
+    assert {x['grupo'] for ds in d['datasets'].values() for x in ds} == {'húmedo', 'seco',
+                                                                         'Resto'}
+    assert 'sin tipo' not in str(d)                            # tampoco en la leyenda
+    # sin puntos del resto no hay con qué comparar
+    assert pp.tabla_diferencias(rows[:30], VARS_VISTAS, en=False) == []
+    assert pp.chart_diferencias(rows[:30], VARS_VISTAS, en=False) is None
+
+
+def test_variables_para_dos_a_la_vez():
+    import point_profile as pp
+    rows = _puntos_vistas()
+    lv = pp.lista_variables(rows, {'ndvi_drop': 0.6, 'elev_dem_m': 0.4, 'evi_late': 0.1},
+                            en=False, todas=['elev_dem_m', 'slope_deg', 'ndvi_late'])
+    assert [f for f, _ in lv] == ['ndvi_drop', 'elev_dem_m', 'slope_deg']   # evi: sin valor
+    assert lv[0][1].endswith('· 55 %') and lv[2][1].endswith('(no la usa el modelo)')
+
+
 def test_globo_no_se_rompe_con_textos_raros_ni_huecos():
     h = bp.popup_html({'ID': '<b>punto</b> & co', 'lon': 0, 'lat': 0})
     assert '&lt;b&gt;punto&lt;/<wbr>b&gt; &amp; co' in h and '<b>punto</b>' not in h

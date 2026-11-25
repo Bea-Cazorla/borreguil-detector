@@ -2752,13 +2752,26 @@ with tab_analisis:
             # marcador no tape justo el terreno que hay que mirar.
             _rotulos = i18n.pick(
                 {'tipo': 'Tipo', 'revisado': 'revisado', 'altitud': 'Altitud',
-                 'pendiente': 'Pendiente'},
+                 'pendiente': 'Pendiente', 'variables': 'Las que más pesan en el modelo'},
                 {'tipo': 'Type', 'revisado': 'reviewed', 'altitud': 'Elevation',
-                 'pendiente': 'Slope'})
+                 'pendiente': 'Slope', 'variables': 'Those that weigh most in the model'})
+            # En el globo (25-11-2026, la autora): el punto, por su número («Punto 663»)
+            # y no por el nombre de la capa, y las 3 variables que más pesan en el
+            # modelo usado, una por grupo de parecidas, como en la tabla de «Revisar
+            # puntos» (antes: altitud, pendiente, NDVI y Clre, fijas).
+            _ids_pop = [r.get('ID') for r in pts]
+            _nombre_pop = dict(zip(map(str, _ids_pop), bp.nombres_de_punto(
+                _ids_pop, i18n.pick('Punto', 'Point'))))
+            _rs_pop = load_ref_stats(MODEL_PATH)
+            _vars_pop = [(_var(k['feat']), k['feat']) for k in pp.variables_clave(
+                (_rs_pop or {}).get('importances'),
+                set((_rs_pop or {}).get('model_features') or []) or None, 3)]
             for r in pts:
                 color = bp.decision_color(r.get('decision', 'SIN PREDICCIÓN'))
                 # Números con 3 decimales y nombres largos partidos en líneas.
-                popup = bp.popup_html(r, i18n.tv, _rotulos)
+                popup = bp.popup_html(r, i18n.tv, _rotulos,
+                                      nombre=_nombre_pop.get(str(r.get('ID'))),
+                                      variables=_vars_pop, num=_num)
                 is_sel = (highlight_id is not None and r.get('ID') == highlight_id)
                 if is_sel:
                     folium.CircleMarker([r['lat'], r['lon']], radius=radius+8,
@@ -3924,23 +3937,138 @@ with tab_analisis:
                     'read with Earth Engine: without it, there is no proposal (—).'))
                 st.divider()
 
-            st.markdown(
-                f'Distribución de las variables comparando los **{n_borr} puntos '
-                f'clasificados como borreguil** (verde) frente al **resto** '
-                f'({len(rows) - n_borr}, rojo). Cada caja muestra mediana, cuartiles '
-                f'(p25–p75) y bigotes; los puntos sueltos son valores atípicos.')
-            box_chart, _ = pp.chart_boxplots(rows)
-            if box_chart is not None:
-                st.altair_chart(box_chart, width='stretch')
+            # ---- Las variables que más pesan en el modelo usado, vistas de cuatro
+            # maneras y comparando borreguil con el resto, o los borreguiles por su
+            # humedad o su ambiente con el resto (25-11-2026, la autora: «aquí deberían
+            # mostrarse las que más peso tienen en el modelo y que lo indique», «podríamos
+            # hacer un desplegable para que elijan distintos tipos de gráficos», «sí,
+            # hazlo con comparar por tipo»). Antes: 9 variables fijas en cajas y una
+            # dispersión fija de altitud y NDVI.
+            _rs_box = load_ref_stats(MODEL_PATH)
+            _imp_box = (_rs_box or {}).get('importances')
+            _disp_box = set((_rs_box or {}).get('model_features') or []) or None
+            st.markdown(i18n.pick('#### Las variables que más pesan en el modelo',
+                                  '#### The variables that weigh most in the model'))
+            _vistas = {'cajas': i18n.pick('Cajas', 'Boxes'),
+                       'curvas': i18n.pick('Curvas de distribución', 'Distribution curves'),
+                       'diferencias': i18n.pick('Diferencias de un vistazo',
+                                                'Differences at a glance'),
+                       'dos': i18n.pick('Dos variables a la vez', 'Two variables at once')}
+            _comp_txt = {
+                'borreguil': i18n.pick('Borreguil frente al resto',
+                                       'Borreguil versus the rest'),
+                'humedad': i18n.pick('Por humedad (húmedo, seco y el resto)',
+                                     'By moisture (wet, dry and the rest)'),
+                'ambiente': i18n.pick('Por ambiente (arroyo, laguna, ladera y el resto)',
+                                      'By environment (stream, lake, slope and the rest)')}
+            _c1, _c2, _c3 = st.columns([1.1, 1.4, 0.9])
+            _vista = _c1.selectbox(i18n.pick('Cómo verlo', 'How to see it'), list(_vistas),
+                                   format_func=_vistas.get, key='dist_vista')
+            _comparar = _c2.selectbox(i18n.pick('Comparar', 'Compare'), list(pp.COMPARAR),
+                                      format_func=_comp_txt.get, key='dist_comparar')
+            _grp, _ord, _rest = pp.grupos_puntos(rows, _comparar, None, i18n.tv)
+            from collections import Counter as _Cnt
+            _cnt = _Cnt(_grp)
+            _cuantos = ' · '.join(f'{g}: {_cnt[g]}' for g, _ in _ord)
+            if _vista != 'dos':
+                _n_vars = _c3.selectbox(i18n.pick('Cuántas variables', 'How many variables'),
+                                        [4, 8, 12], index=1, key='dist_n')
+                _vars_box = pp.vars_boxplots(_imp_box, _disp_box, _n_vars)
+                st.caption(i18n.pick(
+                    (f'Las {len(_vars_box)} variables que más pesan en el modelo usado, de '
+                     'más a menos: una por cada grupo de variables parecidas, con el peso '
+                     'del grupo en el modelo junto al nombre. ' if _imp_box else '')
+                    + f'Puntos: {_cuantos}.',
+                    (f'The {len(_vars_box)} variables that weigh most in the model in use, '
+                     'from most to least: one for each group of similar variables, with the '
+                     "group's weight in the model next to the name. " if _imp_box else '')
+                    + f'Points: {_cuantos}.'))
+            if _vista == 'cajas':
+                _ch, _ = pp.chart_boxplots(rows, _vars_box, comparar=_comparar,
+                                           traduce=i18n.tv)
+                _como = i18n.pick(
+                    'Cada caja va del p25 al p75, con la mediana en blanco; los bigotes '
+                    'llegan hasta los valores normales y los puntos sueltos son atípicos. '
+                    'Al pasar el ratón salen las cifras.',
+                    'Each box goes from p25 to p75, with the median in white; the whiskers '
+                    'reach the normal values and the loose dots are outliers. Hover to see '
+                    'the figures.')
+            elif _vista == 'curvas':
+                _ch = pp.chart_densidades(rows, _vars_box, comparar=_comparar,
+                                          traduce=i18n.tv)
+                _como = i18n.pick(
+                    'Cada curva muestra cómo se reparten los valores de un grupo. Todas '
+                    'encierran la misma área, así que se comparan formas, no cuántos '
+                    'puntos hay. Si las curvas apenas se tocan, esa variable separa bien '
+                    'los grupos; si se montan una encima de otra, poco. Los grupos con '
+                    f'menos de {pp.MIN_GRUPO} puntos no se dibujan.',
+                    'Each curve shows how the values of a group are spread. They all '
+                    'enclose the same area, so shapes are compared, not how many points '
+                    'there are. If the curves hardly touch, that variable separates the '
+                    'groups well; if they overlap, it does not. Groups with fewer than '
+                    f'{pp.MIN_GRUPO} points are not drawn.')
+            elif _vista == 'diferencias':
+                _ch = pp.chart_diferencias(rows, _vars_box, comparar=_comparar,
+                                           traduce=i18n.tv)
+                _como = i18n.pick(
+                    'Cada punto dice cuánto se aparta la mediana del grupo de la del resto, '
+                    'en desviaciones típicas de todos los puntos: a la derecha, más que el '
+                    'resto; a la izquierda, menos. Pasar de 1 (o de −1) es una diferencia '
+                    f'clara. Los grupos con menos de {pp.MIN_GRUPO} puntos no se dibujan.',
+                    'Each dot says how far the median of the group is from that of the '
+                    'rest, in standard deviations of all the points: to the right, more '
+                    'than the rest; to the left, less. Beyond 1 (or −1) is a clear '
+                    f'difference. Groups with fewer than {pp.MIN_GRUPO} points are not '
+                    'drawn.')
             else:
-                st.info('No hay variables numéricas suficientes para los boxplots.')
-
-            st.divider()
-            st.markdown('**Dispersión Altitud × NDVI** — separación entre clases. '
-                        'Pasa el ratón por un punto para ver su ID y probabilidad RF.')
-            sc = pp.chart_scatter(rows)
-            if sc is not None:
-                st.altair_chart(sc, width='stretch')
+                _lv = pp.lista_variables(rows, _imp_box, todas=list(pp.FEATURE_LABELS))
+                _et_lv = dict(_lv)
+                _op_lv = [f for f, _ in _lv]
+                _top2 = [k['feat'] for k in pp.variables_clave(_imp_box, _disp_box, 2)
+                         if k['feat'] in _op_lv]
+                _ix = _op_lv.index(_top2[0]) if _top2 else 0
+                _iy = (_op_lv.index(_top2[1]) if len(_top2) > 1
+                       else min(1, len(_op_lv) - 1))
+                if len(_op_lv) < 2:
+                    _ch = None
+                else:
+                    _d1, _d2 = st.columns(2)
+                    _vx = _d1.selectbox(i18n.pick('Eje horizontal', 'Horizontal axis'),
+                                        _op_lv, index=_ix, format_func=_et_lv.get,
+                                        key='dist_x')
+                    _vy = _d2.selectbox(i18n.pick('Eje vertical', 'Vertical axis'),
+                                        _op_lv, index=_iy, format_func=_et_lv.get,
+                                        key='dist_y')
+                    st.caption(i18n.pick(
+                        'Todas las variables de los puntos: primero las del modelo, de más '
+                        'a menos peso, y después las que el modelo no usa. De entrada, las '
+                        f'dos que más pesan. Puntos: {_cuantos}.',
+                        "All the variables of the points: first the model's, from most to "
+                        "least weight, then those the model does not use. By default, the "
+                        f'two that weigh most. Points: {_cuantos}.'))
+                    _ids_d = [r.get('ID') for r in rows]
+                    _ch = pp.chart_dos_variables(
+                        rows, _vx, _vy, _var(_vx), _var(_vy), comparar=_comparar,
+                        traduce=i18n.tv,
+                        nombres=bp.nombres_de_punto(_ids_d, i18n.pick('Punto', 'Point')))
+                _como = i18n.pick(
+                    'Cada punto es uno de tus puntos, colocado según las dos variables. Si '
+                    'las nubes de colores se separan, combinar esas dos variables ayuda a '
+                    'distinguir los grupos. Al pasar el ratón: el punto, sus valores y la '
+                    'probabilidad del modelo.',
+                    'Each dot is one of your points, placed by the two variables. If the '
+                    'coloured clouds separate, combining those two variables helps to tell '
+                    'the groups apart. Hover to see the point, its values and the model '
+                    'probability.')
+            if _ch is not None:
+                st.altair_chart(_ch, width='stretch')
+                st.caption(_como)
+            else:
+                st.info(i18n.pick(
+                    'No hay datos suficientes para este gráfico (por ejemplo, sin puntos '
+                    'del resto no hay con qué comparar).',
+                    'There is not enough data for this chart (for instance, without points '
+                    'of the rest there is nothing to compare with).'))
 
             st.divider()
             st.markdown('**Recuento de puntos por categoría de decisión.**')

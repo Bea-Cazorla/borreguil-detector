@@ -605,8 +605,22 @@ verdad-terreno.
 Ranking de importancia del modelo activo, con el rango típico de borreguil.
 
 ### Tipos y distribuciones
-Diagramas de caja por variable, dispersión altitud × NDVI, recuento por decisión y
-la **clasificación jerárquica**.
+La **clasificación jerárquica** (los tipos de borreguil), el recuento por decisión y
+**las variables que más pesan en el modelo** usado: una por cada grupo de variables
+parecidas, de más a menos, con el peso del grupo junto al nombre («Altitud (m) · 8 %»).
+Encima del gráfico se elige:
+
+| Control | Opciones |
+|---|---|
+| **Cómo verlo** | **Cajas** (mediana, cuartiles p25–p75, bigotes y atípicos) · **Curvas de distribución** (cómo se reparten los valores de cada grupo: si apenas se tocan, la variable separa bien) · **Diferencias de un vistazo** (cuánto se aparta la mediana de cada grupo de la del resto, en desviaciones típicas: a la derecha, más; a la izquierda, menos) · **Dos variables a la vez** (cada punto en el plano de dos variables) |
+| **Comparar** | **Borreguil frente al resto** · **Por humedad** (húmedo, seco y el resto) · **Por ambiente** (arroyo, laguna, ladera y el resto) |
+| **Cuántas variables** | 4, 8 (de entrada) o 12 |
+
+En **Dos variables a la vez** se eligen los dos ejes entre **todas** las variables de los
+puntos: primero las del modelo, de más a menos peso, y después las que el modelo no usa.
+De entrada, las dos que más pesan. Al pasar el ratón por cualquier gráfico salen sus
+cifras con 3 decimales. En las curvas y en las diferencias no se dibujan los grupos con
+menos de 5 puntos: su mediana o su forma engañarían.
 
 ### Descargas
 - `classification.csv` y `Clasificacion_puntos.xlsx` — la tabla completa, con

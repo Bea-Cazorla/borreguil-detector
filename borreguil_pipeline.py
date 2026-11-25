@@ -3628,6 +3628,28 @@ def abreviar_ids(ids, largo=24):
     return txt if len(set(cortos)) < len(set(txt)) else cortos
 
 
+def nombres_de_punto(ids, punto='Punto'):
+    """Cómo se llama cada punto en el GLOBO del mapa (25-11-2026, la autora: «este
+    nombre de la capa cámbialo»).
+
+    Los ID heredados del nombre de la capa ('all_borreguil_lagunas500ptos_epsg25830.663')
+    pasan a 'Punto 663': la capa que más se repite entre los puntos se quita y queda
+    su número. Los demás ID (cortos, o de otra capa) se quedan como están. Si al
+    quitarla dos puntos distintos se llamaran igual, se dejan todos sin cambiar. El ID
+    de verdad no cambia: sigue completo en el punto, en la tabla y en las descargas."""
+    import re
+    from collections import Counter
+    txt = ['' if x is None else str(x) for x in ids]
+    partes = [re.match(r'^(.{13,})\.(\d+)$', t) for t in txt]
+    capas = Counter(m.group(1) for m in partes if m)
+    if not capas:
+        return txt
+    capa = capas.most_common(1)[0][0]
+    cortos = [f'{punto} {m.group(2)}' if m and m.group(1) == capa else t
+              for t, m in zip(txt, partes)]
+    return txt if len(set(cortos)) < len(set(txt)) else cortos
+
+
 def nombre_html(nombre):
     """Un nombre listo para HTML: escapado y con un punto de corte tras cada
     separador, de modo que uno largo se parta por ahí ('…500ptos_' / 'epsg25830.41')
@@ -3644,7 +3666,7 @@ def _frase(texto):
     return texto[:1].upper() + texto[1:].lower()
 
 
-def popup_html(r, traduce=None, textos=None):
+def popup_html(r, traduce=None, textos=None, nombre=None, variables=None, num=None):
     """Globo de un punto en el mapa (el de la app y el de mapa.html).
 
     - Los números, con 3 decimales.
@@ -3654,6 +3676,12 @@ def popup_html(r, traduce=None, textos=None):
     - Los textos que vienen del fichero se escapan: un atributo con «<» no rompe
       el mapa.
     `traduce` traduce los valores (decisión, tipo) y `textos` los rótulos.
+
+    En la app (25-11-2026, la autora): `nombre`, el nombre que se enseña (ver
+    nombres_de_punto; si no, el ID); `variables`, [(rótulo, columna)] de las que se
+    dan, una por línea (las que más pesan en el modelo, como en la tabla); `num`, cómo
+    se escribe un número (con coma en español). Sin `variables`, las de siempre:
+    altitud, pendiente, NDVI y Clre.
     """
     import html
     t = {'tipo': 'Tipo', 'revisado': 'revisado', 'altitud': 'Altitud',
@@ -3671,15 +3699,23 @@ def popup_html(r, traduce=None, textos=None):
     if tipo:
         marca = f" ✓ {t['revisado']}" if tipo_revisado(r) else ''
         tipo_html = f"<br>🌿 {t['tipo']}: <b>{esc(tv(tipo))}</b>{marca}"
+    num = num or fmt_num
+    if variables:
+        # que se sepa por qué salen esas (25-11-2026, la autora: «¿se indica en algún
+        # sitio que el globo enseña las 3 variables que más pesan en el modelo?»)
+        lineas = (f"<i>{esc(t.get('variables', 'Las que más pesan en el modelo'))}:</i><br>"
+                  + '<br>'.join(f'{esc(etq)}: {num(r.get(col))}' for etq, col in variables))
+    else:
+        # (sin el «Patrón» BORREGUIL_LIKE…: era un código interno)
+        lineas = (f"{t['altitud']}: {num(r.get('elev_dem_m'))} m · "
+                  f"{t['pendiente']}: {num(r.get('slope_deg'))}°<br>"
+                  f"NDVI: {num(r.get('ndvi_late'))} · Clre: {num(r.get('clre_late'))}")
     return (
         '<div style="max-width:280px;overflow-wrap:anywhere;word-break:break-word;">'
-        f"<b>{nombre_html(r.get('ID', '?'))}</b><br>"
+        f"<b>{nombre_html(r.get('ID', '?') if nombre is None else nombre)}</b><br>"
         f"<b>{esc(_frase(tv(_txt(r.get('decision')) or 'SIN PREDICCIÓN')))}</b><br>"
         f"RF: {rf_txt}{tipo_html}<br>"
-        # (sin el «Patrón» BORREGUIL_LIKE…: era un código interno)
-        f"{t['altitud']}: {fmt_num(r.get('elev_dem_m'))} m · "
-        f"{t['pendiente']}: {fmt_num(r.get('slope_deg'))}°<br>"
-        f"NDVI: {fmt_num(r.get('ndvi_late'))} · Clre: {fmt_num(r.get('clre_late'))}"
+        + lineas +
         '</div>')
 
 

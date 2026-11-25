@@ -426,6 +426,40 @@ def guion(lang):
     comprobar(_i >= 0 and etiq[_i:_i + 6] == _res,
               'las pestañas de resultados se llaman como pidió la autora y en su orden',
               str(etiq))
+    # «Tipos y distribuciones»: las cajas son de las variables que más pesan en el
+    # modelo, y lo dice (25-11-2026)
+    comprobar(hay(at, T('#### Las variables que más pesan en el modelo',
+                        '#### The variables that weigh most in the model'))
+              and hay(at, T('Las 8 variables que más pesan en el modelo usado',
+                            'The 8 variables that weigh most in the model in use')),
+              'las cajas de «Tipos y distribuciones» son de las variables que más pesan '
+              'en el modelo, y lo dice')
+    # Cuatro maneras de verlas, comparando borreguil con el resto o por tipo (25-11-2026)
+    vista, comp = control(at, 'selectbox', 'dist_vista'), control(at, 'selectbox', 'dist_comparar')
+    comprobar(vista is not None and comp is not None
+              and list(vista.options) == [T('Cajas', 'Boxes'),
+                                          T('Curvas de distribución', 'Distribution curves'),
+                                          T('Diferencias de un vistazo', 'Differences at a glance'),
+                                          T('Dos variables a la vez', 'Two variables at once')]
+              and len(comp.options) == 3,
+              'en «Tipos y distribuciones» se elige cómo verlo y qué comparar')
+    malos = []
+    for v_ in ('cajas', 'curvas', 'diferencias', 'dos'):
+        for c_ in ('borreguil', 'humedad', 'ambiente'):
+            control(at, 'selectbox', 'dist_vista').set_value(v_)
+            control(at, 'selectbox', 'dist_comparar').set_value(c_)
+            at.run()
+            if at.exception or not at.get('vega_lite_chart'):
+                malos.append((v_, c_, [str(e.value)[:80] for e in at.exception]))
+    comprobar(not malos, 'las cuatro vistas se dibujan con las tres formas de comparar',
+              str(malos))
+    comprobar(control(at, 'selectbox', 'dist_x') is not None
+              and control(at, 'selectbox', 'dist_y') is not None
+              and control(at, 'selectbox', 'dist_x').value != control(at, 'selectbox', 'dist_y').value,
+              'con «Dos variables a la vez» se eligen los dos ejes; de entrada, dos distintas')
+    control(at, 'selectbox', 'dist_vista').set_value('cajas')
+    control(at, 'selectbox', 'dist_comparar').set_value('borreguil')
+    at.run()
     pasos = [T('1 · Datos', '1 · Data'),
              T('2 · Tabla de entrenamiento', '2 · Training table'),
              T('3 · Modelo', '3 · Model'), T('4 · Mapa', '4 · Map'),
@@ -3222,6 +3256,11 @@ def guion_anadir(lang):
                   'los puntos de los que aprendió el modelo no salen en el mapa')
         comprobar(T('Verificado (campo)', 'Verified (field)') not in html,
                   'la leyenda dice «Verificado», sin «(campo)»')
+        # El globo, con las 3 variables que más pesan en el modelo (25-11-2026); la
+        # altitud es la primera en los dos modelos de Sierra Nevada
+        comprobar('Clre: ' not in html and 'NDVI: ' not in html
+                  and (pp.etiqueta('elev_dem_m') + ': ') in html,
+                  'el globo de cada punto da las variables que más pesan en el modelo')
         comprobar(hay(at, T('Para que los puntos que añadas se sumen',
                             'For the points you add to be added')),
                   'dice que para sumar los puntos al modelo hace falta la casilla')

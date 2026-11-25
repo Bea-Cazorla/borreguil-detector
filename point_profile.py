@@ -539,58 +539,363 @@ def _class_of(r):
     return _CLS_BORR if is_borreguil_decision(r.get('decision', '')) else _CLS_REST
 
 
-def chart_boxplots(rows, vars=BOX_VARS, ncols=5):
-    """Boxplots de cada variable comparando puntos BORREGUIL vs. resto. Cada panel
-    tiene su propia escala Y (rangos muy distintos). Devuelve (chart|None, n_borr)."""
-    recs = []
-    for r in rows:
-        klass = _class_of(r)
+def vars_boxplots(importances, disponibles=None, n=8):
+    """Las variables de las cajas de «Tipos y distribuciones»: las `n` que más pesan en
+    el modelo, una por grupo de parecidas, de más a menos (variables_clave), con su
+    peso en el título: [(variable, 'Altitud (m) · 12 %'), …]. Sin pesos, BOX_VARS
+    (25-11-2026, la autora: «aquí deberían mostrarse las que más peso tienen en el
+    modelo y que lo indique»)."""
+    if not importances:
+        return list(BOX_VARS)
+    return [(k['feat'], f"{etiqueta(k['feat'])} · {round(100 * k['peso'])} %"
+             if k['peso'] is not None else etiqueta(k['feat']))
+            for k in variables_clave(importances, disponibles, n)]
+
+
+# ============================================================
+# Comparar grupos de puntos («Tipos y distribuciones», 25-11-2026, la autora: «sí, hazlo
+# con comparar por tipo»): borreguil frente al resto, o los borreguiles por su humedad
+# o por su ambiente frente al resto. Los colores del tipo son los del mapa de tipos
+# (mapeo_raster); el resto va en gris cuando se comparan tipos, para que destaquen
+# los borreguiles.
+# ============================================================
+COMPARAR = ('borreguil', 'humedad', 'ambiente')
+_ORDEN_TIPO = {'humedad': ('húmedo', 'seco'), 'ambiente': ('arroyo', 'laguna', 'ladera')}
+_COLOR_TIPO = {'húmedo': '#009E73', 'seco': '#D55E00', 'arroyo': '#188C09',
+               'laguna': '#2D60A4', 'ladera': '#8C6D31'}
+_COLOR_RESTO = '#9e9e9e'
+# Por debajo, un grupo no se dibuja en las curvas ni en las diferencias: la mediana o
+# la forma de 1 o 2 puntos engañan (en las cajas sí sale, con su nº de puntos).
+MIN_GRUPO = 5
+_COLOR_SIN_TIPO = '#d0cfc8'
+
+
+def grupos_puntos(rows, comparar='borreguil', en=None, traduce=None):
+    """El grupo de cada punto para comparar, y los grupos en orden con su color.
+
+    comparar: 'borreguil' (borreguil / no o resto), 'humedad' (húmedo, seco y el resto)
+    o 'ambiente' (arroyo, laguna, ladera y el resto). Un borreguil sin ese nivel del
+    tipo va a «sin tipo». Devuelve (grupo de cada fila, [(grupo, color)], resto): solo
+    los grupos que tienen algún punto, en su orden; `resto`, el nombre del grupo con el
+    que se comparan los demás."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    tv = traduce or (lambda x: x)
+    if comparar not in COMPARAR:
+        raise ValueError(f'comparar: uno de {COMPARAR}')
+    if comparar == 'borreguil':
+        resto = 'No / rest' if en else _CLS_REST
+        grupos = [_CLS_BORR if _class_of(r) == _CLS_BORR else resto for r in rows]
+        orden = [(_CLS_BORR, '#2e7d32'), (resto, '#8e0000')]
+    else:
+        resto = 'Rest' if en else 'Resto'
+        sin = 'no type' if en else 'sin tipo'
+        nombres = {v: str(tv(v)) for v in _ORDEN_TIPO[comparar]}
+        grupos = []
+        for r in rows:
+            if _class_of(r) != _CLS_BORR:
+                grupos.append(resto)
+                continue
+            v = str(r.get(comparar) or '').strip()
+            grupos.append(nombres.get(v, sin))
+        orden = ([(nombres[v], _COLOR_TIPO[v]) for v in _ORDEN_TIPO[comparar]]
+                 + [(sin, _COLOR_SIN_TIPO), (resto, _COLOR_RESTO)])
+    hay = set(grupos)
+    return grupos, [(g, c) for g, c in orden if g in hay], resto
+
+
+def _escala(orden):
+    return alt.Scale(domain=[g for g, _ in orden], range=[c for _, c in orden])
+
+
+def _f3(v, en):
+    t = f'{float(v):.3f}'
+    return t if en else t.replace('.', ',')
+
+
+def _eje_num(en):
+    """Números del eje sin separador de miles y, en español, con coma decimal."""
+    return alt.Axis(labelExpr="format(datum.value, '~r')" if en else
+                    "replace(format(datum.value, '~r'), '.', ',')")
+
+
+def _valores(rows, grupos, vars):
+    """{(rótulo de la variable, grupo): [valores]}."""
+    out = {}
+    for r, g in zip(rows, grupos):
         for key, lab in vars:
             v = fnum(r.get(key))
-            if v is None:
-                continue
-            recs.append({'clase': klass, 'variable': lab, 'valor': v})
-    if not recs:
+            if v is not None:
+                out.setdefault((lab, g), []).append(v)
+    return out
+
+
+def chart_boxplots(rows, vars=BOX_VARS, ncols=4, en=None, comparar='borreguil',
+                   traduce=None):
+    """Boxplots de cada variable comparando los grupos de `comparar` (ver
+    grupos_puntos). Cada panel tiene su propia escala Y (rangos muy distintos).
+    Devuelve (chart|None, n_borr).
+
+    Debajo de las cajas no va el nombre de cada grupo (no cabían y se pisaban: lo dice
+    la leyenda, arriba) y los números del eje van sin separador de miles y, en
+    español, con coma decimal («3200», «0,4»; antes «3,200» se leía como 3,2).
+
+    Las cajas se dibujan a mano (caja, bigotes, mediana y atípicos) con sus cifras
+    calculadas aquí, para que al pasar el ratón salgan en palabras y con 3 decimales
+    (25-11-2026, la autora: con mark_boxplot salía «min of null», «max of null» y
+    muchos decimales). Como siempre: la caja va del p25 al p75, la raya blanca es la
+    mediana, los bigotes llegan al valor más extremo a menos de 1,5 veces el ancho de
+    la caja, y lo que queda fuera son los atípicos."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    grupos, orden, _ = grupos_puntos(rows, comparar, en, traduce)
+    valores = _valores(rows, grupos, vars)
+    if not valores:
         return None, 0
+    recs = []
+    for (lab, g), xs in valores.items():
+        a = np.asarray(xs, dtype=float)
+        q1, med, q3 = (float(q) for q in np.percentile(a, [25, 50, 75]))
+        dentro = a[(a >= q1 - 1.5 * (q3 - q1)) & (a <= q3 + 1.5 * (q3 - q1))]
+        lo, hi = float(dentro.min()), float(dentro.max())
+        recs.append({'parte': 'caja', 'variable': lab, 'clase': g, 'q1': q1,
+                     'med': med, 'q3': q3, 'lo': lo, 'hi': hi, 'n': str(len(a)),
+                     'med_txt': _f3(med, en), 'cajas_txt': f'{_f3(q1, en)} – {_f3(q3, en)}',
+                     'bigotes_txt': f'{_f3(lo, en)} – {_f3(hi, en)}'})
+        recs += [{'parte': 'atipico', 'variable': lab, 'clase': g, 'valor': float(v),
+                  'valor_txt': _f3(v, en)} for v in a[(a < lo) | (a > hi)]]
     df = pd.DataFrame(recs)
     order = [lab for _, lab in vars if lab in set(df['variable'])]
     n_borr = sum(1 for r in rows if _class_of(r) == _CLS_BORR)
-    box = alt.Chart(df).mark_boxplot(size=26, outliers={'size': 6}).encode(
-        x=alt.X('clase:N', title=None, axis=alt.Axis(labelAngle=0)),
-        y=alt.Y('valor:Q', title=None, scale=alt.Scale(zero=False)),
-        color=alt.Color('clase:N', scale=_CLS_SCALE,
-                        legend=alt.Legend(orient='top', title=None)),
-    ).properties(width=120, height=170)
-    chart = box.facet(
-        facet=alt.Facet('variable:N', title=None, sort=order, header=alt.Header(labelFontWeight='bold')),
+    ancho = 26 if len(orden) <= 2 else 18
+    x = alt.X('clase:N', title=None, axis=None, sort=[g for g, _ in orden])
+    escala = alt.Scale(zero=False)
+    color = alt.Color('clase:N', scale=_escala(orden),
+                      legend=alt.Legend(orient='top', title=None))
+    t_cls = alt.Tooltip('clase:N', title='Group' if en else 'Grupo')
+    tip = [t_cls,
+           alt.Tooltip('med_txt:N', title='Median' if en else 'Mediana'),
+           alt.Tooltip('cajas_txt:N', title='Box (p25–p75)' if en else 'Caja (p25–p75)'),
+           alt.Tooltip('bigotes_txt:N', title='Whiskers' if en else 'Bigotes'),
+           alt.Tooltip('n:N', title='Points' if en else 'Puntos')]
+    base = alt.Chart(df)
+    caja = base.transform_filter(alt.datum.parte == 'caja')
+    capas = alt.layer(
+        caja.mark_rule(color='#757575', strokeWidth=1.5).encode(
+            x=x, y=alt.Y('lo:Q', title=None, scale=escala, axis=_eje_num(en)), y2='hi:Q',
+            tooltip=tip),
+        caja.mark_bar(size=ancho).encode(
+            x=x, y=alt.Y('q1:Q', title=None), y2='q3:Q', color=color, tooltip=tip),
+        caja.mark_tick(color='white', size=ancho, thickness=2).encode(
+            x=x, y=alt.Y('med:Q', title=None), tooltip=tip),
+        base.transform_filter(alt.datum.parte == 'atipico').mark_circle(size=22).encode(
+            x=x, y=alt.Y('valor:Q', title=None), color=color,
+            tooltip=[t_cls, alt.Tooltip('valor_txt:N', title='Value' if en else 'Valor')]),
+    ).properties(width=120 if len(orden) <= 2 else 150, height=170)
+    chart = capas.facet(
+        facet=alt.Facet('variable:N', title=None, sort=order,
+                        header=alt.Header(labelFontWeight='bold')),
         columns=ncols,
     ).resolve_scale(y='independent')
     return chart, n_borr
 
 
-def chart_scatter(rows, xkey='elev_dem_m', ykey='ndvi_late',
-                  xlab='Altitud (m)', ylab='NDVI fin verano'):
-    """Dispersión de dos variables clave, coloreada por clase. Muestra la separación
-    altitud–verdor entre borreguil y el resto. Devuelve chart|None."""
+def _kde(xs, malla):
+    """Densidad (núcleo gaussiano, ancho de banda de Scott) de `xs` en `malla`; con
+    menos de MIN_GRUPO valores o sin variación, None."""
+    a = np.asarray(xs, dtype=float)
+    if len(a) < MIN_GRUPO or np.std(a) == 0:
+        return None
+    h = 1.06 * np.std(a, ddof=1) * len(a) ** (-1 / 5)
+    z = (malla[:, None] - a[None, :]) / h
+    return np.exp(-0.5 * z ** 2).sum(axis=1) / (len(a) * h * np.sqrt(2 * np.pi))
+
+
+def chart_densidades(rows, vars=BOX_VARS, ncols=4, en=None, comparar='borreguil',
+                     traduce=None):
+    """Curvas de distribución de cada variable, una por grupo, superpuestas: si apenas
+    se tocan, la variable separa bien los grupos. Cada curva encierra un área de 1
+    (compara formas, no cuántos puntos hay) y se calcula aquí, en una malla común a
+    todos los grupos de la variable. Devuelve chart|None."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    grupos, orden, _ = grupos_puntos(rows, comparar, en, traduce)
+    valores = _valores(rows, grupos, vars)
     recs = []
-    for r in rows:
-        x, y = fnum(r.get(xkey)), fnum(r.get(ykey))
-        if x is None or y is None:
+    for _, lab in vars:
+        todos = [v for (l2, _g), xs in valores.items() if l2 == lab for v in xs]
+        if len(todos) < 3:
             continue
-        recs.append({'clase': _class_of(r), xlab: x, ylab: y,
-                     'ID': r.get('ID', ''), 'rf': fnum(r.get('rf_proba'))})
+        lo, hi = min(todos), max(todos)
+        if hi <= lo:
+            continue
+        malla = np.linspace(lo, hi, 80)
+        for g, _c in orden:
+            d = _kde(valores.get((lab, g), []), malla)
+            if d is None:
+                continue
+            recs += [{'variable': lab, 'grupo': g, 'x': float(x), 'densidad': float(y),
+                      'n': str(len(valores[(lab, g)]))} for x, y in zip(malla, d)]
     if not recs:
         return None
     df = pd.DataFrame(recs)
-    return alt.Chart(df).mark_circle(size=55, opacity=0.6).encode(
-        x=alt.X(f'{xlab}:Q', scale=alt.Scale(zero=False)),
-        y=alt.Y(f'{ylab}:Q', scale=alt.Scale(zero=False)),
-        color=alt.Color('clase:N', scale=_CLS_SCALE,
+    order = [lab for _, lab in vars if lab in set(df['variable'])]
+    orden = [(g, c) for g, c in orden if g in set(df['grupo'])]   # solo los dibujados
+    color = alt.Color('grupo:N', scale=_escala(orden),
+                      legend=alt.Legend(orient='top', title=None))
+    tip = [alt.Tooltip('grupo:N', title='Group' if en else 'Grupo'),
+           alt.Tooltip('n:N', title='Points' if en else 'Puntos')]
+    base = alt.Chart(df).encode(
+        x=alt.X('x:Q', title=None, axis=_eje_num(en)),
+        y=alt.Y('densidad:Q', title=None, axis=None),
+        color=color, detail='grupo:N', tooltip=tip)
+    capas = alt.layer(base.mark_area(opacity=0.15), base.mark_line(strokeWidth=2)
+                      ).properties(width=150, height=110)
+    return capas.facet(
+        facet=alt.Facet('variable:N', title=None, sort=order,
+                        header=alt.Header(labelFontWeight='bold')),
+        columns=ncols,
+    ).resolve_scale(x='independent', y='independent')
+
+
+def tabla_diferencias(rows, vars=BOX_VARS, en=None, comparar='borreguil', traduce=None):
+    """Cuánto se aparta cada grupo del resto en cada variable: (mediana del grupo −
+    mediana del resto) / desviación típica de todos los puntos. 1 = una desviación
+    típica más que el resto; −1, una menos. Devuelve una lista de dicts (variable,
+    grupo, med_grupo, med_resto, d), en el orden de `vars`; sin resto, []."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    grupos, orden, resto = grupos_puntos(rows, comparar, en, traduce)
+    valores = _valores(rows, grupos, vars)
+    filas = []
+    for _, lab in vars:
+        xr = valores.get((lab, resto))
+        if xr is not None and len(xr) < MIN_GRUPO:
+            xr = None
+        todos = [v for (l2, _g), xs in valores.items() if l2 == lab for v in xs]
+        if not xr or len(todos) < 3:
+            continue
+        sd = float(np.std(todos, ddof=1))
+        if sd == 0:
+            continue
+        mr = float(np.median(xr))
+        for g, _c in orden:
+            if g == resto or len(valores.get((lab, g)) or []) < MIN_GRUPO:
+                continue
+            mg = float(np.median(valores[(lab, g)]))
+            filas.append({'variable': lab, 'grupo': g, 'med_grupo': mg, 'med_resto': mr,
+                          'd': (mg - mr) / sd, 'n': len(valores[(lab, g)])})
+    return filas
+
+
+def chart_diferencias(rows, vars=BOX_VARS, en=None, comparar='borreguil', traduce=None):
+    """Diferencias de un vistazo: una fila por variable y un punto por grupo, a la
+    derecha si el grupo tiene más que el resto y a la izquierda si menos (en
+    desviaciones típicas; tabla_diferencias). Devuelve chart|None."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    filas = tabla_diferencias(rows, vars, en, comparar, traduce)
+    if not filas:
+        return None
+    _, orden, resto = grupos_puntos(rows, comparar, en, traduce)
+    df = pd.DataFrame(filas)
+    orden = [(g, c) for g, c in orden if g != resto and g in set(df['grupo'])]
+    df['cero'] = 0.0
+    df['med_grupo_txt'] = df['med_grupo'].map(lambda v: _f3(v, en))
+    df['med_resto_txt'] = df['med_resto'].map(lambda v: _f3(v, en))
+    df['d_txt'] = df['d'].map(lambda v: ('+' if v > 0 else '') + _f3(v, en))
+    order = [lab for _, lab in vars if lab in set(df['variable'])]
+    y = alt.Y('variable:N', sort=order, title=None, axis=alt.Axis(labelLimit=260))
+    lim = max(1.0, float(df['d'].abs().max()) * 1.1)
+    x = alt.X('d:Q', scale=alt.Scale(domain=[-lim, lim]), axis=_eje_num(en),
+              title=('← less than the rest · more than the rest → (in standard deviations)'
+                     if en else '← menos que el resto · más que el resto → '
+                     '(en desviaciones típicas)'))
+    color = alt.Color('grupo:N', scale=_escala(orden),
+                      legend=alt.Legend(orient='top', title=None))
+    tip = [alt.Tooltip('grupo:N', title='Group' if en else 'Grupo'),
+           alt.Tooltip('variable:N', title='Variable'),
+           alt.Tooltip('med_grupo_txt:N', title='Median of the group' if en
+                       else 'Mediana del grupo'),
+           alt.Tooltip('med_resto_txt:N', title='Median of the rest' if en
+                       else 'Mediana del resto'),
+           alt.Tooltip('d_txt:N', title='Difference' if en else 'Diferencia')]
+    off = alt.YOffset('grupo:N', sort=[g for g, _ in orden]) if len(orden) > 1 else None
+    enc_l = dict(y=y, x=alt.X('cero:Q'), x2='d:Q', color=color, tooltip=tip)
+    enc_p = dict(y=y, x=x, color=color, tooltip=tip)
+    if off is not None:
+        enc_l['yOffset'] = off
+        enc_p['yOffset'] = off
+    base = alt.Chart(df)
+    cero = alt.Chart(pd.DataFrame({'d': [0.0]})).mark_rule(color='#9e9e9e').encode(
+        x=alt.X('d:Q'))
+    return alt.layer(
+        cero,
+        base.mark_rule(strokeWidth=2).encode(**enc_l),
+        base.mark_circle(size=90, opacity=1).encode(**enc_p),
+    ).properties(height=max(120, 30 * len(order) * max(1, len(orden)) // 1.5))
+
+
+def lista_variables(rows, importances=None, en=None, todas=None):
+    """Las variables para elegir en «Dos variables a la vez»: primero las del modelo,
+    de más a menos peso («Altitud (m) · 12 %»), y después las demás que tienen valor
+    en los puntos («… (no la usa el modelo)»). `todas`: los nombres posibles (de
+    entrada, FEATURE_LABELS). Devuelve [(variable, rótulo)]."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    imp = {}
+    for f, w in (importances or {}).items():
+        try:
+            w = float(w)
+        except (TypeError, ValueError):
+            continue
+        if w == w:
+            imp[f] = w
+    total = sum(imp.values()) or 1.0
+
+    def con_valor(f):
+        return any(fnum(r.get(f)) is not None for r in rows)
+
+    del_modelo = [f for f in sorted(imp, key=lambda f: (-imp[f], f)) if con_valor(f)]
+    otras = [f for f in (todas if todas is not None else FEATURE_LABELS)
+             if f not in imp and con_valor(f)]
+    fuera = ' (not used by the model)' if en else ' (no la usa el modelo)'
+    return ([(f, f'{etiqueta(f)} · {round(100 * imp[f] / total)} %') for f in del_modelo]
+            + [(f, etiqueta(f) + fuera) for f in otras])
+
+
+def chart_dos_variables(rows, xkey, ykey, xlab, ylab, en=None, comparar='borreguil',
+                        traduce=None, nombres=None):
+    """Dos variables a la vez: cada punto en el plano, del color de su grupo. Al pasar
+    el ratón: el punto (`nombres`: su nombre corto), el grupo, los dos valores y la
+    probabilidad del modelo, con 3 decimales. Devuelve chart|None."""
+    en = i18n.get_lang() == 'en' if en is None else en
+    grupos, orden, _ = grupos_puntos(rows, comparar, en, traduce)
+    recs = []
+    for i, (r, g) in enumerate(zip(rows, grupos)):
+        xv, yv = fnum(r.get(xkey)), fnum(r.get(ykey))
+        if xv is None or yv is None:
+            continue
+        rf = fnum(r.get('rf_proba'))
+        recs.append({'x': xv, 'y': yv, 'grupo': g,
+                     'punto': str(nombres[i] if nombres else r.get('ID', '')),
+                     'x_txt': _f3(xv, en), 'y_txt': _f3(yv, en),
+                     'rf_txt': '—' if rf is None else _f3(rf, en)})
+    if not recs:
+        return None
+    df = pd.DataFrame(recs)
+    return alt.Chart(df).mark_circle(size=55, opacity=0.7).encode(
+        x=alt.X('x:Q', title=xlab, scale=alt.Scale(zero=False), axis=_eje_num(en)),
+        y=alt.Y('y:Q', title=ylab, scale=alt.Scale(zero=False), axis=_eje_num(en)),
+        color=alt.Color('grupo:N', scale=_escala(orden),
                         legend=alt.Legend(orient='top', title=None)),
-        tooltip=['ID:N', 'clase:N', alt.Tooltip(f'{xlab}:Q', format='.3f'),
-                 alt.Tooltip(f'{ylab}:Q', format='.3f'),
-                 alt.Tooltip('rf:Q', title='prob. RF', format='.3f')],
+        tooltip=[alt.Tooltip('punto:N', title='Point' if en else 'Punto'),
+                 alt.Tooltip('grupo:N', title='Group' if en else 'Grupo'),
+                 alt.Tooltip('x_txt:N', title=xlab), alt.Tooltip('y_txt:N', title=ylab),
+                 alt.Tooltip('rf_txt:N', title='Model probability' if en
+                             else 'Probabilidad del modelo')],
     ).properties(height=380)
+
+
+def chart_scatter(rows, xkey='elev_dem_m', ykey='ndvi_late',
+                  xlab='Altitud (m)', ylab='NDVI fin verano'):
+    """(De antes; la app usa chart_dos_variables.) Dispersión de dos variables,
+    borreguil frente al resto. Devuelve chart|None."""
+    return chart_dos_variables(rows, xkey, ykey, xlab, ylab)
 
 
 def chart_decision_counts(rows):
