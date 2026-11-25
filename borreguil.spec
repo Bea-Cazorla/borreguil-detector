@@ -104,7 +104,8 @@ hiddenimports += [
 # `import borreguil_pipeline`, `import i18n`, etc. funcionen.
 for name in ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
              'gee_backend.py', 'random_points.py', 'study_area.py', 'mapeo_rf.py',
-             'mapeo_raster.py', 'mapeo_tif.py', 'mapeo_ambiente.py'):
+             'mapeo_raster.py', 'mapeo_tif.py', 'mapeo_ambiente.py',
+             'modelos_remotos.py'):
     p = APP_DIR / name
     if p.exists():
         datas.append((str(p), '.'))

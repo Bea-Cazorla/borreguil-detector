@@ -1,0 +1,32 @@
+{
+  "formato": 1,
+  "nota": "Modelos públicos que la app descarga sola al abrirse. No se edita a mano: usar publicar_modelo.py.",
+  "modelos": [
+    {
+      "archivo": "rf_sierra_nevada.joblib",
+      "nombre": "Sierra Nevada · Sentinel-2, radar y relieve",
+      "fecha": "2026-11-20",
+      "sha256": "bc8d0093630505041b15e8a3c408b885af376dcc62b2517f90eb41e4eacdb80e",
+      "bytes": 4512175,
+      "sin_radar": {
+        "archivo": "rf_sierra_nevada_sin_radar.joblib",
+        "url": "sin_radar/rf_sierra_nevada_sin_radar.joblib",
+        "sha256": "d8e3a2bb90f18ee59ebac3753e5eb36bb01b298256127b69fc4feb0046721082",
+        "bytes": 4856847
+      }
+    },
+    {
+      "archivo": "rf_sierra_nevada_cir.joblib",
+      "nombre": "Sierra Nevada · con ortofoto infrarroja (CIR 0,25 m)",
+      "fecha": "2026-11-20",
+      "sha256": "b61e786e20af59decb02246667f6e7bfb2ed543b101979c63b93e9728e9e74f7",
+      "bytes": 3589608,
+      "sin_radar": {
+        "archivo": "rf_sierra_nevada_cir_sin_radar.joblib",
+        "url": "sin_radar/rf_sierra_nevada_cir_sin_radar.joblib",
+        "sha256": "394ed7160e234fb1077c40592d436a58d96b769860656cb4e93219492640f142",
+        "bytes": 3666760
+      }
+    }
+  ]
+}

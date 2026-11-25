@@ -16,6 +16,7 @@ Se ejecutan desde la carpeta `borreguil_app`. En Windows, `py -X utf8` en lugar 
 | `test_curva_puntos.py` | La curva de cuántos puntos hacen falta para el mapa: ordenada y creciente, el mínimo y lo recomendado dentro de ella, el AUC esperado para un número de puntos, si se llega o no al mínimo (con los puntos y con los borreguiles) y cuánto falta, y su gráfica con y sin «tus puntos» | Nada | ~5 s |
 | `test_puntos_campo.py` | El fichero de puntos de campo se lee como «Tus puntos»: una ausencia `0.0` o en una columna `Presence` es ausencia; sin columna, todos son borreguil; un dudoso entra como dudoso; con valores que no se entienden no se usa ninguno; un GeoJSON con 0.0 y el ejemplo de la plantilla (12 sí, 8 no) | Nada | ~5 s |
 | `test_pca.py` | Elegir las variables del mapa con un PCA: una por eje con valor propio mayor que 1, la que mejor separa entre las ligadas al eje; la altitud fuera del PCA y añadida; correlación mínima más exigente; variables que no varían; la separación con dos y con más categorías; pocas muestras y errores | Nada | ~5 s |
+| `test_modelos_remotos.py` | Modelos nuevos de GitHub: descargar uno nuevo y su versión sin radar, no bajar el que ya trae la app, actualizar uno cambiado y volver atrás, descartar una descarga con otra huella y las entradas mal escritas, sin conexión, la lista del repositorio igual que sus ficheros, el orden de carpetas de la app y lo que dice el panel | Nada (carpetas locales) | ~5 s |
 | `test_etiquetas_candidatos.py` | Que la etiqueta de los puntos candidatos se lee venga como venga (`borreguil` yes/no, `presence` 1/0, `doubtful`…), que un fichero de la app queda igual, que una `clase` con tipos no se toma por etiqueta y que, si no hay ninguna columna de etiqueta, se avisa con las columnas que trae | Nada | segundos |
 | `test_puntos_azar.py` | El generador de puntos al azar: que, si se pide, quedan lejos de los puntos de campo (para buscar ausencias donde no se ha muestreado) y que sin pedirlo sale lo mismo que antes | Nada | segundos |
 | `test_presentacion.py` | Cómo se muestran los datos: 3 decimales y nombres largos sin cortar (globos del mapa, tabla, Excel), y la ficha del punto: las variables que más pesan, una por grupo de parecidas y ordenadas por el peso del grupo, la posición del punto entre los borreguiles verdaderos en cada una (0–100) y su gráfica y tabla de valores, también en inglés | Nada | segundos |
@@ -41,6 +42,7 @@ python tests/test_revisor.py
 python tests/test_curva_puntos.py
 python tests/test_puntos_campo.py
 python tests/test_pca.py
+python tests/test_modelos_remotos.py
 python tests/test_etiquetas_candidatos.py
 python tests/test_puntos_azar.py
 python tests/test_presentacion.py

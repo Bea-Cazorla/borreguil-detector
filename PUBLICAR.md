@@ -120,6 +120,41 @@ Después:
 
 ---
 
+## Publicar un modelo para que la app lo descargue
+
+La app, al abrirse, lee `modelos.json` en GitHub y descarga los modelos que no tiene o
+que han cambiado: **no hace falta reinstalarla** para tener un modelo nuevo. Para
+publicar uno, desde la carpeta `borreguil_app`:
+
+```bash
+py publicar_modelo.py rf_mi_zona.joblib --nombre "Mi zona (Sentinel-2 y relieve)"
+git add modelos.json rf_mi_zona.joblib
+git commit -m "Modelo de mi zona"
+git push
+```
+
+El script comprueba que el fichero es un modelo de la app, lo copia a la carpeta si no
+está ya y escribe en la lista su tamaño y su huella (SHA-256). Otros usos:
+
+| Para | Orden |
+|---|---|
+| Añadir también su versión sin radar (`<nombre>_sin_radar.joblib`) | `--sin-radar ruta/al/fichero` |
+| Poner al día la lista tras reentrenar un modelo que ya estaba | `py publicar_modelo.py` |
+| Que deje de descargarse (quien ya lo tiene lo conserva) | `--quitar rf_mi_zona.joblib` |
+| Comprobar que la lista coincide con los ficheros | `--comprobar` (también lo hacen las pruebas) |
+
+> **Quién puede publicar.** Un `.joblib` ejecuta código al cargarse. La app solo
+> descarga de este repositorio y comprueba la huella de cada fichero, pero quien pueda
+> subir ficheros al repositorio puede publicar un modelo: da permiso de escritura solo
+> al equipo. Los modelos se suben ya a `main`, así que se descargan en cuanto se hace
+> `git push`.
+
+Para usar otro repositorio de modelos (sin tocar el código), se define en cada equipo
+la variable de entorno `BORREGUIL_MODELOS_URL` con la dirección «raw» de su
+`modelos.json`. Vacía, la app no busca modelos.
+
+---
+
 ## Versiones siguientes
 
 ```bash

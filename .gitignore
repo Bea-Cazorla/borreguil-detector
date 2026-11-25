@@ -24,5 +24,8 @@ dist/
 # Carpeta de datos del usuario si alguien ejecuta desde el propio directorio
 Borreguil/
 
+# Modelos que la app descarga de GitHub (modelos.json) si se ejecuta desde aquí
+modelos_descargados/
+
 # Preferencias personales que la app recuerda (p. ej. el proyecto de Earth Engine)
 ajustes.json
