@@ -81,9 +81,21 @@ dirección exacta sale en la ventana de consola). El primer arranque tarda 30–
 **Para cerrar el programa**: cierra la ventana de consola o pulsa `Ctrl+C` en ella.
 Cerrar solo la pestaña del navegador no lo detiene.
 
+**El programa se actualiza solo.** Al abrirlo, mira en GitHub si hay una versión nueva
+de la app. Si la hay, descarga solo lo que ha cambiado y lo comprueba antes de usarlo; la
+consola dice «Actualizando la app a la versión…» y después «App actualizada». La
+primera vez puede tardar un minuto; las demás, unos segundos. Si la versión nueva no
+pasa la comprobación, o no hay internet, la app abre con la que ya tenía. Lo
+descargado va a la carpeta `Borreguil/codigo` de tu cuenta: no hace falta permiso de
+administrador. Hace falta un instalador nuevo solo cuando cambian Python o las
+librerías; entonces la consola lo dice y da el enlace de descarga. Para abrirlo una vez
+sin buscar versiones nuevas: `Borreguil --sin-actualizar`. Para que no las busque nunca
+(un aula sin internet), define la variable de entorno `BORREGUIL_CODIGO_URL` vacía.
+Cómo se publica una versión: `PUBLICAR.md`.
+
 **Conexión a internet.** Todo lo que la app hace por internet va por **HTTPS (puerto
-443)**: Earth Engine (`*.googleapis.com`), los modelos nuevos de GitHub
-(`raw.githubusercontent.com`), Planetary Computer, las ortofotos (IGN, servicios
+443)**: Earth Engine (`*.googleapis.com`), las versiones nuevas de la app y los modelos
+nuevos de GitHub (`raw.githubusercontent.com`), Planetary Computer, las ortofotos (IGN, servicios
 autonómicos, ESRI y Google Satélite), OpenStreetMap (Overpass y Nominatim) y Protected
 Planet. En una red con cortafuegos (un aula, por ejemplo) basta con dejar salir
 el puerto 443 hacia esos sitios. La dirección `localhost:8501` de la ventana de la app
@@ -357,7 +369,7 @@ El modelo aprendió en Sierra Nevada. Funciona en macizos comparables, pero:
 - Para máxima precisión, [suma tu verdad-terreno local al modelo](#11-sumar-tus-puntos-al-modelo).
 - El **tipo** de los puntos ([§10](#10-clasificación-jerárquica-del-tipo)) sale de
   reglas pensadas en Sierra Nevada:
-  - **Humedad**: el umbral de NDMI (0,10) es fijo. En una zona más lluviosa o más
+  - **Humedad**: el umbral de NDMI (0,100) es fijo. En una zona más lluviosa o más
     seca puede llamar húmedo, o seco, a casi todo. Revisa la humedad de algunos
     puntos de los dos tipos: el mapa de tipos aprende la humedad de lo que revises.
   - **Ambiente**: la capa de lagunas (65) y la de ríos y arroyos solo cubren Sierra
@@ -754,7 +766,7 @@ AMBIENTE (dónde está)          HUMEDAD           PUREZA (qué hay en el píxel
   siete, y los cauces deducidos del relieve de 30 m van en escalera y a veces se
   separan de la vaguada.
 - **Humedad** — **húmedo** si el NDMI medio del punto (la humedad de la vegetación)
-  pasa de **0,10**; si no, **seco**. Es un valor fijo, puesto para Sierra Nevada: no
+  pasa de **0,100**; si no, **seco**. Es un valor fijo, puesto para Sierra Nevada: no
   se ajusta solo a otras zonas (ver [Transferir a otras montañas](#transferir-a-otras-montañas)).
 - **Pureza** — **igual que la pureza dentro del píxel del mapa**: la app estima
   cuánto **verde** hay en el píxel de 10 m de Sentinel-2 que contiene el punto, con

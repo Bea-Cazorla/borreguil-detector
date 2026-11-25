@@ -155,6 +155,60 @@ la variable de entorno `BORREGUIL_MODELOS_URL` con la dirección «raw» de su
 
 ---
 
+## Publicar el código para que los programas instalados se actualicen solos
+
+Al abrirse, el programa instalado lee `codigo.json` en GitHub. Si el código publicado es
+distinto del que tiene, descarga solo los ficheros que han cambiado, comprueba cada uno
+con su huella y pasa el autodiagnóstico a la versión nueva. Si pasa, arranca con ella;
+si no, sigue con la de antes. **No hace falta reinstalar** en las aulas para tener la
+última versión de la app.
+
+Para publicar, desde la carpeta `borreguil_app`:
+
+1. Pasa las pruebas (`py -m pytest tests` y la de pantalla).
+2. Sube la versión en `CITATION.cff` (por ejemplo, `version: 1.0.1`): es la que se ve en
+   la app.
+3. Haz commit y push del código.
+4. Publica:
+
+```bash
+py publicar_codigo.py
+git add codigo.json
+git commit -m "Publicar el código 1.0.1"
+git push
+```
+
+El script se niega a publicar si hay cambios sin commit, si el commit no está en GitHub
+o si algún fichero no es Python 3.12 válido (el instalador lleva Python 3.12).
+Los programas instalados se bajan el código **de ese commit**, no de `main`: lo que
+subas después no les llega hasta que vuelvas a publicar.
+
+| Para | Orden |
+|---|---|
+| Comprobar que la lista coincide con lo publicado | `py publicar_codigo.py --comprobar` |
+| Dar marcha atrás | Vuelve al commit bueno (`git checkout <commit>`), publica y sube `codigo.json` |
+| Código que necesita una librería nueva | Sube `INSTALADOR` en `actualizador.py`, compila el instalador nuevo y publica con `--instalador-minimo <ese número>` |
+
+Qué se actualiza: los módulos de la app (`app.py`, `borreguil_pipeline.py`…; la lista
+está en `actualizador.py`), el manual, el tutorial, `CITATION.cff`, la plantilla y las
+capas de lagunas y cauces. **No** se actualizan Python ni las librerías (para eso hace
+falta un instalador nuevo) ni los modelos, que tienen su propia lista (`modelos.json`).
+
+Cuando compiles un instalador nuevo, publica también su código. Si no lo haces y la
+lista publicada es más vieja que el instalador (según `CITATION.cff`), el programa usa
+el código del instalador.
+
+> **Quién puede publicar.** El código descargado se ejecuta. El programa solo lo baja
+> de este repositorio, por HTTPS (puerto 443), y comprueba la huella de cada fichero,
+> pero quien pueda subir ficheros al repositorio puede publicar código: da permiso de
+> escritura solo al equipo.
+
+En cada equipo, la variable de entorno `BORREGUIL_CODIGO_URL` cambia la dirección de
+`codigo.json`; vacía, el programa no busca versiones nuevas. También se puede arrancar
+una vez sin buscarlas con `Borreguil --sin-actualizar`.
+
+---
+
 ## Versiones siguientes
 
 ```bash

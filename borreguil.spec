@@ -101,11 +101,12 @@ hiddenimports += [
 # --- Ficheros propios de la aplicación --------------------------------------
 # Los módulos .py van como DATOS (no como imports) porque Streamlit ejecuta
 # app.py como un script; launcher.py añade esta carpeta a sys.path para que los
-# `import borreguil_pipeline`, `import i18n`, etc. funcionen.
-for name in ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
-             'gee_backend.py', 'random_points.py', 'study_area.py', 'mapeo_rf.py',
-             'mapeo_raster.py', 'mapeo_tif.py', 'mapeo_ambiente.py',
-             'modelos_remotos.py'):
+# `import borreguil_pipeline`, `import i18n`, etc. funcionen. La lista es la misma
+# que publica y actualiza actualizador.py (el código que se actualiza solo).
+sys.path.insert(0, str(APP_DIR))
+from actualizador import MODULOS_APP     # noqa: E402
+
+for name in MODULOS_APP:
     p = APP_DIR / name
     if p.exists():
         datas.append((str(p), '.'))

@@ -17,15 +17,29 @@ Diseño:
     carpeta PERSISTENTE en su cuenta: ~/Borreguil  (BORREGUIL_DATA_DIR).
     Así «Guardar el modelo entrenado» sigue funcionando entre sesiones.
 
+  · Al abrirse busca en GitHub si hay una versión nueva del código y, si la hay, la
+    descarga, la comprueba y arranca con ella (actualizador.py; 25-11-2026, para las
+    aulas). Sin conexión, sigue con el código que haya.
+
 Ejecutar en desarrollo (sin compilar):  python launcher.py
+Opciones:
+  --selftest               autodiagnóstico del ejecutable (lo usa la compilación).
+  --probar-codigo CARPETA  el mismo autodiagnóstico con el código de CARPETA (lo usa
+                           el actualizador antes de dar por buena una versión nueva).
+  --sin-actualizar         arrancar sin buscar versiones nuevas (o BORREGUIL_CODIGO_URL
+                           vacía).
 """
+import importlib
 import os
 import socket
+import subprocess
 import sys
 import threading
 import time
 import webbrowser
 from pathlib import Path
+
+import actualizador
 
 # La consola de Windows usa cp1252 y tanto este lanzador como el pipeline imprimen
 # acentos y símbolos Unicode; sin esto se ven como «detecci�n» o abortan.
@@ -104,8 +118,11 @@ def selftest(res: Path) -> int:
 
     # 1) Dependencias científicas y geoespaciales (aquí es donde suelen aparecer
     #    los módulos que el empaquetado se ha dejado fuera).
+    # Los módulos de la app se importan por su nombre (importlib), no con «import»:
+    # así PyInstaller no los mete compilados dentro del ejecutable y siempre se usan
+    # los de la carpeta del código, que el actualizador puede cambiar.
     def _pipeline():
-        import borreguil_pipeline as bp
+        bp = importlib.import_module('borreguil_pipeline')
         bp._imports()
     comprobar('importar el pipeline y sus dependencias', _pipeline)
     comprobar('módulos de la interfaz (point_profile, i18n, mapeo_rf, mapeo_raster, '
@@ -122,8 +139,8 @@ def selftest(res: Path) -> int:
         import tempfile
         import numpy as np
         from shapely.geometry import box
-        import mapeo_raster as mra
-        import mapeo_tif as mt
+        mra = importlib.import_module('mapeo_raster')
+        mt = importlib.import_module('mapeo_tif')
         rej = mra.rejilla((500000, 4100000, 500040, 4100040), 32630)
         dentro = mra.dentro(box(500000, 4100000, 500020, 4100040), rej, (0, 0, 4, 4))
         if int(dentro.sum()) != 8:
@@ -144,7 +161,7 @@ def selftest(res: Path) -> int:
     def _ambiente_por_cercania():
         import numpy as np
         from shapely.geometry import LineString
-        import mapeo_ambiente as ma
+        ma = importlib.import_module('mapeo_ambiente')
         ff, cc = np.mgrid[0:40, 0:31]
         cauce = ma.cauces_del_relieve(3000.0 - 2.0 * ff + 3.0 * np.abs(cc - 15), 1.0)
         if not cauce[30:, 15].all() or cauce[:, 5].any():
@@ -196,19 +213,76 @@ def selftest(res: Path) -> int:
     return 0
 
 
+def probar_en_otro_proceso(carpeta):
+    """El autodiagnóstico con el código de `carpeta`, en otro proceso (el mismo
+    ejecutable, o este fichero sin compilar): así un código que no funciona con las
+    librerías del instalador no llega a cargarse en este. Devuelve (ok, texto)."""
+    if getattr(sys, 'frozen', False):
+        cmd = [sys.executable, '--probar-codigo', str(carpeta)]
+    else:
+        cmd = [sys.executable, str(Path(__file__).resolve()), '--probar-codigo',
+               str(carpeta)]
+    entorno = dict(os.environ, **{actualizador.VARIABLE_URL: ''})
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8',
+                           errors='replace', timeout=600, env=entorno)
+    except Exception as exc:                     # noqa: BLE001
+        return False, f'{type(exc).__name__}: {exc}'
+    texto = (r.stdout or '') + (r.stderr or '')
+    return r.returncode == 0, texto[-2000:]
+
+
+def buscar_version_nueva(res, out):
+    """Busca en GitHub una versión nueva del código y la deja lista (actualizador.py).
+    Escribe en la consola lo que pasa; nunca para el arranque."""
+    if '--sin-actualizar' in sys.argv or not actualizador.url_manifiesto():
+        return None
+    print('  Buscando una versión nueva de la app…', flush=True)
+    r = actualizador.actualizar(res, out, probar=probar_en_otro_proceso,
+                                aviso=lambda t: print(t, flush=True))
+    linea = actualizador.texto_estado(r)
+    if linea:
+        print(linea, flush=True)
+    if r.get('estado') == 'no_pasa_prueba' and r.get('detalle'):
+        print('  Lo que dijo la comprobación (últimas líneas):')
+        print('\n'.join('    ' + x for x in r['detalle'].strip().splitlines()[-8:]))
+    return r
+
+
 def main():
     res = resource_dir()
 
     if '--selftest' in sys.argv:
         sys.exit(selftest(res))
 
+    if '--probar-codigo' in sys.argv:
+        i = sys.argv.index('--probar-codigo')
+        if i + 1 >= len(sys.argv):
+            sys.exit('ERROR: falta la carpeta del código que hay que probar')
+        carpeta = Path(sys.argv[i + 1]).resolve()
+        actualizador.usar_codigo_de(carpeta)
+        sys.exit(selftest(carpeta))
+
     out = data_dir()
 
-    # El script de la app y sus módulos hermanos viajan en la carpeta de recursos.
-    app_path = res / 'app.py'
+    # El código: el que trae el instalador o, si se ha descargado una versión más
+    # nueva y está completa, esa (en la carpeta del usuario).
+    buscar_version_nueva(res, out)
+    codigo, descargada = actualizador.carpeta_a_usar(res, out)
+
+    # El script de la app y sus módulos hermanos viajan en la carpeta del código.
+    app_path = codigo / 'app.py'
+    if not app_path.exists():
+        codigo, descargada = res, None
+        app_path = res / 'app.py'
     if not app_path.exists():
         sys.exit(f'ERROR: no se encuentra app.py en {res}')
-    sys.path.insert(0, str(res))
+    if descargada:
+        actualizador.usar_codigo_de(codigo)
+        print(f'  Código de la versión {descargada["version"]} '
+              f'(commit {descargada["commit"][:7]}), descargada de GitHub.', flush=True)
+    else:
+        sys.path.insert(0, str(res))
 
     # Carpeta escribible para lo que genere el usuario (modelos, descargas).
     os.environ['BORREGUIL_DATA_DIR'] = str(out)
@@ -272,4 +346,9 @@ def main():
 
 
 if __name__ == '__main__':
+    # En el ejecutable, un proceso hijo que lance una librería (multiprocessing,
+    # joblib) vuelve a ejecutar este mismo programa. Sin esta línea arrancaría la app
+    # entera otra vez: en Mac el autodiagnóstico se quedaba colgado (25-11-2026).
+    import multiprocessing
+    multiprocessing.freeze_support()
     main()
