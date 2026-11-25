@@ -461,8 +461,7 @@ def guion(lang):
     _md = textos(at)
     _pos = [next((k for k, x in enumerate(_md) if s in x), -1) for s in (
         T('#### Probabilidad de ser borreguil', '#### Probability of being a borreguil'),
-        T('#### Recuento de puntos por categoría de decisión',
-          '#### Point count by decision category'),
+        T('#### Recuento de puntos por resultado', '#### Point count by result'),
         T('#### 🌿 Tipos de borreguil', '#### 🌿 Borreguil types'),
         T('#### El peso de cada variable', '#### The weight of each variable'),
         T('#### Las que más pesan, grupo a grupo',
@@ -541,7 +540,7 @@ def guion(lang):
             _cfg_d = _json.loads(_d_el.proto.columns or '{}')
         except ValueError:
             continue
-        _ayuda_dec = (_cfg_d.get(T('Decisión', 'Decision')) or {}).get('help') or _ayuda_dec
+        _ayuda_dec = (_cfg_d.get(T('Resultado', 'Result')) or {}).get('help') or _ayuda_dec
     comprobar(_ayuda_dec.startswith(T('Si el punto está revisado (en la app o ya en tu '
                                       'fichero), manda lo revisado: «sí» → «Borreguil '
                                       'verificado»',
@@ -757,6 +756,20 @@ def guion(lang):
               and list(es.options) == ([T('Sí', 'Yes'), 'No', T('No estoy seguro', 'Not sure')]),
               'aparece «1 · ¿Es borreguil?», sin nada elegido',
               str(list(es.options)) if es is not None else 'no está')
+    # Mirar el píxel, no solo el punto; y los cauces de OpenStreetMap junto al mapa
+    # (25-11-2026, la autora: «habría que indicar en algún sitio de la revisión que
+    # deben mirar lo que hay dentro del píxel, no solamente el punto»)
+    comprobar(hay(at, T('Decide por lo que hay **dentro del recuadro amarillo**',
+                        'Decide by what is **inside the yellow square**'))
+              and T('en todo el recuadro amarillo', 'in the whole yellow square')
+              in (es.help or ''),
+              'la revisión dice que se mire todo el píxel, no solo el punto')
+    comprobar(hay(at, T('El río o arroyo de OpenStreetMap más cercano está a',
+                        'The nearest OpenStreetMap river or stream is'))
+              or hay(at, T('No hay ningún río ni arroyo de OpenStreetMap',
+                           'There is no OpenStreetMap river or stream')),
+              'junto al mapa del punto se dice a cuánto está el arroyo de OpenStreetMap '
+              'más cercano')
     for niv in bp.NIVELES_TIPO:
         d = desplegable(at, niv)
         # con un punto, el tipo trae la propuesta de la app, apagado hasta decir que sí
@@ -1086,7 +1099,7 @@ def guion(lang):
               str([m[:90] for m in msgs_h if 'erifi' in m][:3]))
     df = tabla_principal(at)
     cab = list(df.columns) if df is not None else []
-    comprobar(all(c in cab for c in (T('Decisión', 'Decision'),
+    comprobar(all(c in cab for c in (T('Resultado', 'Result'),
                                      T('Probabilidad', 'Probability'),
                                      T('Tipo revisado', 'Type reviewed'),
                                      T('Altitud (m)', 'Elevation (m)'),

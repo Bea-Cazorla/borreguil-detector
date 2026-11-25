@@ -355,14 +355,27 @@ El modelo aprendió en Sierra Nevada. Funciona en macizos comparables, pero:
   entre cordilleras (un borreguil pirenaico o alpino puede estar más bajo).
 - Las probabilidades **se recalibran** en cada zona → usa el umbral **Otsu**.
 - Para máxima precisión, [suma tu verdad-terreno local al modelo](#11-sumar-tus-puntos-al-modelo).
+- El **tipo** de los puntos ([§10](#10-clasificación-jerárquica-del-tipo)) sale de
+  reglas pensadas en Sierra Nevada:
+  - **Humedad**: el umbral de NDMI (0,10) es fijo. En una zona más lluviosa o más
+    seca puede llamar húmedo, o seco, a casi todo. Revisa la humedad de algunos
+    puntos de los dos tipos: el mapa de tipos aprende la humedad de lo que revises.
+  - **Ambiente**: la capa de lagunas (65) y la de ríos y arroyos solo cubren Sierra
+    Nevada. Fuera, un punto es de laguna solo si se ve agua cerca, y los ríos se
+    descargan de OpenStreetMap al analizar; si no se pueden descargar, «arroyo» se
+    decide solo por la pendiente.
+  - **Pureza**: la regla es física (verde y agua del píxel) y viaja mejor. Con 5 o
+    más puntos revisados como *puro*, se ajusta a tu zona.
 
 ---
 
 ## 7. El umbral de decisión
 
-El modelo da una **probabilidad** (0–1). El umbral la convierte en decisión:
+El modelo da una **probabilidad** (0–1). El umbral la convierte en el **resultado** de cada
+punto (la columna «Resultado» de «Revisar puntos»; antes se llamaba «Decisión»). Si el
+punto está revisado, manda lo revisado:
 
-| Decisión | Regla |
+| Resultado | Regla |
 |---|---|
 | BORREGUIL VERIFICADO | Confirmado (de campo, en «Revisar puntos» o añadido en el mapa) |
 | BORREGUIL PROBABLE | probabilidad **≥ 0,700** |
@@ -604,6 +617,17 @@ El mapa del punto seleccionado usa la **ortofoto** de fondo, dibuja el punto sin
 relleno y marca en amarillo su **píxel Sentinel-2 de 10 m**. Con el control de capas
 puedes cambiar a Google Satélite, que admite más zoom.
 
+**Mira el píxel, no solo el punto.** El mapa del Random Forest aprende del píxel de
+10 m (el recuadro amarillo), y el detector de puntos promedia unos 50 m alrededor (5 ×
+5 píxeles; capa **Ventana del detector de puntos**, apagada de entrada). Decide si es
+borreguil por lo que hay dentro del recuadro: si el píxel es casi todo roca o agua,
+dilo en la pureza (mixto-roca, mixto-agua) o marca **No estoy seguro**. Así no se le
+enseña al modelo una roca con la etiqueta «borreguil».
+
+En azul van los **ríos y arroyos de OpenStreetMap**, los mismos con los que se propone
+«arroyo» (a 30 m o menos), y debajo del mapa se dice a cuántos metros está el más
+cercano. Si ves un cauce que OpenStreetMap no tiene, corrige el ambiente.
+
 Al **quitar puntos del análisis** la selección se vacía: así ninguna acción
 posterior recae sobre un punto que no has elegido.
 
@@ -729,7 +753,9 @@ AMBIENTE (dónde está)          HUMEDAD           PUREZA (qué hay en el píxel
   junto a un cauce de OpenStreetMap, la pendiente solo llamaba arroyo a uno de cada
   siete, y los cauces deducidos del relieve de 30 m van en escalera y a veces se
   separan de la vaguada.
-- **Humedad** — por NDMI.
+- **Humedad** — **húmedo** si el NDMI medio del punto (la humedad de la vegetación)
+  pasa de **0,10**; si no, **seco**. Es un valor fijo, puesto para Sierra Nevada: no
+  se ajusta solo a otras zonas (ver [Transferir a otras montañas](#transferir-a-otras-montañas)).
 - **Pureza** — **igual que la pureza dentro del píxel del mapa**: la app estima
   cuánto **verde** hay en el píxel de 10 m de Sentinel-2 que contiene el punto, con
   su NDVI de inicio de verano: 0 % si vale 0,080 o menos, 100 % si vale 0,600 o más
@@ -808,6 +834,21 @@ cuáles («humedad»).
 
 Lo revisado **no se pisa nunca**: ni al reentrenar ni aunque el modelo deje de
 clasificar el punto como borreguil.
+
+**¿Se reentrena el modelo al guardar?** Solo si cambia el **sí o el no**, y solo con
+la casilla **Sumar mis puntos a los del modelo y reentrenarlo** marcada
+([§11](#11-sumar-tus-puntos-al-modelo)). El modelo que decide si hay borreguil aprende
+únicamente eso, si es borreguil o no; el tipo no lo aprende, lo proponen las reglas de
+arriba. Si al guardar solo cambias el ambiente, la humedad o la pureza, ese modelo no
+tiene nada nuevo que aprender y no se reentrena. Lo que revisas del tipo se queda en
+el punto, en lugar de la propuesta, y además se aprovecha en dos sitios:
+
+- **El mapa de tipos** ([Mapa de tipos con Random Forest](#mapa-de-tipos-con-random-forest)):
+  su modelo aprende la humedad **solo de los borreguiles con la humedad revisada**. Se
+  entrena al hacer el mapa, no al guardar cada revisión.
+- **La pureza de los demás puntos**: con 5 o más puntos revisados como *puro*, la app
+  toma su verdor como «todo verde» (ver *Pureza*, arriba), y así la pureza se propone
+  con tu criterio.
 
 Encima de la tabla hay un contador: cuántos borreguiles están revisados (y cuántos en
 cada nivel) y en cuántos se **corrigió** la propuesta. Si revisas muchos y no corriges
@@ -1597,7 +1638,8 @@ Todos los que dicen si hay borreguil o no:
 No se suman los dudosos. Si uno de tus puntos está en el mismo sitio (a menos de
 15 m) que uno de los de Sierra Nevada, cuenta el tuyo. Con la casilla, el modelo se
 reentrena al ejecutar y al verificar o añadir puntos, sin volver a ejecutar; tarda
-unos segundos. Si marcas o desmarcas la casilla con los resultados ya en pantalla, en
+unos segundos. Al guardar una revisión, solo se reentrena si cambia el sí o el no: el
+tipo no lo aprende este modelo ([§10](#10-clasificación-jerárquica-del-tipo)). Si marcas o desmarcas la casilla con los resultados ya en pantalla, en
 el recuadro del modelo aparece **🔁 Reentrenar ahora sumando mis N puntos** (o
 **↩ Volver al modelo de partida, sin mis puntos**) para aplicarlo sin volver a
 ejecutar. No hay pseudo-ausencias: las ausencias que
@@ -1698,6 +1740,9 @@ Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
   fiabilidad. La *pureza* del píxel es una estimación con el NDVI: acierta en unos
   8 de cada 10 borreguiles y ve mal el agua ([§10](#10-clasificación-jerárquica-del-tipo)).
 - **La altitud pesa mucho** y su rango absoluto cambia entre cordilleras.
+- **El tipo de los puntos es una propuesta con reglas de Sierra Nevada**: la humedad
+  usa un umbral fijo y, fuera de Sierra Nevada, el ambiente no tiene capa de lagunas
+  ni de ríos. Allí conviene revisarlo ([Transferir a otras montañas](#transferir-a-otras-montañas)).
 - **Dependencia de servicios externos**: Earth Engine, Planetary Computer, OSM e
   IGN pueden fallar o cambiar.
 - **Verificación en campo**: los resultados son **candidatos**, no un inventario

@@ -3515,7 +3515,7 @@ def save_xlsx(rows, out, threshold=0.5):
         ('Revisado por', lambda r,i: r.get('observer','')),
         ('Perfil',    lambda r,i: PERFIL_ES.get(r.get('expertise'), '')),
         ('Certidumbre', lambda r,i: CERTIDUMBRE_ES.get(r.get('certainty'), '')),
-        ('DECISIÓN',  lambda r,i: r.get('decision','')),
+        ('RESULTADO', lambda r,i: r.get('decision','')),   # antes «DECISIÓN» (25-11-2026)
         ('RF prob.',  lambda r,i: r.get('rf_proba', None)),
         ('Ambiente',  lambda r,i: r.get('ambiente','')),
         ('Humedad',   lambda r,i: r.get('humedad','')),

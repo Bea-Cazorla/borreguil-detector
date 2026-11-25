@@ -671,7 +671,8 @@ def _nombre_columna(c):
         'origin': ('Origen', 'Origin'),
         # (25-11-2026, la autora: «no entiendo borreguil (tu etiqueta)» → «mejor revisado»)
         'Borreguil': ('¿Borreguil? (revisado)', 'Borreguil? (reviewed)'),
-        'decision': ('Decisión', 'Decision'),
+        # (25-11-2026, la autora: «no entiendo decisión» → «Sí, «Resultado»»)
+        'decision': ('Resultado', 'Result'),
         'rf_proba': ('Probabilidad', 'Probability'),
         'ambiente': ('Ambiente', 'Environment'),
         'humedad': ('Humedad', 'Moisture'),
@@ -684,6 +685,34 @@ def _nombre_columna(c):
     if c in ('ID', 'lat', 'lon'):
         return c
     return pp.etiqueta(c)
+
+
+@st.cache_resource(show_spinner=False)
+def _capa_cauces_app():
+    """La capa de ríos y arroyos de OpenStreetMap que va con la app (Sierra Nevada): se
+    lee una vez; pesa 5 MB y leerla en cada pasada hacía lento el mapa del punto."""
+    return bp.leer_capa_cauces(APP_DIR / bp.CAUCES_SN)
+
+
+def _cauces_cerca(lon, lat, radio_m=3000):
+    """Los ríos y arroyos de OpenStreetMap a menos de `radio_m` (aprox.) del punto: los
+    de la capa de la app si el punto cae en ella; si no, los que se descargaron al
+    analizar. None si no hay ninguno leído para esa zona (no se descarga nada aquí:
+    el mapa del punto no tiene que esperar a internet)."""
+    from shapely.geometry import box
+    try:
+        lineas, cob = _capa_cauces_app()
+    except Exception:                                         # noqa: BLE001
+        lineas, cob = None, None
+    if lineas and cob and len(cob) == 4 and cob[0] <= lon <= cob[2] and cob[1] <= lat <= cob[3]:
+        fuente = lineas
+    else:
+        fuente = [g for ls in bp._cauces_descargados.values() for g in (ls or [])]
+    if not fuente:
+        return None
+    d = radio_m / 111000.0
+    zona = box(lon - d * 1.3, lat - d, lon + d * 1.3, lat + d)
+    return [g for g in fuente if g.intersects(zona)]
 
 
 def _texto_ids(ids, n_max=5):
@@ -3506,7 +3535,8 @@ with tab_analisis:
                         f'One of the 3 variables that weigh most in the model{_p_en}.'))
                 elif _c not in _cfg_tabla and pd.api.types.is_float_dtype(df_show[_c]):
                     _cfg_tabla[_c] = st.column_config.NumberColumn()
-            # «Decisión», al pasar el ratón: si el punto tiene etiqueta, manda ella; si no,
+            # «Resultado» (antes «Decisión»), al pasar el ratón: si el punto está revisado,
+            # manda lo revisado; si no,
             # la probabilidad (25-11-2026, la autora: «¿por qué pone decisión borreguil
             # verificado?» → «Sí, explícalo»). Con los cortes de bp.decide().
             _col_dec = _nombre_columna('decision')
@@ -3733,20 +3763,77 @@ with tab_analisis:
                                        ).add_to(fm)
                     except Exception:
                         pass                      # sin la huella el mapa sigue sirviendo
+                    # La ventana de unos 50 m que promedia el detector de puntos (5 × 5
+                    # píxeles de 10 m), apagada de entrada; y los ríos y arroyos de
+                    # OpenStreetMap, los mismos con los que se propone «arroyo» (a 30 m
+                    # o menos), encendidos (25-11-2026, la autora).
+                    try:
+                        _g_win = folium.FeatureGroup(
+                            name=i18n.pick('▢ Ventana del detector de puntos (50 m)',
+                                           '▢ Point detector window (50 m)'), show=False)
+                        folium.Polygon(bp.pixel_footprints([sel])[0]['win_s2_10'],
+                                       color='#00E5FF', weight=2, fill=False,
+                                       dash_array='6').add_to(_g_win)
+                        _g_win.add_to(fm)
+                    except Exception:
+                        pass
+                    _dist_osm = None
+                    try:
+                        _cerca = _cauces_cerca(float(sel['lon']), float(sel['lat']))
+                    except Exception:                 # noqa: BLE001
+                        _cerca = None
+                    if _cerca is not None:
+                        if _cerca:
+                            _tmp = [{'lat': sel['lat'], 'lon': sel['lon']}]
+                            bp.attach_cauce_distance(_tmp, _cerca)
+                            _dist_osm = _tmp[0].get('dist_cauce_m')
+                        _g_osm = folium.FeatureGroup(
+                            name=i18n.pick('〰 Ríos y arroyos (OpenStreetMap)',
+                                           '〰 Rivers and streams (OpenStreetMap)'),
+                            show=True)
+                        for _l in _cerca:
+                            for _p in getattr(_l, 'geoms', [_l]):
+                                folium.PolyLine(
+                                    [(y, x) for x, y, *_ in _p.coords], color='#1565C0',
+                                    weight=3, opacity=0.9,
+                                    tooltip=i18n.pick('Río o arroyo (OpenStreetMap)',
+                                                      'River or stream (OpenStreetMap)')
+                                ).add_to(_g_osm)
+                        _g_osm.add_to(fm)
                     folium.LayerControl(collapsed=True).add_to(fm)
                     st_folium(fm, width=None, height=420, returned_objects=[],
                               center=[sel['lat'], sel['lon']], zoom=17, key='focusmap')
                     st.caption(i18n.pick(
                         'Ortofoto de fondo; el recuadro amarillo es el píxel de 10 m del '
-                        'punto. Con el control de capas (arriba a la derecha) puedes '
-                        'cambiar a Google Satélite, que admite más zoom, o a Relieve '
-                        'LiDAR, que enseña la forma del terreno (regueros y cauces '
-                        'pequeños: arroyo o ladera), y encender las curvas de nivel.',
+                        'punto, y en azul van los ríos y arroyos de OpenStreetMap. Con el '
+                        'control de capas (arriba a la derecha) puedes cambiar a Google '
+                        'Satélite, que admite más zoom, o a Relieve LiDAR, que enseña la '
+                        'forma del terreno (regueros y cauces pequeños: arroyo o ladera), '
+                        'y encender las curvas de nivel o la ventana de unos 50 m que '
+                        'promedia el detector de puntos.',
                         'Orthophoto background; the yellow square is the 10 m pixel of '
-                        'the point. Use the layer control (top right) to switch to '
-                        'Google Satellite, which allows more zoom, or to LiDAR relief, '
-                        'which shows the shape of the terrain (gullies and small '
-                        'streams: stream or slope), and to turn on the contour lines.'))
+                        'the point, and the OpenStreetMap rivers and streams are in blue. '
+                        'Use the layer control (top right) to switch to Google Satellite, '
+                        'which allows more zoom, or to LiDAR relief, which shows the shape '
+                        'of the terrain (gullies and small streams: stream or slope), and '
+                        'to turn on the contour lines or the window of about 50 m that the '
+                        'point detector averages.'))
+                    if _dist_osm is not None and _dist_osm == _dist_osm:
+                        st.caption(i18n.pick(
+                            'El río o arroyo de OpenStreetMap más cercano está a '
+                            f'**{_dist_osm:.0f} m** (para proponer «arroyo», 30 m o menos). '
+                            'Si ves un cauce que OpenStreetMap no tiene, corrige el '
+                            'ambiente.',
+                            'The nearest OpenStreetMap river or stream is '
+                            f'**{_dist_osm:.0f} m** away (to propose "stream", 30 m or '
+                            'less). If you see a stream OpenStreetMap does not have, '
+                            'correct the environment.'))
+                    elif _cerca is not None:
+                        st.caption(i18n.pick(
+                            'No hay ningún río ni arroyo de OpenStreetMap a menos de unos '
+                            '3 km del punto.',
+                            'There is no OpenStreetMap river or stream within about 3 km '
+                            'of the point.'))
                 with colR:
                     # El punto que se ve en el mapa
                     st.markdown(
@@ -3787,13 +3874,28 @@ with tab_analisis:
                         index=list(_ES_TXT).index(_es_ini) if _es_ini else None,
                         key=f'rev_es_{_firma}',
                         help=i18n.pick(
-                            'Míralo en la ortofoto (o con tus datos de campo). **Sí** o '
-                            '**No** lo dejan verificado; **No estoy seguro** lo deja como '
-                            'dudoso: no entrena ni cuenta en el acierto, y no tiene tipo.',
-                            'Look at it on the orthophoto (or with your field data). '
-                            '**Yes** or **No** leave it verified; **Not sure** leaves it as '
-                            'doubtful: it does not train or count in the accuracy, and has '
-                            'no type.'))
+                            'Míralo en la ortofoto (o con tus datos de campo), **en todo el '
+                            'recuadro amarillo** y no solo en el punto: el mapa del Random '
+                            'Forest aprende de ese píxel de 10 m, y el detector de puntos '
+                            'promedia unos 50 m alrededor. **Sí** o **No** lo dejan '
+                            'verificado; **No estoy seguro** lo deja como dudoso: no '
+                            'entrena ni cuenta en el acierto, y no tiene tipo.',
+                            'Look at it on the orthophoto (or with your field data), **in the '
+                            'whole yellow square** and not only at the point: the Random '
+                            'Forest map learns from that 10 m pixel, and the point detector '
+                            'averages about 50 m around it. **Yes** or **No** leave it '
+                            'verified; **Not sure** leaves it as doubtful: it does not train '
+                            'or count in the accuracy, and has no type.'))
+                    # (25-11-2026, la autora: «habría que indicar en algún sitio de la
+                    # revisión que deben mirar lo que hay dentro del píxel, no solamente
+                    # el punto»)
+                    st.caption(i18n.pick(
+                        '👁 Decide por lo que hay **dentro del recuadro amarillo** (el píxel '
+                        'de 10 m), no solo por el punto. Si el píxel es casi todo roca o '
+                        'agua, dilo en la pureza o marca **No estoy seguro**.',
+                        '👁 Decide by what is **inside the yellow square** (the 10 m pixel), '
+                        'not only by the point. If the pixel is almost all rock or water, '
+                        'say so in the purity or choose **Not sure**.'))
                     st.radio(i18n.pick('Certidumbre (opcional)', 'Certainty (optional)'),
                              list(bp.CERTIDUMBRES), index=None, horizontal=True,
                              format_func=_CERT_TXT.get, key='rev_certidumbre',
@@ -4167,8 +4269,8 @@ with tab_analisis:
             # mostrarla más bonita, mejor»): de más a menos borreguil, con el color de
             # cada decisión en el mapa de los puntos, su número y su porcentaje.
             st.divider()
-            st.markdown(i18n.pick('#### Recuento de puntos por categoría de decisión',
-                                  '#### Point count by decision category'))
+            st.markdown(i18n.pick('#### Recuento de puntos por resultado',
+                                  '#### Point count by result'))
             dc = pp.chart_decision_counts(rows)
             if dc is not None:
                 st.altair_chart(dc, width='stretch')
@@ -4247,9 +4349,9 @@ with tab_analisis:
             for name, que in (
                 ('Clasificacion_puntos.xlsx', i18n.pick(
                     'Excel para **mirar los resultados**: cada punto con su probabilidad, '
-                    'la decisión y el tipo de borreguil.',
+                    'su resultado y el tipo de borreguil.',
                     'Excel to **look at the results**: each point with its probability, '
-                    'the decision and the type of borreguil.')),
+                    'its result and the type of borreguil.')),
                 ('puntos.geojson', i18n.pick(
                     'Los puntos con **todo lo revisado**: ábrelo en QGIS, o vuelve a '
                     'subirlo a la app otro día para seguir donde lo dejaste.',

@@ -241,9 +241,10 @@ recomendaciones**.
 
 ### Mapa de los puntos
 
-Cada punto es un candidato, coloreado por su decisión:
+Cada punto es un candidato, coloreado por su resultado (la columna «Resultado» de «Revisar
+puntos»):
 
-| Color | Decisión | Qué significa |
+| Color | Resultado | Qué significa |
 |---|---|---|
 | 🟢 Verde oscuro | BORREGUIL VERIFICADO | Una persona lo dio por borreguil (fichero de campo, Revisar puntos o añadido en el mapa). |
 | 🟢 Verde | BORREGUIL PROBABLE | Probabilidad **≥ 0,700**. Los más fiables. |

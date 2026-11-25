@@ -987,7 +987,7 @@ def chart_decision_counts(rows):
                 title='Nº of points' if en else 'Nº de puntos'),
         y=alt.Y('decision:N', sort=list(df['decision']), title=None,
                 axis=alt.Axis(labelLimit=0, labelFontSize=12)),
-        tooltip=[alt.Tooltip('decision:N', title='Decision' if en else 'Decisión'),
+        tooltip=[alt.Tooltip('decision:N', title='Result' if en else 'Resultado'),
                  alt.Tooltip('texto:N', title='nº')])
     barras = base.mark_bar(cornerRadiusEnd=4, size=20).encode(
         color=alt.Color('color:N', scale=None, legend=None))
