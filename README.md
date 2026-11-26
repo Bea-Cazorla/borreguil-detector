@@ -32,9 +32,12 @@ publicada, descarga el ejecutable de tu sistema desde la página de
 | Sistema | Archivo |
 |---|---|
 | Windows 10/11 | `Borreguil-windows.zip` |
-| macOS Apple Silicon (M1-M4) | `Borreguil-macos-arm64.zip` |
+| macOS Apple Silicon (M1-M4), con macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
 | macOS Intel | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte; si no, usa el código fuente) |
 | Linux x86-64 | `Borreguil-linux.tar.gz` |
+
+Al abrirlo, el programa se actualiza solo con la última versión de la app (ver el
+[MANUAL](MANUAL.md#2-instalación-y-arranque)).
 
 📖 **[TUTORIAL.md](TUTORIAL.md)** — primeros pasos, incluido el alta en Google Earth Engine
 📘 **[MANUAL.md](MANUAL.md)** — referencia completa de todas las opciones

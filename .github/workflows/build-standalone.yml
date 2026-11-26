@@ -268,12 +268,12 @@ jobs:
             | Sistema | Archivo |
             |---|---|
             | Windows 10/11 | `Borreguil-windows.zip` |
-            | macOS Apple Silicon (M1-M4) | `Borreguil-macos-arm64.zip` |
-            | macOS Intel | `Borreguil-macos-intel.zip` |
+            | macOS Apple Silicon (M1-M4), macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
             | Linux x86-64 | `Borreguil-linux.tar.gz` |
 
             No requieren instalar Python ni ninguna librería: se descomprimen y se ejecutan.
             Consulta el **TUTORIAL.md** para los primeros pasos y el **MANUAL.md** como referencia.
+            Al abrirse, el programa se actualiza solo con la última versión de la app.
 
             > La primera vez, Windows y macOS avisan de que el programa no está firmado
             > (es normal en software científico): ver la sección de instalación del tutorial.

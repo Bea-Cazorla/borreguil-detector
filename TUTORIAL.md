@@ -56,7 +56,7 @@ descarga el archivo de tu sistema:
 | Tu ordenador | Archivo a descargar |
 |---|---|
 | Windows 10/11 | `Borreguil-windows.zip` |
-| macOS (Apple Silicon: M1/M2/M3/M4) | `Borreguil-macos-arm64.zip` |
+| macOS (Apple Silicon: M1/M2/M3/M4), con macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
 | macOS (Intel) | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte) |
 | Linux (Ubuntu, Debian…) | `Borreguil-linux.tar.gz` |
 
@@ -100,6 +100,10 @@ y, a los pocos segundos, tu **navegador** con la interfaz.
 
 Si el navegador no se abre solo, entra en la dirección que muestra la consola
 («Abriendo el navegador en: …»), normalmente **http://localhost:8501**.
+
+Al abrirse, el programa mira también si hay una **versión nueva de la app**. Si la hay,
+la descarga, la comprueba y arranca con ella; la consola dice «App actualizada». Sin
+internet, abre con la que ya tenía. No hace falta volver a descargar el programa.
 
 Al abrirse, la app trae de GitHub los modelos nuevos o actualizados; la última línea
 del panel lateral dice si están al día. Todo lo que hace por internet va por HTTPS

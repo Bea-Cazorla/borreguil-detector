@@ -62,8 +62,8 @@ librerías y modelos).
 | Sistema | Fichero | Ejecutar |
 |---|---|---|
 | Windows 10/11 | `Borreguil-windows.zip` | `Borreguil.exe` |
-| macOS Apple Silicon | `Borreguil-macos-arm64.zip` | `Borreguil` |
-| macOS Intel | `Borreguil-macos-intel.zip` | `Borreguil` |
+| macOS Apple Silicon (macOS 15 o posterior) | `Borreguil-macos-arm64.zip` | `Borreguil` |
+| macOS Intel (solo si se ha compilado aparte) | `Borreguil-macos-intel.zip` | `Borreguil` |
 | Linux x86-64 | `Borreguil-linux.tar.gz` | `./Borreguil` |
 
 **Avisos de seguridad del sistema.** Los ejecutables no llevan firma comercial de
