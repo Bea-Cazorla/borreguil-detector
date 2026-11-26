@@ -264,7 +264,7 @@ def buscar_version_nueva(res, out):
     return r
 
 
-TITULO_VENTANA = f'{APP_NAME} — detección de borreguiles'
+TITULO_VENTANA = f'{APP_NAME} · Wet Meadow Finder'
 
 _PAGINA = """<!doctype html><html lang="es"><head><meta charset="utf-8">
 <title>{titulo}</title><style>
@@ -280,7 +280,8 @@ border:.3em solid #C5E1A5;border-top-color:#2E7D32;animation:g 1s linear infinit
 
 CARGANDO = _PAGINA.format(
     titulo=TITULO_VENTANA,
-    cuerpo='<h1>Borreguil</h1><p>Abriendo la app…</p>'
+    cuerpo='<h1>Borreguil · Wet Meadow Finder</h1><p>Buscador y mapa de borreguiles</p>'
+           '<p>Abriendo la app…</p>'
            '<p>La primera vez puede tardar hasta un minuto.</p><div class="gira"></div>')
 
 NO_ARRANCA = _PAGINA.format(
@@ -490,7 +491,7 @@ def main():
     con_ventana = probar or not ('--navegador' in sys.argv or sin_navegador)
 
     print('=' * 64)
-    print(f'  {APP_NAME} — detección de borreguiles / wet-meadow finder')
+    print(f'  {APP_NAME} · Wet Meadow Finder — buscador y mapa de borreguiles')
     print('=' * 64)
     if con_ventana:
         print('  La app se abre en su propia ventana.')
