@@ -1,15 +1,15 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.4",
-  "commit": "4b81a6d70a8a387a2597959479f52c7504d8eb4b",
+  "version": "1.0.5",
+  "commit": "1438dbb67ad548956d7bafff4c2f5616b6f7c9de",
   "fecha": "2026-11-26",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "cb50db581d400400373f44093c6d884f7944bf279677e60104745d9c77ab6153",
-      "bytes": 598390
+      "sha256": "96499b7c855474d7f2faed208022dc31851a437310f3b9d2daf25e14cdeb4859",
+      "bytes": 600805
     },
     {
       "ruta": "borreguil_pipeline.py",
@@ -18,8 +18,8 @@
     },
     {
       "ruta": "point_profile.py",
-      "sha256": "3c98c0db116c0c339760c50f89ca44d2afef1038af57815dd1afd5607ca8660a",
-      "bytes": 58819
+      "sha256": "e7c817dc526c1dfa2c34b4cf15c7f2e25ecc7535266c1181547cc47dc4d78ed2",
+      "bytes": 59961
     },
     {
       "ruta": "i18n.py",
@@ -43,8 +43,8 @@
     },
     {
       "ruta": "mapeo_rf.py",
-      "sha256": "79414547a9c5ab25db2934f470cc6bf4ce5e3298c0cde6aa223b8692bbc39cb6",
-      "bytes": 114497
+      "sha256": "9408c46f94e8fe641245503da91d035c866f5e75448f0475173c821ac0d953ba",
+      "bytes": 114578
     },
     {
       "ruta": "mapeo_raster.py",
@@ -73,8 +73,8 @@
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "45f8ac3e7d40b48f9719245e8b6474b04e73a62bdc74b9254eaeb73fe86178f4",
-      "bytes": 116746
+      "sha256": "9734cf69070c19a07ce5cd72afe9df2d5e48a839eea3b19670a14ac411790921",
+      "bytes": 118542
     },
     {
       "ruta": "TUTORIAL.md",
@@ -83,7 +83,7 @@
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "e7c915149bb154f0701b2c1025dc7c35d7f8252df4b52f122821193fa6f364ad",
+      "sha256": "2aad9cddb4994c9ce8e1a43eb457ff5270459a80eff252b3d26fa4490640d618",
       "bytes": 3073
     },
     {
