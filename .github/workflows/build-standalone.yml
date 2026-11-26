@@ -4,15 +4,18 @@ name: Compilar ejecutables standalone
 # abre en su propia ventana (pywebview; desde el 26-11-2026), y la compilación comprueba
 # en Windows y Mac que se ve en ella.
 #
-#   · Al publicar una etiqueta v* (p. ej. v1.0.0) los adjunta a la Release, que es
-#     lo que Zenodo archiva para asignar el DOI.
+#   · Con una etiqueta v* (p. ej. v1.0.3), si los tres sistemas salen bien, crea la
+#     Release con los tres archivos COMO BORRADOR (26-11-2026): solo la ven quienes
+#     tienen permiso en el repositorio, y Zenodo no archiva los borradores (no hay
+#     DOI). Para hacerla pública: Releases → la versión → Edit → «Publish release»;
+#     en ese momento, si Zenodo está conectado, se crea el DOI (ver PUBLICAR.md).
 #   · También se puede lanzar a mano desde la pestaña «Actions» (workflow_dispatch)
 #     para probar sin publicar nada.
 
 on:
   push:
     tags:
-      - 'v*'         # versión real: compila y publica la Release (Zenodo -> DOI)
+      - 'v*'         # versión real: compila y crea la Release como borrador
       - 'prueba-*'   # ensayo: compila pero NO crea Release. El sufijo elige el
                      # sistema, p. ej. 'prueba-macos-arm' compila solo ese.
   workflow_dispatch:
@@ -272,14 +275,28 @@ jobs:
           if [ "${{ runner.os }}" = "Windows" ]; then EXE=./Borreguil.exe; else EXE=./Borreguil; fi
           "$EXE" --probar-ventana < /dev/null
 
-      - name: Adjuntar a la Release (solo en etiquetas v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+  # La Release: un solo trabajo al final, con los archivos de los tres sistemas, y solo
+  # si los tres han salido bien (incluida la prueba de la ventana); si alguno falla, no
+  # se crea. Va COMO BORRADOR: la ven quienes tienen permiso en el repositorio (para
+  # descargarla y probarla) y Zenodo no la archiva. Se hace pública a mano con
+  # «Publish release», y solo entonces, si Zenodo está conectado, hay DOI.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Traer los archivos de los tres sistemas
+        uses: actions/download-artifact@v4
+        with:
+          path: entrega
+          merge-multiple: true
+
+      - name: Crear la Release como borrador
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ${{ matrix.artefacto }}.zip
-            ${{ matrix.artefacto }}.tar.gz
-          fail_on_unmatched_files: false
+          draft: true
+          files: entrega/*
+          fail_on_unmatched_files: true
           body: |
             ## Descargas
 
@@ -291,8 +308,10 @@ jobs:
 
             No requieren instalar Python ni ninguna librería: se descomprimen y se ejecutan.
             La app se abre en su propia ventana; con `Borreguil --navegador`, en el navegador.
-            Consulta el **TUTORIAL.md** para los primeros pasos y el **MANUAL.md** como referencia.
+            Consulta el **TUTORIAL.md** (2.2) para los primeros pasos y el **MANUAL.md** como referencia.
             Al abrirse, el programa se actualiza solo con la última versión de la app.
 
             > La primera vez, Windows y macOS avisan de que el programa no está firmado
-            > (es normal en software científico): ver la sección de instalación del tutorial.
+            > (es normal en software científico). Windows: «Más información» → «Ejecutar de
+            > todas formas». macOS: desde macOS 15 ya no sirve «clic derecho → Abrir»; sigue
+            > los pasos del tutorial (2.2) o de la wiki (Primeros pasos).

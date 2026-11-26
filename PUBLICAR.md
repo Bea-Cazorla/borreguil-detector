@@ -97,19 +97,22 @@ git push origin v1.0.0
 
 Esto dispara automáticamente:
 
-1. **GitHub Actions** compila los cuatro ejecutables (~15-30 min). Puedes seguirlo
-   en la pestaña **Actions**.
-2. Los adjunta a la **Release** `v1.0.0`.
-3. **Zenodo** detecta la Release, la archiva y **asigna el DOI**.
+1. **GitHub Actions** compila los ejecutables de Windows, Mac (Apple Silicon) y Linux
+   (unos 10 min). Puedes seguirlo en la pestaña **Actions**.
+2. Si los tres salen bien, crea la **Release** `v1.0.0` con los tres archivos **como
+   borrador** (*Draft*). Desde el 26-11-2026 es así para poder probarla antes: solo
+   la ven quienes tienen permiso en el repositorio, y Zenodo no archiva los
+   borradores.
+3. Para hacerla **pública**: **Releases** → la versión → **Edit** → **Publish
+   release**. Entonces cualquiera la descarga sin cuenta y, si Zenodo está
+   conectado, **Zenodo la archiva y asigna el DOI**.
 
-Si prefieres hacerlo desde la web: **Releases → Draft a new release → Create new
-tag `v1.0.0` → Publish release**.
-
-> **La primera versión publicada será la `v1.0.3`** (la de `CITATION.cff`). Antes de
-> la etiqueta, pon en `date-released` la fecha del día. Después, en el README, el
-> TUTORIAL (2.1) y la wiki (Primeros pasos / Getting started), quita «(ahora todavía
-> lo está)» / «(it still is for now)»: desde ese momento las descargas están en
-> Releases, sin cuenta.
+> **La `v1.0.3` (26-11-2026) está como borrador**, para que la pruebe Javi; falta
+> decidir el DOI (autoría de `CITATION.cff` y la tabla de entrenamiento) antes de
+> hacerla pública. Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
+> (Primeros pasos / Getting started), quita «(ahora todavía lo está)» / «(it still is
+> for now)»: desde ese momento las descargas están en Releases, sin cuenta. En cada
+> versión nueva, pon antes en `date-released` la fecha del día.
 
 ---
 
