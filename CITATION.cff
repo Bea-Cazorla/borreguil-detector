@@ -48,7 +48,7 @@ keywords:
 
 abstract: >-
   Desktop application for the automatic identification of borreguiles (high-mountain
-  wet meadows, including peaty Nardus grasslands) using multi-source remote sensing and
+  wet meadows) using multi-source remote sensing and
   machine learning. It combines Sentinel-2 time series (vegetation, moisture and water
   indices), Sentinel-1 radar, topographic variables derived from the Copernicus digital
   elevation model (elevation, slope and curvature) and texture descriptors from
