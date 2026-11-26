@@ -91,6 +91,16 @@ git push -u origin main
 > DOI no se puede borrar. Si todavía no queréis DOI, apagad el interruptor en Zenodo
 > antes de publicar.
 
+> **Decidido el 26-11-2026: el DOI lo sube Bea a mano desde su propia cuenta de
+> Zenodo** (zenodo.org → **New upload**), no con el interruptor. **No activéis el
+> interruptor de Zenodo para este repositorio**: cada Release crearía otra ficha con
+> otro DOI. En cada versión nueva: en la ficha de Zenodo, **New version**, subir el
+> zip del código de la etiqueta (`git -c core.autocrlf=false archive --format=zip
+> --prefix=borreguil-detector-X.Y.Z/ -o borreguil-detector-vX.Y.Z.zip vX.Y.Z`, o
+> «Source code (zip)» de la Release), cambiar la versión y publicar. Los textos del
+> formulario (autores, filiaciones, resumen, agradecimientos) están en
+> `.zenodo.json`, en inglés.
+
 ---
 
 ## Paso 4 · Publicar la primera versión
@@ -116,8 +126,10 @@ Esto dispara automáticamente:
 > programa se actualiza solo al último código publicado). El 26-11-2026 quedó decidido
 > el DOI: autores los tres de `CITATION.cff`, con sus filiaciones; agradecimientos a
 > EVEREST y PRESINMED y a sus investigadores principales (`.zenodo.json` y README); y
-> la tabla de entrenamiento puede ir a Zenodo. Falta que Javi active Zenodo (Paso 3)
-> y, después, publicar la **`v1.0.5`** (la `v1.0.3` se puede borrar entonces). Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
+> la tabla de entrenamiento puede ir a Zenodo. El DOI lo sube Bea a mano (Paso 3).
+> La Release **`v1.0.5`** de GitHub se publica aparte (la `v1.0.3` se puede borrar
+> entonces); antes, que quien administra el repositorio compruebe en **Settings →
+> Webhooks** que no hay uno de `zenodo.org`, para no crear un segundo DOI. Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
 > (Primeros pasos / Getting started), quita «(ahora todavía lo está)» / «(it still is
 > for now)»: desde ese momento las descargas están en Releases, sin cuenta. En cada
 > versión nueva, pon antes en `date-released` la fecha del día.
