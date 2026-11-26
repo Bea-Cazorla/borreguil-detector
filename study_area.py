@@ -137,10 +137,17 @@ def load_vector(path):
         gdf = gpd.read_file(path)
     except ImportError:
         # Sin pyogrio/GDAL (p. ej. su DLL bloqueada por Windows) un GeoJSON se
-        # puede leer igual, porque es JSON; los demás formatos no.
-        if Path(path).suffix.lower() not in ('.geojson', '.json'):
+        # puede leer igual, porque es JSON, y un GeoPackage, porque es SQLite
+        # (26-11-2026, con el mismo lector que la capa de cuartiles); los demás no.
+        sufijo = Path(path).suffix.lower()
+        if sufijo in ('.geojson', '.json'):
+            geometrias = geometrias_geojson(path)
+        elif sufijo == '.gpkg':
+            import random_points
+            geoms, _atrib, crs, _capa = random_points._leer_gpkg(path)
+            geometrias = random_points._a_wgs84([g for g in geoms if g is not None], crs)
+        else:
             raise
-        geometrias = geometrias_geojson(path)
     else:
         if gdf.crs is None:
             gdf = gdf.set_crs('EPSG:4326')

@@ -143,9 +143,15 @@ Español o inglés. Cambia toda la interfaz al instante.
     - **Al azar** — sin ninguna regla.
     - **Al azar, separados una distancia mínima** — ningún par de puntos queda más
       cerca de esa distancia (evita puntos pegados).
-  - *Distancia mínima* (solo en la última): metros entre puntos.
+    - **Por cuartiles de una capa** — subes una capa de polígonos (por ejemplo, las
+      áreas probables de borreguil de cada parque) y una parte de los puntos (75 %
+      de entrada) cae en los polígonos del **cuartil 1** y el resto en los de los
+      cuartiles 2 a 4. Ver abajo.
+  - *Distancia mínima* (solo en «separados una distancia mínima»): metros entre
+    puntos.
   - *Elev. mín/máx*: filtro de altitud. Para borreguiles, **mín ≈ 2000 m** en
-    Sierra Nevada; ajústalo a la altitud de tu macizo.
+    Sierra Nevada; ajústalo a la altitud de tu macizo. Por cuartiles viene vacía:
+    la capa ya dice dónde buscar.
   - *Semilla*: fija el azar para poder **reproducir** exactamente el mismo
     conjunto de puntos. Importante para publicar.
   - *Lejos de tus puntos de campo (m)*: si subes tu verdad-terreno, los puntos al
@@ -153,6 +159,31 @@ Español o inglés. Cambia toda la interfaz al instante.
     que todavía no has muestreado, para buscar allí **ausencias** (ver «Ausencias
     fuera de tus puntos», en la pestaña Revisar puntos). 0 = sin límite, que es como
     viene.
+
+**Por cuartiles de una capa.** Sirve para repartir el muestreo según una capa de
+áreas probables: la mayoría de los puntos donde más borreguil se espera y el resto
+fuera, para tener borreguiles y ausencias. Los puntos no llevan etiqueta: al
+revisarlos en **Revisar puntos**, cada uno queda como borreguil o no.
+
+- *Capa de polígonos*: GeoPackage (`.gpkg`) o GeoJSON, que se leen en cualquier
+  ordenador; KML, KMZ o un Shapefile en `.zip`, si el ordenador puede leerlos. Un
+  `.zip` tiene que traer una sola capa.
+- *Los cuartiles*: si la capa trae una columna `cuartil` con 1, 2, 3 y 4, la app la
+  usa sin preguntar (1 = el primero). Si no la trae, o si marcas **Calcular los
+  cuartiles con otro campo**, eliges en **Campo para calcular los cuartiles** un campo
+  numérico (por ejemplo, `borreguil_esperado_ha`): la app ordena de mayor a menor
+  valor los polígonos que caen en el área de estudio y los reparte en cuatro grupos
+  con el mismo número de polígonos. El cuartil 1 es el 25 % con los valores más altos.
+- *% de los puntos en el cuartil 1*: 75 de entrada (de 50 a 100). El resto va a los
+  cuartiles 2, 3 y 4 juntos.
+- Dentro de cada grupo, los puntos caen **al azar según la superficie**: un polígono
+  grande recibe más puntos que uno pequeño. Solo cuentan los polígonos que caen en el
+  área de estudio. Como área de estudio puedes subir el GeoPackage del parque.
+- Cada punto lleva el **cuartil** del polígono en el que cae: columna «Cuartil» de la
+  tabla de **Revisar puntos** y de las descargas.
+- Al generarlos, la app dice cuántos puntos han caído en cada grupo y cuántos
+  polígonos y hectáreas tiene cada uno. Si la capa no cae dentro del área de
+  estudio, o un grupo no tiene polígonos en ella, lo avisa.
 
 > Los puntos generados se ajustan al **centro del píxel Sentinel-2 (10 m)**, de
 > modo que las variables extraídas corresponden exactamente a ese píxel.
@@ -1093,15 +1124,15 @@ enseña:
   la misma con el signo cambiado, muy correlacionadas (|r| ≥ 0,95) y pocas muestras
   para tantas variables. **Solo avisa; no quita ninguna.** Quitar o no es decisión
   tuya: desmarcándola en **1 · Datos** o con la opción **Quitar las variables
-  repetidas** (VIF o PCA; ver más abajo).
+  correlacionadas** (VIF o PCA; ver más abajo).
 - **Desequilibrio entre categorías**, cuando la más abundante triplica a la más
   escasa.
 
 La tabla se descarga como `tabla_entrenamiento_<nivel>.csv`: una fila por muestra y
 una columna por variable, en el orden exacto que verá el modelo.
 
-**Variables repetidas (VIF o PCA).** En **1 · Datos**, debajo de las variables, está
-la opción **Quitar las variables repetidas**: *No quitar ninguna* (la que viene
+**Variables correlacionadas (VIF o PCA).** En **1 · Datos**, debajo de las variables, está
+la opción **Quitar las variables correlacionadas**: *No quitar ninguna* (la que viene
 elegida), *Con el VIF* o *Con un PCA*, con sus ajustes y las variables que se quedan
 siempre. Se calcula con los valores de las muestras, así que primero hay que leerlos
 en **2 · Tabla de entrenamiento** (la lectura trae siempre todas las variables).
@@ -1333,7 +1364,7 @@ variables (por ejemplo, con todas y con las que deja el VIF), una tabla los comp
 las variables de cada uno, sus muestras y su **F1 medio** de la validación por zonas.
 El de ahora, el que hace el mapa, va marcado con ▶. Una diferencia de unas
 centésimas puede ser azar: con pocas muestras, una sola cambia la cifra. Para quedarte
-con otro, cambia la opción de las variables repetidas en **1 · Datos** y vuelve a
+con otro, cambia la opción de las variables correlacionadas en **1 · Datos** y vuelve a
 entrenar.
 
 **El mapa.** El paso **4 · Mapa** aplica el modelo final a todos los píxeles de
@@ -1623,7 +1654,7 @@ Cómo leerlo, y con qué cuidado:
 
 **La app no quita ninguna variable por su cuenta.** Para probar sin una, desmárcala
 en **1 · Datos** (no hay que volver a leer nada en Earth Engine), entrena otra vez y
-compara el F1 medio. Para quitar de golpe las repetidas está la opción del VIF o
+compara el F1 medio. Para quitar de golpe las correlacionadas está la opción del VIF o
 del PCA, en **1 · Datos**, que tampoco viene activada. Las cifras son repetibles: mismos datos, mismos parámetros y
 misma semilla dan los mismos pesos.
 

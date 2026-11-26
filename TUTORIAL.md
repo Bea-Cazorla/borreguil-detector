@@ -183,6 +183,10 @@ Elige **🎲 Generar aleatoriamente en el área** y configura:
 | Elev. mín (m) | **2000** | Los borreguiles son de alta montaña. |
 | Elev. máx (m) | *(vacío)* | Sin límite superior. |
 
+> ¿Tienes una capa de áreas probables de borreguil? Con la estrategia **Por cuartiles
+> de una capa**, la mayoría de los puntos (75 % de entrada) caen en los polígonos del
+> cuartil 1 y el resto en los demás. Ver el MANUAL, «Datos de entrada».
+>
 > ¿Tienes tus propios puntos? Elige **📁 Subir archivo** y súbelos en **Tus puntos**
 > (KML, GeoJSON, Shapefile o CSV con `lon` y `lat`; plantilla en la pantalla de
 > inicio). ¿Solo quieres probar? En la pantalla de inicio, **▶ Probar con 20 puntos
@@ -368,7 +372,7 @@ El modelo aprendió en Sierra Nevada; mejora si le enseñas ejemplos locales:
 La pestaña **🌿 Mapa Modelo RF** (necesita Earth Engine) entrena otro modelo con tus
 puntos revisados y lo aplica a cada píxel de 10 m: **1 · Datos** («¿Son bastantes
 puntos?»: mínimo 100 puntos con 33 borreguiles y 67 ausencias, recomendado 250 con 83
-y 167; «Quitar las variables repetidas»: ninguna, con el VIF o con un PCA, con el
+y 167; «Quitar las variables correlacionadas»: ninguna, con el VIF o con un PCA, con el
 botón «Aplicar», que dice qué variables se quedan y por qué), **2 · Tabla**, **3 · Modelo**
 (con «📈 Calcular la curva con mis puntos», que dice si más puntos mejorarían el mapa
 en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
