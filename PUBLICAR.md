@@ -29,6 +29,11 @@ Antes de publicar nada, edita **`CITATION.cff`** y completa lo marcado como
 - [ ] **URL del repositorio**.
 - [ ] **Versión y fecha**.
 
+> **`.zenodo.json`**: si existe (lo hay desde el 26-11-2026), Zenodo toma de ahí los
+> datos del DOI —autores con su filiación, investigadores principales y
+> agradecimientos— y **no** lee `CITATION.cff`. Si cambias autores o filiaciones,
+> cámbialos en los dos. Debe ser JSON válido: si no, Zenodo no archiva la versión.
+
 > **Licencia**: el proyecto se publica bajo **GPL-3.0-or-later** (fichero
 > `LICENSE`). En la práctica: cualquiera puede usarlo, estudiarlo y modificarlo,
 > pero si distribuye una versión modificada debe publicarla también bajo GPL y con
@@ -107,11 +112,12 @@ Esto dispara automáticamente:
    release**. Entonces cualquiera la descarga sin cuenta y, si Zenodo está
    conectado, **Zenodo la archiva y asigna el DOI**.
 
-> **La `v1.0.3` (26-11-2026) está como borrador**, para que la pruebe Javi (al abrirse
-> se actualiza sola al código publicado, hoy el 1.0.4; la próxima Release, `v1.0.4` o
-> más); falta
-> decidir el DOI (autoría de `CITATION.cff` y la tabla de entrenamiento) antes de
-> hacerla pública. Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
+> **La `v1.0.3` y la `v1.0.5` (26-11-2026) están como borrador** (al abrirse, el
+> programa se actualiza solo al último código publicado). El 26-11-2026 quedó decidido
+> el DOI: autores los tres de `CITATION.cff`, con sus filiaciones; agradecimientos a
+> EVEREST y PRESINMED y a sus investigadores principales (`.zenodo.json` y README); y
+> la tabla de entrenamiento puede ir a Zenodo. Falta que Javi active Zenodo (Paso 3)
+> y, después, publicar la **`v1.0.5`** (la `v1.0.3` se puede borrar entonces). Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
 > (Primeros pasos / Getting started), quita «(ahora todavía lo está)» / «(it still is
 > for now)»: desde ese momento las descargas están en Releases, sin cuenta. En cada
 > versión nueva, pon antes en `date-released` la fecha del día.

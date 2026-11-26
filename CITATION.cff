@@ -1,6 +1,11 @@
 # Fichero de cita (Citation File Format). GitHub lo lee y muestra un botón
 # «Cite this repository»; Zenodo lo usa como metadatos al asignar el DOI.
 #
+# OJO: Zenodo lee .zenodo.json si existe (y lo hay) y entonces NO lee este fichero.
+# Si cambias autores o filiaciones, cámbialos en los dos. Los agradecimientos
+# (proyectos EVEREST y PRESINMED y sus investigadores principales) están en
+# .zenodo.json («notes» y «contributors») y en el README.
+#
 # Tras el primer release, añadir el DOI que asigne Zenodo y actualizar `version`
 # y `date-released` en cada versión nueva.
 cff-version: 1.2.0
@@ -12,15 +17,15 @@ authors:
   - given-names: "Beatriz P."
     family-names: "Cazorla"
     email: "b.cazorla@go.ugr.es"
-    affiliation: "University of Granada"
+    affiliation: "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)"
     orcid: "https://orcid.org/0000-0003-3583-8391"
   - given-names: "Domingo"
     family-names: "Alcaraz-Segura"
-    affiliation: "University of Granada"
+    affiliation: "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)"
     orcid: "https://orcid.org/0000-0001-8988-4540"
   - given-names: "Javier"
     family-names: "Martínez-López"
-    affiliation: "University of Granada"
+    affiliation: "Departamento de Ecología, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)"
     orcid: "https://orcid.org/0000-0002-0825-7252"
 
 repository-code: "https://github.com/monitoreo-obsnev/borreguil-detector"

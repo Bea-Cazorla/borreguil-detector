@@ -258,6 +258,17 @@ carga a esa cuenta.
   OpenStreetMap, ODbL); en otras zonas se descargan del servicio Overpass al
   analizar, y si falla, «arroyo» se decide por la pendiente.
 
+## Agradecimientos
+
+Este programa se ha desarrollado en el marco de dos proyectos:
+
+- **EVEREST** — *Variables esenciales para la caracterización y seguimiento remoto de ecosistemas de montaña a lo largo de un gradiente biogeográfico: del dato a la toma de decisiones* (PID2023-151939OB-I00), financiado por
+  MICIU/AEI/10.13039/501100011033 y por FEDER, UE. Investigadores principales:
+  Javier Martínez López y Domingo Alcaraz Segura (Universidad de Granada).
+- **PRESINMED** — *Preserving the singularity of Mediterranean high-mountain biodiversity hotspots: a NBS approach* (PCI2025-163175),
+  de la convocatoria Biodiversa+ NBS 2023. Investigador principal: Regino Zamora
+  (Universidad de Granada).
+
 ## Cómo citar
 
 Si usas este programa en un trabajo científico, cítalo con el DOI de la versión
