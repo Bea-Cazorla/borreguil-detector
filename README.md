@@ -71,7 +71,10 @@ Al abrirlo, el programa se actualiza solo con la última versión de la app (ver
 
 ¿Un error o una idea? En la app, **«💬 Sugerir un cambio o informar de un error»**
 (abajo en el panel lateral): una *issue* en GitHub o, sin cuenta, el formulario anónimo
-de la app, con la versión ya puesta. No pegues coordenadas de borreguiles: son
+de la app, con la versión ya puesta. Si algo falla, **«→ Enviar los registros de este
+ordenador»** (o «Enviar los registros», debajo del error) enseña las últimas líneas de lo
+que hizo la app, sin tu nombre, correo ni carpetas, y las envía con ese formulario, como
+en el asistente de MonitorEO. No pegues coordenadas de borreguiles: son
 localizaciones de un hábitat sensible.
 
 > La primera vez, Windows y macOS avisan de que el programa no está firmado (es

@@ -107,7 +107,9 @@ Esto dispara automáticamente:
    release**. Entonces cualquiera la descarga sin cuenta y, si Zenodo está
    conectado, **Zenodo la archiva y asigna el DOI**.
 
-> **La `v1.0.3` (26-11-2026) está como borrador**, para que la pruebe Javi; falta
+> **La `v1.0.3` (26-11-2026) está como borrador**, para que la pruebe Javi (al abrirse
+> se actualiza sola al código publicado, hoy el 1.0.4; la próxima Release, `v1.0.4` o
+> más); falta
 > decidir el DOI (autoría de `CITATION.cff` y la tabla de entrenamiento) antes de
 > hacerla pública. Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
 > (Primeros pasos / Getting started), quita «(ahora todavía lo está)» / «(it still is
