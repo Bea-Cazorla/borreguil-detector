@@ -6,15 +6,29 @@ de Google Earth Engine, todo el cómputo de Sentinel-2 y de topografía se hace
 en los servidores de Google (server-side), evitando descargas pesadas y sin
 necesidad de MPC.
 
-Autenticación:
-- En local: ee.Authenticate() abre el navegador (flujo OAuth).
-- Necesita el NOMBRE DEL PROYECTO de Google Cloud asociado a Earth Engine
-  (p. ej. "ee-tunombre"), que se pasa a ee.Initialize(project=...).
+Cuentas (26-11-2026, la autora: «que use la cuenta de servicio de monitoreo, que esté
+por defecto y que el usuario pueda elegir su propia cuenta; que lo haga igual que
+monitoreo»):
+- Sin proyecto (lo que viene de entrada): la CUENTA COMPARTIDA de MonitorEO, como sus
+  herramientas. El programa pide a su servicio (el «broker», en Cloud Run) un permiso
+  de una hora de la cuenta de servicio monitoreo-public, que se renueva solo; ninguna
+  clave viaja con el programa. Cada instalación tiene un identificador anónimo (el
+  mismo fichero que MonitorEO, ~/.config/monitoreo/user_id) que etiqueta sus cálculos,
+  y con él unas horas de cálculo de Earth Engine al mes; quien las gasta usa su cuenta
+  hasta el mes siguiente. Esa cuenta solo calcula con el catálogo público de Earth
+  Engine (valores y píxeles): es lo único que usa esta app.
+- Con un proyecto de Google Cloud registrado en Earth Engine: la cuenta de Google de
+  quien usa la app. ee.Authenticate() abre el navegador una vez en cada ordenador.
+- En un despliegue en la nube: la clave de una cuenta de servicio
+  (EE_SERVICE_ACCOUNT_KEY), como antes.
 
 Funciones públicas:
 - gee_available()            -> bool (si earthengine-api está instalado)
 - authenticate()            -> lanza el flujo de autenticación por navegador
-- initialize(project)       -> inicializa la sesión; devuelve (ok, mensaje)
+- initialize(project)       -> inicializa la sesión; devuelve (ok, mensaje). Sin
+                               proyecto, con la cuenta compartida de MonitorEO.
+- cuenta_compartida()        -> bool: si la sesión va con la cuenta compartida
+- uso_compartida()           -> horas de cálculo que le quedan a esta instalación
 - is_initialized()          -> bool
 - fetch_s2_gee(rows, bbox, years)   -> rellena índices Sentinel-2 en cada row
 - fetch_topo_gee(rows, bbox)        -> rellena elev/slope/aspect/curvature
@@ -23,6 +37,8 @@ Las mismas variables y nombres de columna que el backend MPC, de modo que el
 modelo Random Forest preentrenado es directamente aplicable.
 """
 import math
+import os
+import re
 
 
 def gee_available():
@@ -105,14 +121,151 @@ def authenticate(auth_mode=None):
         ee.Authenticate()
 
 
+# ============================================================
+# Cuenta compartida de MonitorEO (igual que monitoreo.services)
+# ============================================================
+BROKER = 'https://monitoreo-broker-872770286973.europe-west1.run.app'
+FICHERO_USUARIO = os.path.join('~', '.config', 'monitoreo', 'user_id')
+REGISTRO_URL = 'https://code.earthengine.google.com/register'
+_usuario = None
+_compartida = False
+
+
+class ErrorBroker(RuntimeError):
+    """Una respuesta del servicio de la cuenta compartida que no es un éxito: su
+    `codigo` ('spent': esta instalación ha gastado sus horas del mes; 'project': las
+    han gastado entre todas, salvo la reserva del proyecto; 'user': sin identificador)."""
+
+    def __init__(self, mensaje, codigo=None, detalle=None):
+        super().__init__(mensaje)
+        self.codigo, self.detalle = codigo, detalle or {}
+
+
+def _broker(ruta, timeout=30, **params):
+    """La respuesta (JSON) de RUTA del servicio de la cuenta compartida."""
+    import urllib.parse
+    import requests
+    url = os.environ.get('MONITOREO_BROKER', BROKER).rstrip('/') + ruta
+    if params:
+        url += '?' + urllib.parse.urlencode(params)
+    r = requests.get(url, timeout=timeout, headers={'User-Agent': 'borreguil-detector'})
+    if r.status_code != 200:
+        if 'json' not in r.headers.get('Content-Type', ''):
+            raise ErrorBroker(f'HTTP {r.status_code}')
+        d = r.json()
+        raise ErrorBroker(d.get('error') or f'HTTP {r.status_code}', d.get('code'), d)
+    return r.json()
+
+
+def id_usuario():
+    """El identificador anónimo de esta instalación para la cuenta compartida (mo- y 16
+    cifras hexadecimales): el mismo fichero que las herramientas de MonitorEO, así que en
+    un ordenador con las dos cuentan juntas. Se crea al azar la primera vez y no dice
+    nada de quien usa la app."""
+    global _usuario
+    if _usuario:
+        return _usuario
+    ruta = os.path.expanduser(FICHERO_USUARIO)
+    try:
+        with open(ruta, encoding='utf-8') as f:
+            leido = f.read().strip()
+        if re.fullmatch(r'mo-[0-9a-f]{16}', leido):
+            _usuario = leido
+            return _usuario
+    except OSError:
+        pass
+    import secrets
+    _usuario = 'mo-' + secrets.token_hex(8)
+    try:
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        with open(ruta, 'w', encoding='utf-8') as f:
+            f.write(_usuario + '\n')
+    except OSError:          # sin permiso para escribir: un identificador para esta sesión
+        pass
+    return _usuario
+
+
+def _token_compartida():
+    """(token, caducidad en UTC sin zona, proyecto) de la cuenta compartida."""
+    import datetime as dt
+    d = _broker('/token', user=id_usuario())
+    caduca = dt.datetime.fromtimestamp(d['expires_at'], dt.timezone.utc).replace(tzinfo=None)
+    return d['access_token'], caduca, d['project']
+
+
+def uso_compartida():
+    """Lo que le queda a esta instalación de la cuenta compartida este mes: el dict de
+    /usage del servicio (left_hours, limit_hours, resets, restricted…) o None si no
+    responde."""
+    try:
+        return _broker('/usage', timeout=10, user=id_usuario())
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
+def cuenta_compartida():
+    """True si Earth Engine está iniciado con la cuenta compartida de MonitorEO."""
+    return _compartida
+
+
+TU_CUENTA = ('Para seguir, usa tu propia cuenta: escribe tu proyecto de Google Cloud '
+             f'registrado en Earth Engine ({REGISTRO_URL}) y pulsa «🔑 Autenticar GEE».')
+
+
+def _iniciar_compartida():
+    """Earth Engine con la cuenta compartida de MonitorEO. Devuelve (ok, mensaje)."""
+    global _compartida
+    import ee
+    import google.oauth2.credentials
+    try:
+        token, caduca, proyecto = _token_compartida()
+        credenciales = google.oauth2.credentials.Credentials(
+            token, expiry=caduca,
+            refresh_handler=lambda request, scopes=None: _token_compartida()[:2])
+        ee.Initialize(credentials=credenciales, project=proyecto)
+        ee.data.setDefaultWorkloadTag(id_usuario())   # lo que calcula esta instalación
+        ee.Number(1).getInfo()
+    except ErrorBroker as e:
+        _compartida = False
+        if e.codigo == 'spent':
+            return False, ('Has gastado las horas de cálculo de este mes de la cuenta '
+                           'compartida de MonitorEO (se renuevan el día 1). ' + TU_CUENTA)
+        if e.codigo == 'project':
+            return False, ('La cuenta compartida de MonitorEO ha gastado las horas de '
+                           'cálculo de este mes. ' + TU_CUENTA)
+        return False, (f'No se ha podido conectar con la cuenta compartida de MonitorEO '
+                       f'({e}). Prueba más tarde. ' + TU_CUENTA)
+    except Exception as e:                              # noqa: BLE001
+        _compartida = False
+        return False, (f'No se ha podido conectar con la cuenta compartida de MonitorEO '
+                       f'({type(e).__name__}: {e}). Prueba más tarde. ' + TU_CUENTA)
+    _compartida = True
+    return True, f'Earth Engine con la cuenta compartida de MonitorEO (proyecto {proyecto})'
+
+
 def initialize(project=None, service_account_json=None):
     """Inicializa Earth Engine. Devuelve (ok: bool, mensaje: str).
 
+    Sin proyecto (y sin clave de cuenta de servicio), con la cuenta compartida de
+    MonitorEO. Con un proyecto, con las credenciales de quien usa la app (tras
+    authenticate(), una vez en cada ordenador).
+
     Para despliegue headless (Streamlit Cloud / HuggingFace), pasar
     service_account_json (ruta a un .json o el propio contenido JSON como str),
-    o definir la variable de entorno EE_SERVICE_ACCOUNT_KEY. En local basta con
-    haber ejecutado authenticate() una vez (flujo de navegador)."""
+    o definir la variable de entorno EE_SERVICE_ACCOUNT_KEY."""
+    global _compartida
     import ee, os, json, tempfile
+    project = (project or '').strip() or None
+    sa = service_account_json or os.environ.get('EE_SERVICE_ACCOUNT_KEY')
+    if not project and not sa:
+        return _iniciar_compartida()
+    if _compartida:
+        # Lo calculado con la cuenta propia no lleva la etiqueta de la compartida.
+        try:
+            ee.data.resetWorkloadTag(True)
+        except Exception:                               # noqa: BLE001
+            pass
+        _compartida = False
     # 1) Service account (deploy headless)
     sa = service_account_json or os.environ.get('EE_SERVICE_ACCOUNT_KEY')
     if sa:

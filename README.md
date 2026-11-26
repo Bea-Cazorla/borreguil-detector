@@ -1,4 +1,6 @@
-# 🌿 Borreguil / Wet Meadow Finder
+# 🌿 Borreguil · Wet Meadow Finder
+
+*Buscador y mapa de borreguiles*
 
 > **Versión con ventana propia (rama `pywebview`).** Es la misma app, pero se abre en
 > una ventana del programa en lugar de en el navegador. Usa
@@ -20,7 +22,8 @@ Combina ortofoto (ESRI World Imagery o, en España, PNOA), modelo digital del te
 de datos posibles:
 
 - **Google Earth Engine (GEE)** — la que viene elegida: el cálculo se hace en la nube
-  de Google (rápido, sin descargas). Necesita cuenta.
+  de Google (rápido, sin descargas). De entrada, con la **cuenta compartida de
+  MonitorEO**, sin cuenta propia; o con tu propio proyecto.
 - **Microsoft Planetary Computer (MPC)** — sin cuenta, más lento y sin radar. Si
   Earth Engine no está disponible, la app usa esta.
 
@@ -186,11 +189,20 @@ O genera puntos aleatorios y usa el modelo de Sierra Nevada:
 
 ## Google Earth Engine
 
+**De entrada, la cuenta compartida de MonitorEO.** Con el campo **Proyecto de Google
+Cloud** vacío, la app calcula como las herramientas de MonitorEO: pide a su servicio un
+permiso de una hora (ninguna clave viaja con el programa) y cada ordenador tiene unas
+horas de cálculo de Earth Engine al mes, para uso no comercial. No hay que hacer nada.
+
+**Con tu propia cuenta** (para mapas grandes, o si se acaban esas horas):
+
 1. Crea un proyecto en Google Cloud con la **Earth Engine API** habilitada
    (gratis para uso no comercial): https://earthengine.google.com
-2. En la app, elige **Google Earth Engine**, escribe el nombre del proyecto
-   (p. ej. `ee-tunombre`) y pulsa **🔑 Autenticar GEE** (abre el navegador).
+2. En la app, escribe el proyecto (p. ej. `ee-tunombre`) en **Proyecto de Google
+   Cloud** y pulsa **🔑 Autenticar GEE** (abre el navegador; una vez por ordenador).
 3. Pulsa **✓ Probar conexión** para verificar.
+
+Para volver a la cuenta compartida, deja el campo vacío.
 
 ## Archivos
 

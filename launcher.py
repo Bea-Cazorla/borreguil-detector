@@ -192,6 +192,10 @@ def selftest(res: Path) -> int:
     comprobar('sklearn', lambda: __import__('sklearn.ensemble', fromlist=['ensemble']))
     comprobar('pyproj', lambda: __import__('pyproj'))
     comprobar('pywebview (la ventana del programa)', lambda: __import__('webview'))
+    # La cuenta compartida de MonitorEO (gee_backend, 26-11-2026): sus permisos de una
+    # hora van con google.oauth2 y se piden con requests.
+    comprobar('cuenta compartida de Earth Engine (google.oauth2, requests)',
+              lambda: (__import__('google.oauth2.credentials'), __import__('requests')))
 
     # 2) Recursos que deben viajar dentro del ejecutable.
     comprobar('app.py incluido', lambda: (res / 'app.py').read_text(encoding='utf-8'))

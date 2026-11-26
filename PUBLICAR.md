@@ -231,7 +231,7 @@ concepto. Numeración recomendada (versionado semántico):
 
 ## Cómo citarlo en un artículo
 
-> Cazorla, B. *et al.* (2026). *Detector de borreguiles: identificación automática
+> Cazorla, B. *et al.* (2026). *Borreguil · Wet Meadow Finder: buscador y mapa
 > de prados húmedos de alta montaña mediante teledetección y Random Forest*
 > (v1.0.0) [Software]. Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
 
