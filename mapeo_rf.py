@@ -2091,17 +2091,17 @@ def cifras_curva(curva, mod):
 # Engine (gee_backend.py): los compuestos de Sentinel-2 y la topografía. El nombre
 # es el de la banda en esa pila, que es también el de la columna en los puntos.
 # ============================================================
-G_INICIO = 'Sentinel-2 · inicio de verano (15 jun – 25 jul)'
-G_FIN = 'Sentinel-2 · fin de verano (1 ago – 30 sep)'
+G_INICIO = 'Sentinel-2 · inicio de verano (15 jun – 24 jul)'
+G_FIN = 'Sentinel-2 · fin de verano (1 ago – 29 sep)'
 G_CAMBIO = 'Sentinel-2 · cambio estacional'
-G_PERIODO = 'Sentinel-2 · estadísticas de jun – sep'
+G_PERIODO = 'Sentinel-2 · estadísticas de jun – sep (1 jun – 29 sep)'
 G_TOPO = 'Topografía (Copernicus DEM, 30 m)'
 GRUPOS = (G_INICIO, G_FIN, G_CAMBIO, G_PERIODO, G_TOPO)
 GRUPOS_EN = {
-    G_INICIO: 'Sentinel-2 · early summer (15 Jun – 25 Jul)',
-    G_FIN: 'Sentinel-2 · late summer (1 Aug – 30 Sep)',
+    G_INICIO: 'Sentinel-2 · early summer (15 Jun – 24 Jul)',
+    G_FIN: 'Sentinel-2 · late summer (1 Aug – 29 Sep)',
     G_CAMBIO: 'Sentinel-2 · seasonal change',
-    G_PERIODO: 'Sentinel-2 · Jun – Sep statistics',
+    G_PERIODO: 'Sentinel-2 · Jun – Sep statistics (1 Jun – 29 Sep)',
     G_TOPO: 'Topography (Copernicus DEM, 30 m)',
 }
 
@@ -2119,7 +2119,7 @@ _NUEVOS = (('wavi', 'WAVI, vegetación sobre agua', 'WAVI, vegetation over water
            ('ndmi', 'NDMI, humedad', 'NDMI, moisture'),
            ('ndwi', 'NDWI, agua', 'NDWI, water'))
 _ESTADISTICOS = (('mean', 'media', 'mean'), ('min', 'mínimo', 'minimum'),
-                 ('max', 'máximo', 'maximum'), ('sd', 'variabilidad', 'variability'))
+                 ('max', 'máximo', 'maximum'), ('sd', 'variabilidad (desviación típica)', 'variability (standard deviation)'))
 
 # (nombre, grupo, descripción en español, descripción en inglés), en ORDEN FIJO
 PREDICTORES = tuple(

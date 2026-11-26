@@ -26,27 +26,27 @@ FEATURE_LABELS = {
     'elev_dem_m': 'Altitud (m)', 'slope_deg': 'Pendiente (°)',
     'twi': 'Humedad topográfica (TWI)', 'curvature': 'Curvatura',
     # Sentinel-2 estacional
-    'ndvi_early': 'NDVI inicio verano', 'ndvi_late': 'NDVI fin verano',
-    'ndvi_drop': 'Caída NDVI estacional', 'ndwi_late': 'NDWI fin (agua)',
-    'clre_early': 'Clorofila red-edge inicio', 'clre_late': 'Clorofila red-edge fin',
-    'gndvi_early': 'GNDVI inicio', 'gndvi_late': 'GNDVI fin',
-    'ndmi_early': 'NDMI humedad inicio', 'ndmi_late': 'NDMI humedad fin',
-    'evi_early': 'EVI inicio', 'evi_late': 'EVI fin', 'nbr_late': 'NBR fin',
-    'ndwi_early': 'NDWI inicio (agua)', 'nbr_early': 'NBR inicio',
+    'ndvi_early': 'NDVI inicio de verano (15 jun – 25 jul)', 'ndvi_late': 'NDVI fin de verano (1 ago – 30 sep)',
+    'ndvi_drop': 'Caída NDVI estacional', 'ndwi_late': 'NDWI fin de verano (1 ago – 30 sep; agua)',
+    'clre_early': 'Clorofila red-edge inicio de verano (15 jun – 25 jul)', 'clre_late': 'Clorofila red-edge fin de verano (1 ago – 30 sep)',
+    'gndvi_early': 'GNDVI inicio de verano (15 jun – 25 jul)', 'gndvi_late': 'GNDVI fin de verano (1 ago – 30 sep)',
+    'ndmi_early': 'NDMI humedad inicio de verano (15 jun – 25 jul)', 'ndmi_late': 'NDMI humedad fin de verano (1 ago – 30 sep)',
+    'evi_early': 'EVI inicio de verano (15 jun – 25 jul)', 'evi_late': 'EVI fin de verano (1 ago – 30 sep)', 'nbr_late': 'NBR fin de verano (1 ago – 30 sep)',
+    'ndwi_early': 'NDWI inicio de verano (15 jun – 25 jul; agua)', 'nbr_early': 'NBR inicio de verano (15 jun – 25 jul)',
     'aspect_north': 'Orientación (norte)', 'aspect_east': 'Orientación (este)',
     # la pureza (como en el mapa): el píxel de 10 m del punto
-    'ndvi_early_pixel': 'NDVI inicio verano (su píxel)',
+    'ndvi_early_pixel': 'NDVI inicio de verano en su píxel (15 jun – 25 jul)',
     'agua_pixel_vecinos': 'Agua en su píxel o al lado', 'verde_estimado': 'Verde estimado',
     # Sentinel-2 multianual (mean/min/max/sd)
     'wavi_mean': 'WAVI media', 'wavi_min': 'WAVI mínimo', 'wavi_max': 'WAVI máximo',
-    'wavi_sd': 'WAVI variabilidad', 'albedo_mean': 'Albedo medio', 'albedo_min': 'Albedo mínimo',
-    'albedo_max': 'Albedo máximo', 'albedo_sd': 'Albedo variabilidad',
+    'wavi_sd': 'WAVI variabilidad (desviación típica)', 'albedo_mean': 'Albedo medio', 'albedo_min': 'Albedo mínimo',
+    'albedo_max': 'Albedo máximo', 'albedo_sd': 'Albedo variabilidad (desviación típica)',
     'ndmi_mean': 'NDMI media (multianual)', 'ndmi_min': 'NDMI mínimo', 'ndmi_max': 'NDMI máximo',
-    'ndmi_sd': 'NDMI variabilidad', 'ndwi_mean': 'NDWI media (multianual)', 'ndwi_min': 'NDWI mínimo',
-    'ndwi_max': 'NDWI máximo', 'ndwi_sd': 'NDWI variabilidad',
+    'ndmi_sd': 'NDMI variabilidad (desviación típica)', 'ndwi_mean': 'NDWI media (multianual)', 'ndwi_min': 'NDWI mínimo',
+    'ndwi_max': 'NDWI máximo', 'ndwi_sd': 'NDWI variabilidad (desviación típica)',
     # Sentinel-1 (radar; «radar», como en el resto de la app, no «SAR»)
     's1_vv_mean': 'Radar VV media (dB)', 's1_vh_mean': 'Radar VH media (dB)',
-    's1_vv_sd': 'Radar VV variabilidad', 's1_vh_sd': 'Radar VH variabilidad',
+    's1_vv_sd': 'Radar VV variabilidad (desviación típica)', 's1_vh_sd': 'Radar VH variabilidad (desviación típica)',
     's1_ratio_mean': 'Radar VV–VH (dB)',
     # textura/imagen
     'frac_bgreen': 'Fracción verde-azulada (imagen)', 'exg_mean': 'Exceso de verde (imagen)',
@@ -57,30 +57,30 @@ FEATURE_LABELS = {
     'matorral_score': 'Índice matorral', 'n_components': 'Nº de parches',
     # CIR (PNOA IR 0,25 m)
     'cir_ndvi_mean': 'CIR NDVI media 0,25 m', 'cir_ndvi_p90': 'CIR NDVI p90 0,25 m',
-    'cir_ndvi_sd': 'CIR NDVI variabilidad', 'cir_vegfrac': 'CIR % vegetación',
+    'cir_ndvi_sd': 'CIR NDVI variabilidad (desviación típica)', 'cir_vegfrac': 'CIR % vegetación',
     'cir_nir_mean': 'CIR NIR media', 'cir_ndvi_contrast': 'CIR contraste 0,25 m',
 }
 FEATURE_LABELS_EN = {
     'elev_dem_m': 'Elevation (m)', 'slope_deg': 'Slope (°)',
     'twi': 'Topographic wetness (TWI)', 'curvature': 'Curvature',
-    'ndvi_early': 'NDVI early summer', 'ndvi_late': 'NDVI late summer',
-    'ndvi_drop': 'Seasonal NDVI drop', 'ndwi_late': 'NDWI late (water)',
-    'clre_early': 'Red-edge chlorophyll early', 'clre_late': 'Red-edge chlorophyll late',
-    'gndvi_early': 'GNDVI early', 'gndvi_late': 'GNDVI late',
-    'ndmi_early': 'NDMI moisture early', 'ndmi_late': 'NDMI moisture late',
-    'evi_early': 'EVI early', 'evi_late': 'EVI late', 'nbr_late': 'NBR late',
-    'ndwi_early': 'NDWI early (water)', 'nbr_early': 'NBR early',
+    'ndvi_early': 'NDVI early summer (15 Jun – 25 Jul)', 'ndvi_late': 'NDVI late summer (1 Aug – 30 Sep)',
+    'ndvi_drop': 'Seasonal NDVI drop', 'ndwi_late': 'NDWI late summer (1 Aug – 30 Sep; water)',
+    'clre_early': 'Red-edge chlorophyll early summer (15 Jun – 25 Jul)', 'clre_late': 'Red-edge chlorophyll late summer (1 Aug – 30 Sep)',
+    'gndvi_early': 'GNDVI early summer (15 Jun – 25 Jul)', 'gndvi_late': 'GNDVI late summer (1 Aug – 30 Sep)',
+    'ndmi_early': 'NDMI moisture early summer (15 Jun – 25 Jul)', 'ndmi_late': 'NDMI moisture late summer (1 Aug – 30 Sep)',
+    'evi_early': 'EVI early summer (15 Jun – 25 Jul)', 'evi_late': 'EVI late summer (1 Aug – 30 Sep)', 'nbr_late': 'NBR late summer (1 Aug – 30 Sep)',
+    'ndwi_early': 'NDWI early summer (15 Jun – 25 Jul; water)', 'nbr_early': 'NBR early summer (15 Jun – 25 Jul)',
     'aspect_north': 'Aspect (north)', 'aspect_east': 'Aspect (east)',
-    'ndvi_early_pixel': 'NDVI early summer (its pixel)',
+    'ndvi_early_pixel': 'NDVI early summer at its pixel (15 Jun – 25 Jul)',
     'agua_pixel_vecinos': 'Water in its pixel or next to it', 'verde_estimado': 'Estimated green',
     'wavi_mean': 'WAVI mean', 'wavi_min': 'WAVI minimum', 'wavi_max': 'WAVI maximum',
-    'wavi_sd': 'WAVI variability', 'albedo_mean': 'Mean albedo', 'albedo_min': 'Minimum albedo',
-    'albedo_max': 'Maximum albedo', 'albedo_sd': 'Albedo variability',
+    'wavi_sd': 'WAVI variability (standard deviation)', 'albedo_mean': 'Mean albedo', 'albedo_min': 'Minimum albedo',
+    'albedo_max': 'Maximum albedo', 'albedo_sd': 'Albedo variability (standard deviation)',
     'ndmi_mean': 'NDMI mean (multi-year)', 'ndmi_min': 'NDMI minimum', 'ndmi_max': 'NDMI maximum',
-    'ndmi_sd': 'NDMI variability', 'ndwi_mean': 'NDWI mean (multi-year)',
-    'ndwi_min': 'NDWI minimum', 'ndwi_max': 'NDWI maximum', 'ndwi_sd': 'NDWI variability',
+    'ndmi_sd': 'NDMI variability (standard deviation)', 'ndwi_mean': 'NDWI mean (multi-year)',
+    'ndwi_min': 'NDWI minimum', 'ndwi_max': 'NDWI maximum', 'ndwi_sd': 'NDWI variability (standard deviation)',
     's1_vv_mean': 'Radar VV mean (dB)', 's1_vh_mean': 'Radar VH mean (dB)',
-    's1_vv_sd': 'Radar VV variability', 's1_vh_sd': 'Radar VH variability',
+    's1_vv_sd': 'Radar VV variability (standard deviation)', 's1_vh_sd': 'Radar VH variability (standard deviation)',
     's1_ratio_mean': 'Radar VV–VH (dB)',
     'frac_bgreen': 'Blue-green fraction (image)', 'exg_mean': 'Excess green (image)',
     'glcm_homog': 'Texture homogeneity', 'glcm_contrast': 'Texture contrast',
@@ -89,7 +89,7 @@ FEATURE_LABELS_EN = {
     'granul_5': 'Granulometry', 'largest_frac': 'Largest connected patch',
     'matorral_score': 'Shrub index', 'n_components': 'Number of patches',
     'cir_ndvi_mean': 'CIR NDVI mean 0.25 m', 'cir_ndvi_p90': 'CIR NDVI p90 0.25 m',
-    'cir_ndvi_sd': 'CIR NDVI variability', 'cir_vegfrac': 'CIR % vegetation',
+    'cir_ndvi_sd': 'CIR NDVI variability (standard deviation)', 'cir_vegfrac': 'CIR % vegetation',
     'cir_nir_mean': 'CIR NIR mean', 'cir_ndvi_contrast': 'CIR contrast 0.25 m',
 }
 
@@ -519,7 +519,7 @@ def chart_importance(rs, topn=12):
 # Variables más interpretables para comparar borreguil vs. resto.
 BOX_VARS = [
     ('elev_dem_m', 'Altitud (m)'), ('slope_deg', 'Pendiente (°)'),
-    ('ndvi_late', 'NDVI fin verano'),
+    ('ndvi_late', 'NDVI fin de verano (1 ago – 30 sep)'),
     ('ndmi_late', 'NDMI (humedad)'), ('ndwi_late', 'NDWI (agua)'),
     ('evi_late', 'EVI fin'), ('clre_late', 'Clorofila red-edge'),
     ('ndvi_drop', 'Caída NDVI'), ('dist_cauce_m', 'Distancia al cauce (m)'),
@@ -944,7 +944,7 @@ def chart_dos_variables(rows, xkey, ykey, xlab, ylab, en=None, comparar='borregu
 
 
 def chart_scatter(rows, xkey='elev_dem_m', ykey='ndvi_late',
-                  xlab='Altitud (m)', ylab='NDVI fin verano'):
+                  xlab='Altitud (m)', ylab='NDVI fin de verano (1 ago – 30 sep)'):
     """(De antes; la app usa chart_dos_variables.) Dispersión de dos variables,
     borreguil frente al resto. Devuelve chart|None."""
     return chart_dos_variables(rows, xkey, ykey, xlab, ylab)

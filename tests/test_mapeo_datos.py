@@ -394,7 +394,7 @@ def test_cada_predictor_tiene_descripcion_y_grupo_en_los_dos_idiomas():
         assert es and en and mr.descripcion(nombre) == es
         assert mr.descripcion(nombre, en=True) == en
         assert grupo in mr.GRUPOS and mr.nombre_grupo(grupo, en=True) != grupo
-    assert mr.descripcion('ndmi_sd') == 'NDMI, humedad: variabilidad'
+    assert mr.descripcion('ndmi_sd') == 'NDMI, humedad: variabilidad (desviación típica)'
     assert mr.descripcion('no_existe') == ''
     assert set(mr.MOTIVOS) == set(mr.MOTIVOS_EN)
     assert mr.motivo('duplicado', en=True).startswith('same 10 m pixel')

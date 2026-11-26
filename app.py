@@ -2175,14 +2175,34 @@ with st.sidebar:
     st.divider()
     st.header('Opciones')
     years_str = st.text_input('Años Sentinel-2 (admite rangos, p. ej. 2017-2025)',
-                                value='2017-2025')
+                                value='2017-2025',
+        help=('**Para qué:** las imágenes de Sentinel-2 de los veranos de estos años son con las que se '
+              'calculan las variables de satélite de cada punto: el verdor, la humedad de la '
+              'vegetación, el agua. Cada variable junta todos los veranos (por ejemplo, la mediana de '
+              'las imágenes del inicio de verano (15 jun – 25 jul) y del fin de verano (1 ago – 30 '
+              'sep) de todos los años). Con más años los valores son más estables, pero un cambio '
+              'reciente del borreguil se diluye. Los mismos años se usan para leer las variables del '
+              'mapa (🌿 Mapa Modelo RF). El radar (Sentinel-1) usa siempre los veranos de 2019 a '
+              '2024.\n\n'
+              '**Calidad de las imágenes:** solo entran escenas de Sentinel-2 con menos del 30 % de '
+              'nubes, y en cada píxel se quitan las nubes, las sombras de nube, los cirros y los '
+              'píxeles oscuros o saturados (clasificación SCL de Sentinel-2, mirando también los '
+              'píxeles de alrededor). En las variables de junio a septiembre (WAVI, albedo, NDMI y '
+              'NDWI) se quita también la nieve; en las de inicio y fin de verano, no. El radar no lo '
+              'necesita: atraviesa las nubes.\n\n'
+              '**Recomendado:** 2017-2025, los años con los que se entrenó el modelo de Sierra '
+              'Nevada; con otros, sus valores pueden no ser comparables.'))
     thr_mode = st.radio(
         'Umbral RF para BORREGUIL', [
             'Automático · Otsu',
             'Manual (deslizador)',
             'Automático · verdad-terreno',
         ], index=0,
-        help=('**Otsu (recomendado, por defecto)**: se adapta a cada ejecución. '
+        help=('**Para qué:** el modelo da a cada punto una probabilidad de ser borreguil, de 0 a '
+              '1, y el umbral es el corte: por encima, el punto sale como borreguil; por debajo, '
+              'como no borreguil. Decide el resultado de cada punto, los recuentos y el acierto '
+              'con tus puntos de campo; las probabilidades no cambian.\n\n'
+              '**Otsu (recomendado, por defecto)**: se adapta a cada ejecución. '
               'Al aplicar el modelo a una zona nueva las probabilidades se '
               'recalibran, así que un umbral manual fijo puede dejar casi todo '
               'fuera; Otsu evita ese problema.\n\n'
@@ -2203,7 +2223,12 @@ with st.sidebar:
         '🌐  ESRI World Imagery (global, ~0,5 m)',
         '🇪🇸  PNOA IGN + autonómica (España, 0,25 m)',
     ], index=0,
-    help=('PNOA IGN usa ortofoto autonómica cuando está disponible (Andalucía 2022, '
+    help=('**Para qué:** de cada punto se descarga una foto de su zona (de unos 500 m de lado, '
+          'centrada en él), y de ella se calculan las variables de la imagen aérea que usa el '
+          'modelo: la roca de alrededor, la densidad de bordes, la fracción verde-azulada, el '
+          'contraste de la vegetación, la textura. La ortofoto del mapa al revisar se elige '
+          'aparte, en las capas del mapa.\n\n'
+          'PNOA IGN usa ortofoto autonómica cuando está disponible (Andalucía 2022, '
           'Aragón 2024, Cataluña vigente, Cantabria 2023, CyL 2020, Canarias) y cae '
           'en el PNOA-MA nacional para el resto de España. Fuera de España usa ESRI.'))
     img_src = 'pnoa' if 'PNOA' in img_src_label else 'esri'
@@ -5958,12 +5983,13 @@ with tab_tipos:
                                        _vif_u if _vif_si else _pca_c)
             with st.expander(i18n.pick('Qué mide cada variable', 'What each variable measures')):
                 st.caption(i18n.pick(
-                    'Las **estadísticas de jun – sep** (media, mínimo, máximo y '
-                    'variabilidad) se calculan **en cada año** y después se hace la '
+                    'Las **estadísticas de jun – sep** (1 jun – 29 sep: media, mínimo, máximo y '
+                    'variabilidad, que es la desviación típica) se calculan **en cada año** y después se hace la '
                     '**media entre años**. Así, el mínimo es lo bajo que llega la variable '
                     'en un verano normal, no el valor de una sola imagen (una sombra de '
                     'nube, por ejemplo) en todos los años.',
-                    'The **Jun – Sep statistics** (mean, minimum, maximum and variability) '
+                    'The **Jun – Sep statistics** (1 Jun – 29 Sep: mean, minimum, maximum and '
+                    'variability, i.e. the standard deviation) '
                     'are computed **in each year** and then **averaged across years**. So '
                     'the minimum is how low the variable gets in a normal summer, not the '
                     'value of a single image (a cloud shadow, for instance) in all the '

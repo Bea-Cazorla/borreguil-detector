@@ -271,10 +271,17 @@ y encima de las cinco pestañas).
 
 ### Opciones
 
-- **Años Sentinel-2** — periodo analizado (por defecto `2017-2025`). Más años =
-  más robusto frente a un verano anómalo, pero más lento.
-- **Umbral RF** — ver [§7](#7-el-umbral-de-decisión).
-- **Fuente de imágenes** — ESRI (mundial, ~0,5 m) o PNOA/autonómica (España, 0,25 m).
+- **Años Sentinel-2** — periodo analizado (por defecto `2017-2025`). De esos veranos
+  salen las imágenes de Sentinel-2 con las que se calculan las variables de satélite de
+  cada punto (y del mapa); antes se quitan las nubes, sus sombras y, en algunas
+  variables, la nieve (ver [§8](#8-las-variables-del-modelo)). Más años = más robusto
+  frente a un verano anómalo, pero más lento. El radar usa siempre 2019-2024.
+- **Umbral RF** — el corte de probabilidad a partir del cual un punto cuenta como
+  borreguil: decide el resultado de cada punto, los recuentos y el acierto, no las
+  probabilidades. Ver [§7](#7-el-umbral-de-decisión).
+- **Fuente de imágenes** — ESRI (mundial, ~0,5 m) o PNOA/autonómica (España, 0,25 m):
+  de qué ortofoto se descarga la foto de cada punto (unos 500 m de lado, centrada en él),
+  de la que salen las variables de textura de la imagen aérea ([§8](#8-las-variables-del-modelo)).
 - **⚡ Modo rápido (vista previa)** — salta las descargas lentas punto a punto
   (imágenes aéreas y sus texturas, CIR/Planet). Resultados **aproximados**: sirve
   para iterar, no para resultados definitivos.
@@ -501,14 +508,19 @@ la misma decisión en el 98,6 % y el 99,6 % de los puntos).
 
 Sufijos: `_early`/`_late` (inicio de verano, del 15 de junio al 25 de julio / fin
 de verano, del 1 de agosto al 30 de septiembre), `_mean`/`_min`/`_max`/`_sd`
-(estadísticos de esas imágenes de verano).
+(estadísticos de esas imágenes de verano; `_sd`, la «variabilidad», es la **desviación
+típica**).
 
 Cómo se calculan, igual que cuando se entrenó el modelo de Sierra Nevada:
 
-- **Qué imagen.** De cada ventana y cada año se toma la **última imagen sin nubes**
-  sobre el punto (con menos del 30 % de nubes en la escena). Inicio y fin de verano
-  son la **mediana entre años**. Los estadísticos usan esas mismas imágenes, todos los
-  años juntos, quitando las que tienen nieve en el punto.
+- **Qué imagen.** Solo entran las escenas con menos del 30 % de nubes. En cada píxel se
+  quitan las **nubes, las sombras de nube, los cirros y los píxeles oscuros o
+  saturados** (con la clasificación de la escena, SCL, de Sentinel-2; un píxel vale si
+  lo es al menos la mitad de los de su alrededor, 3 × 3). De cada ventana y cada año se
+  toma la **última imagen sin nubes** sobre el punto. Inicio y fin de verano son la
+  **mediana entre años** (en ellos la nieve no se quita). Los estadísticos usan esas
+  mismas imágenes, todos los años juntos, quitando además la **nieve** (NDSI de 0,4 o
+  más, o nieve en la SCL).
 - **Qué zona.** Cada valor es la **media de una ventana alrededor del punto**: 5 × 5
   píxeles (50 m) en las bandas de 10 m y 3 × 3 píxeles (60 m) en las de 20 m. Son las
   ventanas de muestreo que se pueden ver en el mapa.
@@ -525,8 +537,8 @@ sección 10).
 
 ### Radar (Sentinel-1)
 `s1_vv_mean`, `s1_vh_mean`, `s1_ratio_mean`, `s1_*_sd` — sensibles a la humedad
-del suelo y atraviesan las nubes. Media y variabilidad de todas las pasadas de junio
-a septiembre de 2019 a 2024, con el efecto del relieve corregido. **Solo se leen con
+del suelo y atraviesan las nubes. Media y variabilidad (desviación típica) de todas las pasadas de
+junio a septiembre de 2019 a 2024, con el efecto del relieve corregido. **Solo se leen con
 Earth Engine** (en segundos); con Planetary Computer la app usa la versión del
 modelo entrenada sin radar (sección 6). Hasta noviembre de 2026 se leían de Planetary Computer: más de
 media hora con solo 20 puntos.
@@ -1114,8 +1126,18 @@ Engine a partir de Sentinel-2 (29) y del modelo de elevaciones (5). Vienen todas
 marcadas y se pueden quitar. Las texturas de la imagen aérea y el radar Sentinel-1,
 que el detector sí usa, no están porque hoy solo se calculan punto a punto.
 
-Las **estadísticas de junio a septiembre** (media, mínimo, máximo y variabilidad de
-WAVI, albedo, NDMI y NDWI) se calculan **en cada año** y después se hace la **media
+**Fechas y calidad de las imágenes del mapa.** Inicio de verano: del 15 de junio al 24
+de julio; fin de verano: del 1 de agosto al 29 de septiembre; estadísticas: del 1 de
+junio al 29 de septiembre, de cada año (Earth Engine no cuenta el último día de cada
+ventana; el detector, sí: por eso allí son el 25 de julio y el 30 de septiembre).
+Inicio y fin de verano: solo escenas con menos del 40 % de nubes, y en cada píxel se
+quitan nubes, sombras de nube, cirros y píxeles oscuros o saturados (SCL); **la nieve no
+se quita**. Estadísticas de junio a septiembre: se quitan las nubes con s2cloudless
+(probabilidad de nube mayor del 30 %) y la nieve (NDSI de 0,4 o más, o nieve en la
+SCL); **las sombras de nube no**.
+
+Las **estadísticas de junio a septiembre** (media, mínimo, máximo y variabilidad, que
+es la desviación típica, de WAVI, albedo, NDMI y NDWI) se calculan **en cada año** y después se hace la **media
 entre los años** que tienen dato. Así, el mínimo es lo bajo que llega la variable en
 un verano normal, y la variabilidad, lo que cambia dentro del verano. Con todos los
 años juntos, el mínimo y el máximo serían los de una sola imagen en nueve veranos
