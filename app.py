@@ -281,7 +281,7 @@ def get_secret(key, default=None):
 # como el de MonitorEO: qué quieres hacer, en qué parte de la app, versión, ordenador,
 # descripción, enlace a pantallazos y texto de la consola. No recoge correos y lo puede
 # rellenar cualquiera con el enlace. Se abre con la versión ya puesta.
-REPO_URL = 'https://github.com/Bea-Cazorla/borreguil-detector'
+REPO_URL = 'https://github.com/monitoreo-obsnev/borreguil-detector'
 WIKI_URL = REPO_URL + '/wiki'
 FORMULARIO_URL = ('https://docs.google.com/forms/d/e/'
                   '1FAIpQLScq7UehnDlaNaYsq9DZNhXc-CxRo57KgdT9e98U0q1xGglRPg/viewform')

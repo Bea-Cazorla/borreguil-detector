@@ -677,8 +677,8 @@ def guion(lang):
               'la Documentación explica cuántos puntos hacen falta')
     comprobar(hay(at, T('Sugerir un cambio o informar de un error',
                         'Suggest a change or report an error'))
-              and hay(at, 'github.com/Bea-Cazorla/borreguil-detector/issues/new/choose?version=')
-              and hay(at, 'github.com/Bea-Cazorla/borreguil-detector/wiki'),
+              and hay(at, 'github.com/monitoreo-obsnev/borreguil-detector/issues/new/choose?version=')
+              and hay(at, 'github.com/monitoreo-obsnev/borreguil-detector/wiki'),
               'manual (wiki) y sugerencias: el enlace a GitHub lleva la versión')
     # El formulario anónimo propio de esta app (25-11-2026), con la versión ya puesta
     comprobar(hay(at, 'docs.google.com/forms/d/e/'

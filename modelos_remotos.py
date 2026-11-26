@@ -26,7 +26,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO_RAW = 'https://raw.githubusercontent.com/Bea-Cazorla/borreguil-detector/main/'
+REPO_RAW = 'https://raw.githubusercontent.com/monitoreo-obsnev/borreguil-detector/main/'
 MANIFIESTO = 'modelos.json'
 URL_POR_DEFECTO = REPO_RAW + MANIFIESTO
 # Variable de entorno para usar otro repositorio (su dirección de modelos.json) o, vacía,

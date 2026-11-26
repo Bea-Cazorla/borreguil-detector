@@ -1819,7 +1819,7 @@ Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
 
 ## Créditos y cita
 
-**Manual en línea y sugerencias.** La [wiki del repositorio](https://github.com/Bea-Cazorla/borreguil-detector/wiki),
+**Manual en línea y sugerencias.** La [wiki del repositorio](https://github.com/monitoreo-obsnev/borreguil-detector/wiki),
 en español e inglés, resume cómo usar la app. Para proponer un cambio o avisar de un
 fallo, usa **💬 Sugerir un cambio o informar de un error**, al final del panel lateral
 (o el apartado **💬 Manual y sugerencias**, al final de la pestaña de Documentación):
