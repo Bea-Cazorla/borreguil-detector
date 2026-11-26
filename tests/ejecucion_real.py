@@ -72,8 +72,7 @@ at.run()
 at.file_uploader[0].set_value(('puntos_campo.geojson', contenido, 'application/geo+json'))
 if PROYECTO_GEE:
     print('origen de los datos: Google Earth Engine')
-    [t for t in at.text_input if t.label == 'Proyecto Google Earth Engine'][0].set_value(
-        PROYECTO_GEE)
+    [t for t in at.text_input if 'Google Cloud' in t.label][0].set_value(PROYECTO_GEE)
 else:
     print('origen de los datos: Microsoft Planetary Computer')
     [r for r in at.radio if r.label == 'Backend'][0].set_value(

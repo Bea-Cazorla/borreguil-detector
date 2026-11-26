@@ -1,4 +1,4 @@
-# Manual de usuario — Detector de borreguiles
+# Manual de usuario — Borreguil · Wet Meadow Finder
 
 Referencia completa del programa: qué hace cada opción, qué significa cada
 variable y cómo interpretar los resultados.
@@ -218,12 +218,29 @@ punto es de laguna solo si se ve agua cerca (ver la sección 10).
 
 | Backend | Cuenta | Velocidad | Cuándo |
 |---|---|---|---|
-| 🌍 **Google Earth Engine** | Sí (gratis académico) | **Rápido** (cálculo en Google) | Recomendado. |
-| 🛰 **Planetary Computer** | No | Lento (descarga a tu PC) | Sin cuenta GEE. |
+| 🌍 **Google Earth Engine** | No: de entrada, la cuenta compartida de MonitorEO; o la tuya | **Rápido** (cálculo en Google) | Recomendado. |
+| 🛰 **Planetary Computer** | No | Lento (descarga a tu PC) | Si Earth Engine no está disponible. |
 
-Alta en GEE: ver [TUTORIAL §3](TUTORIAL.md#3-darte-de-alta-en-google-earth-engine).
-El nombre del proyecto de Earth Engine se recuerda: cuando la conexión funciona
-una vez, la próxima aparece ya escrito.
+**La cuenta de Earth Engine.** Con el campo **Proyecto de Google Cloud** vacío, que es
+lo que viene de entrada, la app calcula con la **cuenta compartida de MonitorEO**, igual
+que las herramientas de MonitorEO: sin iniciar sesión ni tener cuenta propia.
+
+- **Cómo funciona.** La app pide al servicio de MonitorEO un permiso de una hora, que se
+  renueva solo; ninguna clave viaja con el programa. Esa cuenta solo calcula con el
+  catálogo público de Earth Engine, que es lo único que usa la app.
+- **Cuánto se puede calcular.** Cada ordenador tiene un identificador anónimo (el mismo
+  que las herramientas de MonitorEO, en `~/.config/monitoreo/user_id`) y, con él, unas
+  **horas de cálculo de Earth Engine al mes**, para uso no comercial (25 en noviembre
+  de 2026). Debajo del campo, la app dice cuántas te quedan y cuándo se renuevan.
+- **Tu propia cuenta.** Escribe tu proyecto de Google Cloud registrado en Earth Engine
+  (por ejemplo `ee-tunombre`; alta en
+  [TUTORIAL §3](TUTORIAL.md#3-darte-de-alta-en-google-earth-engine)) y pulsa
+  **🔑 Autenticar GEE**, una vez en cada ordenador. Así calcula con tu cuenta de Google y
+  la cuota de ese proyecto. Conviene para mapas grandes o si se acaban las horas de la
+  cuenta compartida. El proyecto se recuerda; para volver a la cuenta compartida, deja
+  el campo vacío.
+- **Si Earth Engine limita la cuenta compartida** (ha gastado su cuota del mes), la app
+  lo avisa: los cálculos van lentos y alguno puede fallar.
 
 Los dos dan **los mismos números** en Sentinel-2 y el relieve: con Earth Engine, las
 variables de Sentinel-2 se calculan imitando lo que hace Planetary Computer, que es
@@ -1106,9 +1123,10 @@ válidas en el año; si no, ese año no cuenta para ella.
 **La tabla de entrenamiento.** El botón **📥 Leer las variables… en Earth Engine**
 lee el valor de cada variable en el **píxel de 10 m** de cada muestra. Es el mismo
 píxel que después se clasificará: por eso no se usan los valores que ya tienen los
-puntos, que son medias de una ventana de 50–60 m alrededor del punto. Usa el
-proyecto de Earth Engine y los años de Sentinel-2 del panel lateral (si allí está
-elegido Planetary Computer, el último proyecto con el que Earth Engine funcionó). Con 21 muestras y los años 2017-2025 tarda alrededor de un minuto.
+puntos, que son medias de una ventana de 50–60 m alrededor del punto. Usa la
+cuenta de Earth Engine del panel lateral (la compartida de MonitorEO o tu proyecto) y
+sus años de Sentinel-2 (si allí está elegido Planetary Computer, el último proyecto con
+el que Earth Engine funcionó o, si no hay, la cuenta compartida). Con 21 muestras y los años 2017-2025 tarda alrededor de un minuto.
 
 Lo leído se conserva mientras no cambien los años: añadir muestras solo lee las
 nuevas, y quitar o poner variables no obliga a leer nada. (Si una versión nueva de la
@@ -1387,8 +1405,9 @@ pequeño, en cuántos trozos se lee). Earth Engine sirve unos 6 km² por minuto 
 varios trozos a la vez, así que conviene **empezar por un rectángulo de 2 × 2 km**
 (un minuto), ver cómo sale y ampliar después. Como orientación: 100 km² son unos
 20 minutos y el Parque Nacional entero, más de dos horas. El máximo de una sola vez
-son 400 bloques (unos 2 600 km²). Los mapas grandes también gastan más cuota de tu
-proyecto de Earth Engine.
+son 400 bloques (unos 2 600 km²). Los mapas grandes también gastan más horas de cálculo
+de Earth Engine: con la cuenta compartida de MonitorEO, un mapa muy grande puede gastar
+buena parte de las del mes. Para esos, mejor tu propio proyecto.
 
 *Si el mapa es largo.* Se lee por bloques de 2,5 km de lado, de uno en uno, y cada
 bloque leído se guarda en el ordenador mientras la app esté abierta. Por eso:
@@ -1762,7 +1781,9 @@ de puntos y acota los años de Sentinel-2.
 | macOS: «no se puede comprobar» | Cuarentena de Gatekeeper | Clic derecho → *Abrir*, o `xattr -dr com.apple.quarantine`. |
 | El navegador no abre | — | Ir a la dirección que da la ventana de consola, normalmente **http://localhost:8501**. |
 | Muy lento | Backend MPC | Cambiar a GEE y/o **⚡ Modo rápido**. |
-| Error de autenticación GEE | Proyecto mal escrito o alta pendiente | Revisar `ee-tunombre` y volver a autenticar. |
+| Error de autenticación GEE | Proyecto mal escrito o alta pendiente | Revisar `ee-tunombre` y volver a autenticar. O dejar el campo vacío para usar la cuenta compartida. |
+| «Has gastado las horas de cálculo de este mes» | Se han acabado las horas de la cuenta compartida de MonitorEO | Usar tu propio proyecto (campo **Proyecto de Google Cloud** y **🔑 Autenticar GEE**) o esperar al día 1. |
+| «No se ha podido conectar con la cuenta compartida» | El servicio de MonitorEO no responde o la red no le deja salir | Probar más tarde o usar tu propio proyecto. La red tiene que dejar salir el puerto 443 (HTTPS). |
 | Faltan texturas | **⚡ Modo rápido** activo | Desmarcarlo. |
 | El radar sale «omitida» | Backend Planetary Computer | El radar solo se lee con GEE. |
 | Histograma en una sola masa | El modelo no discrimina en esa zona | Aportar verdad-terreno local. |
@@ -1790,7 +1811,9 @@ Para reportar un fallo, incluye tu sistema operativo, la configuración usada y
   IGN pueden fallar o cambiar.
 - **Verificación en campo**: los resultados son **candidatos**, no un inventario
   definitivo. Toda cartografía publicada debería validarse en campo.
-- **Cuota**: Earth Engine tiene límites de uso por cuenta.
+- **Cuota**: Earth Engine tiene límites de uso por cuenta. La cuenta compartida de
+  MonitorEO da unas horas de cálculo al mes a cada ordenador; con tu propio proyecto,
+  la cuota es la de ese proyecto.
 
 ---
 

@@ -4,7 +4,7 @@
 # Tras el primer release, añadir el DOI que asigne Zenodo y actualizar `version`
 # y `date-released` en cada versión nueva.
 cff-version: 1.2.0
-title: "Detector de borreguiles — identificación automática de prados húmedos de alta montaña"
+title: "Borreguil · Wet Meadow Finder — buscador y mapa de borreguiles (prados húmedos de alta montaña)"
 message: "Si utilizas este software en un trabajo científico, cítalo con el DOI de la versión empleada."
 type: software
 

@@ -121,9 +121,10 @@ de imágenes y una ejecución pasaría de segundos a decenas de minutos.
 
 Es **gratuito para uso académico y de investigación**.
 
-> 💡 ¿Tienes prisa? Puedes saltarte este paso: el programa funciona con el backend
-> **Planetary Computer**, que no requiere cuenta — pero es bastante más lento y no
-> lee el radar.
+> 💡 **Para empezar no hace falta.** De entrada, la app calcula con la **cuenta
+> compartida de MonitorEO**, sin cuenta propia (ver el paso 4). Date de alta si vas a
+> usarla mucho, si quieres hacer mapas grandes o si se acaban las horas de cálculo de
+> la cuenta compartida.
 
 ### 3.1 Crear el proyecto
 
@@ -147,19 +148,27 @@ código, ya tienes acceso.
 
 ## 4. Conectar el programa con Earth Engine
 
-Esto se hace **una sola vez** por ordenador.
+**Con la cuenta compartida de MonitorEO no hay nada que hacer.** En el panel lateral,
+**Fuente de datos satelitales** → **🌍 Google Earth Engine** (viene elegido) y el campo
+**Proyecto de Google Cloud** vacío. Debajo, la app dice cuántas horas de cálculo te
+quedan este mes. Si quieres comprobarlo, pulsa **✓ Probar conexión**.
 
-1. En el programa, panel lateral izquierdo → **Fuente de datos satelitales**.
-2. Elige **🌍 Google Earth Engine**.
-3. En **Proyecto Google Earth Engine**, escribe tu identificador (`ee-tunombre`).
-4. Pulsa **🔑 Autenticar GEE**.
-5. Se abre el navegador: elige tu cuenta de Google y **acepta los permisos**.
+**Con tu propia cuenta** (después del paso 3). Esto se hace **una sola vez** por
+ordenador:
+
+1. En **Proyecto de Google Cloud**, escribe tu identificador (`ee-tunombre`).
+2. Pulsa **🔑 Autenticar GEE**.
+3. Se abre el navegador: elige tu cuenta de Google y **acepta los permisos**.
    Copia el código que te da y pégalo si te lo pide la consola.
-6. Pulsa **✓ Probar conexión**. Debe salir un mensaje de éxito.
+4. Pulsa **✓ Probar conexión**. Debe salir un mensaje de éxito.
 
-> 🔐 **Sobre los permisos:** autorizas a *tu propio programa, en tu ordenador*, a
-> usar *tu* cuota de Earth Engine. Las credenciales se guardan solo en tu equipo.
-> Nadie más las recibe.
+Para volver a la cuenta compartida, deja el campo vacío.
+
+> 🔐 **Sobre los permisos:** con tu cuenta, autorizas a *tu propio programa, en tu
+> ordenador*, a usar *tu* cuota de Earth Engine. Las credenciales se guardan solo en
+> tu equipo. Nadie más las recibe. Con la cuenta compartida no das ningún permiso: la
+> app pide al servicio de MonitorEO un permiso de una hora, y tus cálculos se cuentan
+> con un identificador anónimo de tu ordenador.
 
 ---
 
@@ -389,7 +398,8 @@ en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 | El navegador no se abre | Entra en la dirección que da la consola, normalmente **http://localhost:8501**. |
 | **Solo detecta 1 o 2 puntos** | Casi seguro tienes el umbral en **Manual**. Cámbialo a **Otsu**. |
 | Va lentísimo | Usa **GEE** en vez de MPC y marca **⚡ Modo rápido**. |
-| Error de Earth Engine | Revisa el identificador del proyecto y vuelve a **🔑 Autenticar GEE**. |
+| Error de Earth Engine | Con tu proyecto: revisa su identificador y vuelve a **🔑 Autenticar GEE**. Con la cuenta compartida (campo vacío): prueba más tarde o usa tu proyecto. |
+| «Has gastado las horas de cálculo de este mes» | Se han acabado las de la cuenta compartida de MonitorEO: usa tu propio proyecto (paso 4) o espera al día 1. |
 | No aparecen texturas | Es normal con **⚡ Modo rápido**: desmárcalo. |
 | El radar (Sentinel-1) sale «omitida» | Solo se lee con **GEE**; con Planetary Computer la app usa sola la versión del modelo sin radar. |
 | Sin texturas aunque no uses el modo rápido | Windows puede bloquear scikit-image; la app avisa y rellena las texturas con un valor típico (probabilidad menos fiable). |

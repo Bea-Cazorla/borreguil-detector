@@ -267,8 +267,8 @@ EN = {
     "⨯  Sin área (bbox de los puntos)": "⨯  No area (bounding box of the points)",
     "Fuente de datos satelitales": "Satellite data source",
     "Backend": "Backend",
-    "🌍  Google Earth Engine (requiere cuenta) — más rápido":
-        "🌍  Google Earth Engine (requires account) — faster",
+    "🌍  Google Earth Engine — más rápido (cuenta compartida o la tuya)":
+        "🌍  Google Earth Engine — faster (shared account or yours)",
     "🛰  Microsoft Planetary Computer (sin cuenta)":
         "🛰  Microsoft Planetary Computer (no account)",
     "Modelo de partida": "Starting model",

@@ -124,8 +124,9 @@ def V(n, en):
 
 def poner_proyecto(at, valor):
     """El proyecto de Earth Engine se escribe en el panel lateral (desde el 24-11-2026
-    la pestaña del mapa ya no lo pide)."""
-    cs = [w for w in at.text_input if 'Earth Engine' in (w.label or '')]
+    la pestaña del mapa ya no lo pide). Desde el 26-11-2026 el campo se llama «Proyecto
+    de Google Cloud»: vacío, la cuenta compartida de MonitorEO."""
+    cs = [w for w in at.text_input if 'Google Cloud' in (w.label or '')]
     cs[0].set_value(valor)
 
 
@@ -1415,8 +1416,11 @@ def guion_tabla(lang):
                                        T('húmedo', 'wet'): 7, T('seco', 'dry'): 7},
               'hay tres categorías: 8 ausencias, 7 húmedos y 7 secos', str(clases_del_mapeo(at)))
     b = control(at, 'button', 'mrf_leer')
-    comprobar(b is not None and b.disabled and '22' in b.label,
-              'sin proyecto de Earth Engine, el botón de leer está desactivado',
+    # Sin proyecto, la cuenta compartida de MonitorEO (26-11-2026): se puede leer.
+    comprobar(b is not None and not b.disabled and '22' in b.label
+              and hay(at, T('**cuenta compartida de MonitorEO**',
+                            '**MonitorEO shared account**')),
+              'sin proyecto de Earth Engine, se lee con la cuenta compartida de MonitorEO',
               f'{b.label if b else None}')
     comprobar(hay(at, T('1 · Datos · 22 muestras', '1 · Data · 22 samples'))
               and hay(at, T('2 · Tabla · sin leer', '2 · Table · not read yet')),
@@ -2139,7 +2143,7 @@ def guion_tabla(lang):
     otra = nueva()
     comprobar(control(otra, 'text_input', 'mrf_proyecto') is None
               and any(t.value == 'ee-proyecto-de-prueba' for t in otra.text_input
-                      if 'Earth Engine' in t.label),
+                      if 'Google Cloud' in t.label),
               'al abrir de nuevo, aparece ya escrito en el panel lateral (y la pestaña del '
               'mapa no lo vuelve a pedir)')
 
@@ -3410,7 +3414,7 @@ def guion_sin_puntos(lang):
         ae.session_state['ui_lang'] = lang
         ae.run()
         [r for r in ae.radio if r.label == 'Backend'][0].set_value(
-            '🌍  Google Earth Engine (requiere cuenta) — más rápido')
+            '🌍  Google Earth Engine — más rápido (cuenta compartida o la tuya)')
         ae.run()
         boton(ae, 'probar_ejemplo').click()
         ae.run()

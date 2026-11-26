@@ -177,6 +177,10 @@ def selftest(res: Path) -> int:
     comprobar('scipy.ndimage', lambda: __import__('scipy.ndimage', fromlist=['ndimage']))
     comprobar('sklearn', lambda: __import__('sklearn.ensemble', fromlist=['ensemble']))
     comprobar('pyproj', lambda: __import__('pyproj'))
+    # La cuenta compartida de MonitorEO (gee_backend, 26-11-2026): sus permisos de una
+    # hora van con google.oauth2 y se piden con requests.
+    comprobar('cuenta compartida de Earth Engine (google.oauth2, requests)',
+              lambda: (__import__('google.oauth2.credentials'), __import__('requests')))
 
     # 2) Recursos que deben viajar dentro del ejecutable.
     comprobar('app.py incluido', lambda: (res / 'app.py').read_text(encoding='utf-8'))
@@ -307,7 +311,7 @@ def main():
 
     url = f'http://localhost:{port}'
     print('=' * 64)
-    print(f'  {APP_NAME} — detección de borreguiles / wet-meadow finder')
+    print(f'  {APP_NAME} · Wet Meadow Finder — buscador y mapa de borreguiles')
     print('=' * 64)
     print(f'  Abriendo el navegador en:  {url}')
     print(f'  Tus modelos y salidas:     {out}')

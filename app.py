@@ -765,6 +765,18 @@ def _num(v, nd=3, signo=False):
     return t if i18n.get_lang() == 'en' else t.replace('.', ',')
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _uso_cuenta_compartida():
+    """Las horas de cálculo que le quedan a este ordenador en la cuenta compartida de
+    MonitorEO (gee_backend.uso_compartida), preguntadas como mucho cada 5 minutos; None
+    si su servicio no responde o no hay earthengine-api."""
+    try:
+        import gee_backend as geb
+        return geb.uso_compartida()
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
 def _n3(v):
     """Número con 3 decimales: con coma en español y con punto en inglés."""
     return _num(v)
@@ -1454,7 +1466,7 @@ def live_logs(container):
 # ============================================================
 # UI
 # ============================================================
-st.set_page_config(page_title='Borreguil Pipeline',
+st.set_page_config(page_title='Borreguil · Wet Meadow Finder',
                     page_icon='🌿',
                     layout='wide',
                     initial_sidebar_state='expanded')
@@ -1478,7 +1490,7 @@ if _modelos_gh.get('estado') == 'descargados' and not st.session_state.get('_avi
              + i18n.pick('. Ya están en «Modelo de partida».',
                          '. They are already under "Starting model".'))
 
-st.title('🌿 Borreguil / Wet Meadow Pipeline')
+st.title('🌿 Borreguil · Wet Meadow Finder')
 st.markdown(i18n.pick(
     'Identificación automática de borreguiles en zonas de montaña con imagen aérea, '
     'relieve (Copernicus DEM), Sentinel-2, radar Sentinel-1 y Random Forest. '
@@ -1842,29 +1854,93 @@ with st.sidebar:
     st.divider()
     st.header('Fuente de datos satelitales')
     backend_label = st.radio('Backend', [
-        '🌍  Google Earth Engine (requiere cuenta) — más rápido',
+        '🌍  Google Earth Engine — más rápido (cuenta compartida o la tuya)',
         '🛰  Microsoft Planetary Computer (sin cuenta)',
     ], index=0, label_visibility='collapsed')
     backend = 'gee' if backend_label.startswith('🌍') else 'mpc'
     st.caption(i18n.pick(
-        'Earth Engine calcula las variables en sus servidores, en segundos. Planetary '
-        'Computer no necesita cuenta, pero es más lento y no lee el radar (Sentinel-1): '
-        'con él, la app usa una versión del modelo entrenada sin radar, que acierta algo '
-        'menos. Si Earth Engine no está disponible, la app usa Planetary Computer.',
-        'Earth Engine computes the variables on its servers, in seconds. Planetary '
-        'Computer needs no account, but it is slower and does not read the radar '
-        '(Sentinel-1): with it, the app uses a version of the model trained without '
-        'radar, which is somewhat less accurate. If Earth Engine is not available, the '
-        'app uses Planetary Computer.'))
+        'Earth Engine calcula las variables en sus servidores, en segundos; de entrada, '
+        'con la cuenta compartida de MonitorEO, sin cuenta propia. Planetary Computer es '
+        'más lento y no lee el radar (Sentinel-1): con él, la app usa una versión del '
+        'modelo entrenada sin radar, que acierta algo menos. Si Earth Engine no está '
+        'disponible, la app usa Planetary Computer.',
+        'Earth Engine computes the variables on its servers, in seconds; by default with '
+        'the MonitorEO shared account, with no account of your own. Planetary Computer '
+        'is slower and does not read the radar (Sentinel-1): with it, the app uses a '
+        'version of the model trained without radar, which is somewhat less accurate. If '
+        'Earth Engine is not available, the app uses Planetary Computer.'))
 
     gee_project = ''
     if backend == 'gee':
-        # Arranca con el último proyecto con el que la conexión funcionó.
-        gee_project = st.text_input('Proyecto Google Earth Engine',
-                                      value=leer_ajuste('gee_project', ''),
-                                      placeholder='ee-tunombre',
-                                      help=('Nombre del proyecto de Google Cloud con la '
-                                            'Earth Engine API habilitada.'))
+        # Vacío: la cuenta compartida de MonitorEO, como en sus herramientas (26-11-2026,
+        # la autora: «que use la cuenta de servicio de monitoreo, que esté por defecto y
+        # que el usuario pueda elegir su propia cuenta»). Con un proyecto, la cuenta de
+        # Google de quien usa la app. Arranca con el último proyecto con el que la
+        # conexión funcionó (vacío si se eligió la compartida).
+        gee_project = st.text_input(
+            i18n.pick('Proyecto de Google Cloud (vacío: cuenta compartida)',
+                      'Google Cloud project (empty: shared account)'),
+            value=leer_ajuste('gee_project', ''),
+            placeholder=i18n.pick('vacío: cuenta compartida de MonitorEO · o tu proyecto',
+                                  'empty: MonitorEO shared account · or your project'),
+            help=i18n.pick(
+                '**Vacío**: la app calcula en Earth Engine con la **cuenta compartida de '
+                'MonitorEO**, sin iniciar sesión ni tener cuenta propia. Cada ordenador '
+                'tiene unas horas de cálculo de Earth Engine al mes, para uso no '
+                'comercial; quien las gasta puede usar su propia cuenta hasta el mes '
+                'siguiente.\n\n'
+                '**Con tu proyecto de Google Cloud** registrado en Earth Engine (por '
+                'ejemplo `ee-tunombre`), calcula con tu cuenta de Google y gasta la cuota '
+                'de ese proyecto. Se recuerda para la próxima vez. Para registrar uno: '
+                'https://code.earthengine.google.com/register.\n\n'
+                '**🔑 Autenticar GEE** abre el navegador para entrar con tu cuenta de '
+                'Google: solo hace falta con tu proyecto, y una vez en cada ordenador. '
+                '**✓ Probar conexión** comprueba que funciona; no es obligatorio, porque '
+                'la app se conecta sola al calcular.',
+                '**Empty**: the app computes in Earth Engine with the **MonitorEO shared '
+                'account**, with no sign-in and no account of your own. Each computer has '
+                'some Earth Engine compute hours a month, for non-commercial use; whoever '
+                'spends them can use their own account until the next month.\n\n'
+                '**With your Google Cloud project** registered in Earth Engine (for '
+                'instance `ee-yourname`), it computes with your Google account and uses '
+                'the quota of that project. It is remembered for the next time. To '
+                'register one: https://code.earthengine.google.com/register.\n\n'
+                '**🔑 Authenticate GEE** opens the browser to sign in with your Google '
+                'account: it is only needed with your project, and once on each computer. '
+                '**✓ Test connection** checks that it works; it is not required, because '
+                'the app connects by itself when it computes.'))
+        if not gee_project.strip() and leer_ajuste('gee_project', ''):
+            guardar_ajuste('gee_project', '')        # ha vuelto a la cuenta compartida
+        if gee_project.strip():
+            st.caption(i18n.pick(
+                'Con **tu cuenta de Google** y la cuota de ese proyecto. La primera vez en '
+                'este ordenador, pulsa **🔑 Autenticar GEE**.',
+                'With **your Google account** and the quota of that project. The first '
+                'time on this computer, press **🔑 Authenticate GEE**.'))
+        else:
+            _uso = _uso_cuenta_compartida()
+            _txt_uso = i18n.pick(
+                'Con la **cuenta compartida de MonitorEO**: sin iniciar sesión ni cuenta '
+                'propia.',
+                'With the **MonitorEO shared account**: no sign-in and no account of your '
+                'own.')
+            if _uso and _uso.get('left_hours') is not None:
+                _txt_uso += ' ' + i18n.pick(
+                    f"Te quedan **{_num(_uso['left_hours'])} h** de cálculo este mes "
+                    f"(de {_num(_uso.get('limit_hours'))}; se renuevan el "
+                    f"{_uso.get('resets', 'día 1')}).",
+                    f"You have **{_num(_uso['left_hours'])} h** of compute left this month "
+                    f"(of {_num(_uso.get('limit_hours'))}; they renew on "
+                    f"{_uso.get('resets', 'the 1st')}).")
+            st.caption(_txt_uso)
+            if _uso and _uso.get('restricted'):
+                st.warning(i18n.pick(
+                    'Earth Engine ha limitado ahora la cuenta compartida (ha gastado su '
+                    'cuota de este mes): los cálculos irán lentos y alguno puede fallar. '
+                    'Si tienes cuenta propia, escribe tu proyecto.',
+                    'Earth Engine is now limiting the shared account (it has spent its '
+                    'quota for this month): computations will be slow and some may fail. '
+                    'If you have your own account, write your project.'))
         c1, c2 = st.columns(2)
         with c1:
             if st.button('🔑 Autenticar GEE'):
@@ -5826,24 +5902,21 @@ with tab_tipos:
 
             # El proyecto de Earth Engine es el del panel lateral (ya no se vuelve a pedir
             # aquí, 24-11-2026). Si allí está elegido Planetary Computer, el último con
-            # el que Earth Engine funcionó.
+            # el que Earth Engine funcionó. Vacío: la cuenta compartida de MonitorEO
+            # (26-11-2026), que también vale para leer las variables y hacer el mapa.
             _proy = gee_project.strip() or leer_ajuste('gee_project', '')
             st.caption(i18n.pick(
-                f'Años de Sentinel-2: **{years_str}** · proyecto de Earth Engine: '
-                f"**{_proy or 'ninguno'}** (los dos, del panel lateral).",
-                f'Sentinel-2 years: **{years_str}** · Earth Engine project: '
-                f"**{_proy or 'none'}** (both from the sidebar)."))
-            if not _proy.strip():
-                st.warning(i18n.pick(
-                    'Para leer las variables hace falta **Earth Engine**: en el panel '
-                    'lateral, elígelo como fuente de los datos y escribe tu proyecto.',
-                    'Reading the variables needs **Earth Engine**: in the sidebar, choose '
-                    'it as the data source and enter your project.'))
+                f'Años de Sentinel-2: **{years_str}** · Earth Engine: '
+                + (f'proyecto **{_proy}**' if _proy else '**cuenta compartida de MonitorEO**')
+                + ' (los dos, del panel lateral).',
+                f'Sentinel-2 years: **{years_str}** · Earth Engine: '
+                + (f'project **{_proy}**' if _proy else '**MonitorEO shared account**')
+                + ' (both from the sidebar).'))
             _rm = st.session_state.pop('_mrf_msg', None)
             if _rm:
                 (st.success if _rm[0] == 'ok' else st.warning)(_rm[1])
 
-            _puede = bool(_res['listo'] and _predictores and _anios and _proy.strip())
+            _puede = bool(_res['listo'] and _predictores and _anios)
             if not _res['listo']:
                 st.caption(i18n.pick(
                     'Antes hay que resolver lo que se indica en «1 · Datos».',
@@ -7567,13 +7640,15 @@ with tab_tipos:
                             'Va para largo. Mientras se hace el mapa **no uses la app**: '
                             'cualquier clic lo interrumpe. Si se interrumpe no se pierde '
                             'lo leído: vuelve a pulsar el botón y sigue donde iba. Los '
-                            'mapas grandes también gastan más cuota de tu proyecto de '
-                            'Earth Engine.',
+                            'mapas grandes también gastan más horas de cálculo de Earth '
+                            'Engine (las de la cuenta compartida o la cuota de tu '
+                            'proyecto).',
                             'This will take a while. While the map is being made **do '
                             'not use the app**: any click interrupts it. If it is '
                             'interrupted, what has been read is not lost: press the '
                             'button again and it carries on where it was. Large maps '
-                            'also use more of your Earth Engine project quota.'))
+                            'also use more Earth Engine compute hours (those of the '
+                            'shared account or the quota of your project).'))
 
                 # ---- dónde cae: la zona y las muestras sobre la ortofoto
                 if _rej and st.toggle(i18n.pick('Ver la zona en un mapa',
@@ -7677,11 +7752,7 @@ with tab_tipos:
                         '**The mask of candidate zones is missing.** Without it, this '
                         'model cannot make the map. Upload it above or train a model '
                         'that includes the field absences ("1 · Data").'))
-                if not _proy.strip():
-                    st.caption(i18n.pick(
-                        'Escribe el proyecto de Earth Engine en el panel lateral.',
-                        'Enter the Earth Engine project in the sidebar.'))
-                _puede_mapa = bool(_rej and not _pega and _proy.strip() and not _pur_mal
+                _puede_mapa = bool(_rej and not _pega and not _pur_mal
                                    and not _amb_mal
                                    and (_con_aus or _masc is not None))
                 if st.button(i18n.pick('🗺️ Hacer el mapa', '🗺️ Make the map'),
