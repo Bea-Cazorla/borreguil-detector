@@ -51,7 +51,7 @@ sistema, descomprímelo y ejecuta el programa:
 
 - **Si hay una versión publicada** en [**Releases**](../../releases), descárgala de ahí. No
   hace falta cuenta.
-- **Si Releases está vacía** (ahora todavía lo está), descárgalo de la última compilación.
+- **Si Releases está vacía**, descárgalo de la última compilación.
   Hace falta una cuenta de GitHub (es gratis) y haber entrado con ella:
   1. Abre la [lista de compilaciones](https://github.com/monitoreo-obsnev/borreguil-detector/actions/workflows/build-standalone.yml?query=is%3Asuccess)
      y entra en la primera, que es la más reciente.

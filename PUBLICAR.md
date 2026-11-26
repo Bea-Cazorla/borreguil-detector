@@ -122,17 +122,18 @@ Esto dispara automáticamente:
    release**. Entonces cualquiera la descarga sin cuenta y, si Zenodo está
    conectado, **Zenodo la archiva y asigna el DOI**.
 
-> **La `v1.0.3` y la `v1.0.5` (26-11-2026) están como borrador** (al abrirse, el
-> programa se actualiza solo al último código publicado). El 26-11-2026 quedó decidido
+> **La `v1.0.5` es pública desde el 26-11-2026** (*Latest*, sin cuenta); la `v1.0.3`
+> sigue como borrador y se puede borrar (al abrirse, el programa se actualiza solo al
+> último código publicado). El 26-11-2026 quedó decidido
 > el DOI: autores los tres de `CITATION.cff`, con sus filiaciones; agradecimientos a
 > EVEREST y PRESINMED y a sus investigadores principales (`.zenodo.json` y README); y
 > la tabla de entrenamiento puede ir a Zenodo. El DOI lo sube Bea a mano (Paso 3).
 > La Release **`v1.0.5`** de GitHub se publica aparte (la `v1.0.3` se puede borrar
 > entonces); antes, que quien administra el repositorio compruebe en **Settings →
-> Webhooks** que no hay uno de `zenodo.org`, para no crear un segundo DOI. Al hacerla pública, en el README, el TUTORIAL (2.1) y la wiki
-> (Primeros pasos / Getting started), quita «(ahora todavía lo está)» / «(it still is
-> for now)»: desde ese momento las descargas están en Releases, sin cuenta. En cada
-> versión nueva, pon antes en `date-released` la fecha del día.
+> Webhooks** que no hay uno de `zenodo.org`, para no crear un segundo DOI. Hecho:
+> ya se quitó «(ahora todavía lo está)» / «(it still is for now)» del README, el
+> TUTORIAL (2.1) y la wiki. En cada versión nueva, pon antes en `date-released` la
+> fecha del día, y súbela a Zenodo a mano (Paso 3).
 
 ---
 
