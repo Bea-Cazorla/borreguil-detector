@@ -17,6 +17,7 @@ APP = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(APP))
 # sin buscar modelos en GitHub al abrir la app (modelos_remotos.py)
 os.environ.setdefault('BORREGUIL_MODELOS_URL', '')
+os.environ.setdefault('BORREGUIL_SIN_REGISTRO', '1')   # sin registro.log en ~/Borreguil
 os.chdir(APP)
 
 import borreguil_pipeline as bp  # noqa: E402

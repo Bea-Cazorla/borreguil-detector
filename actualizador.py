@@ -74,7 +74,7 @@ INSTALADOR = 1
 MODULOS_APP = ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
                'gee_backend.py', 'random_points.py', 'study_area.py', 'mapeo_rf.py',
                'mapeo_raster.py', 'mapeo_tif.py', 'mapeo_ambiente.py',
-               'modelos_remotos.py')
+               'modelos_remotos.py', 'registros.py')
 # Documentación y datos pequeños que cambian con el código. Los modelos (.joblib) y la
 # tabla de entrenamiento no: van con su modelo.
 DOCS_APP = ('MANUAL.md', 'TUTORIAL.md', 'CITATION.cff', 'LICENSE')

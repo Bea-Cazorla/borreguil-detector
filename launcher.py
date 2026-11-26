@@ -141,11 +141,11 @@ def selftest(res: Path) -> int:
         bp._imports()
     comprobar('importar el pipeline y sus dependencias', _pipeline)
     comprobar('módulos de la interfaz (point_profile, i18n, mapeo_rf, mapeo_raster, '
-              'mapeo_tif, mapeo_ambiente, modelos_remotos)',
+              'mapeo_tif, mapeo_ambiente, modelos_remotos, registros)',
               lambda: (__import__('point_profile'), __import__('i18n'),
                        __import__('mapeo_rf'), __import__('mapeo_raster'),
                        __import__('mapeo_tif'), __import__('mapeo_ambiente'),
-                       __import__('modelos_remotos')))
+                       __import__('modelos_remotos'), __import__('registros')))
 
     # El mapa de tipos usa partes de shapely, pyproj y Pillow que nada más toca, y
     # escribe sus GeoTIFF con tifffile (sin rasterio: Windows lo bloquea en algunos

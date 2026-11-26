@@ -44,6 +44,7 @@ from streamlit_folium import st_folium
 import point_profile as pp
 import i18n
 import modelos_remotos as mrm
+import registros
 
 # Carpeta ESCRIBIBLE del usuario. En la versión standalone (ejecutable) APP_DIR es
 # una carpeta temporal de solo lectura que se borra al salir, así que lo que el
@@ -283,9 +284,8 @@ def get_secret(key, default=None):
 # rellenar cualquiera con el enlace. Se abre con la versión ya puesta.
 REPO_URL = 'https://github.com/monitoreo-obsnev/borreguil-detector'
 WIKI_URL = REPO_URL + '/wiki'
-FORMULARIO_URL = ('https://docs.google.com/forms/d/e/'
-                  '1FAIpQLScq7UehnDlaNaYsq9DZNhXc-CxRo57KgdT9e98U0q1xGglRPg/viewform')
-FORMULARIO_CAMPO_VERSION = 'entry.666897268'
+FORMULARIO_URL = registros.FORMULARIO
+FORMULARIO_CAMPO_VERSION = registros.CAMPOS['version']
 
 
 def version_app():
@@ -315,8 +315,97 @@ def enlaces_sugerencias(version=None):
     return {'issue': issue, 'form': form, 'wiki': WIKI_URL}
 
 
-def mostrar_sugerencias():
-    """El manual y cómo sugerir un cambio o informar de un error."""
+# ── Registros (26-11-2026, la autora: «en las incidencias que suban los log de la app,
+# tal cual en monitoreo está hecho en el asistente») ───────────────────────────────
+# Desde la primera pasada, lo que sale por la consola se apunta también en registro.log
+# de la carpeta Borreguil (registros.py). «Enviar los registros», en «Sugerir un cambio o
+# informar de un error» y debajo de cada error de la app, enseña sus últimas líneas, sin
+# lo que diría quién es, para leerlas, cambiarlas o borrarlas, y las envía con el
+# formulario anónimo (en «Texto de la consola»), como el asistente de MonitorEO.
+registros.empezar(version_app())
+
+
+def _textos_registros():
+    return registros.TEXTOS[i18n.get_lang()]
+
+
+def _abrir_registros():
+    """on_click de «Enviar los registros»: corre antes que el guion, así que vale también
+    si el botón ya no se dibuja en la pasada siguiente (el error que lo llevaba)."""
+    st.session_state['_abrir_registros'] = True
+    st.session_state['registros_texto'] = registros.recoger(
+        version_app(), ocultar=[leer_ajuste('gee_project', '')])
+    for clave in ('registros_enviados', 'registros_fallo'):
+        st.session_state.pop(clave, None)
+
+
+def abrir_dialogo_registros():
+    """La ventana de «Enviar los registros»: qué es, qué estabas haciendo (opcional), en
+    qué parte de la app, los registros (para leerlos, cambiarlos o borrarlos) y Enviar."""
+    t = _textos_registros()
+    es = i18n.get_lang() != 'en'
+
+    @st.dialog(t['boton'], width='large')
+    def _dialogo():
+        st.caption(t['ayuda'])
+        partes = list(registros.PARTES)
+        parte = st.selectbox(t['parte'], partes, index=partes.index('otra'),
+                             format_func=lambda k: registros.PARTES[k][0 if es else 1],
+                             key='registros_parte')
+        descripcion = st.text_area(t['descripcion'], key='registros_descripcion', height=90)
+        texto = st.text_area(t['registros'], key='registros_texto', height=340)
+        if st.session_state.get('registros_enviados'):
+            st.success(t['enviados'])
+            return
+        cancelar, enviar = st.columns(2)
+        if cancelar.button(t['cancelar'], key='registros_cancelar', width='stretch'):
+            st.rerun()                      # cierra la ventana sin enviar nada
+        if enviar.button(t['enviar'], type='primary', key='registros_enviar', width='stretch'):
+            if not (texto or '').strip():
+                st.warning(t['vacio'])
+                return
+            try:
+                with st.spinner(i18n.pick('Enviando…', 'Sending…')):
+                    registros.enviar(texto, version_app(), descripcion, parte)
+            except Exception as ex:         # sin conexión, el formulario no los coge…
+                st.session_state['registros_fallo'] = str(ex)
+            else:
+                st.session_state['registros_enviados'] = True
+                st.success(t['enviados'])
+        if st.session_state.get('registros_fallo'):
+            # st.warning y no st.error: st.error pondría otro «Enviar los registros»
+            st.warning(st.session_state['registros_fallo'])
+
+    _dialogo()
+
+
+def _vigilar_errores():
+    """Cada st.error se apunta en el registro (con la traza, si viene de un error de
+    Python) y lleva debajo «Enviar los registros», como el botón junto a cada error del
+    asistente de MonitorEO. Una vez por programa (después de i18n)."""
+    original = st.error
+    if getattr(original, '_registra', False):
+        return
+
+    def error(body='', *args, **kwargs):
+        registros.anotar_error(body, sys.exc_info())
+        salida = original(body, *args, **kwargs)
+        import hashlib
+        clave = 'registros_error_' + hashlib.md5(str(body).encode('utf-8')).hexdigest()[:12]
+        try:
+            st.button(_textos_registros()['boton'], key=clave, type='tertiary',
+                      on_click=_abrir_registros)
+        except Exception:     # el mismo error dos veces en una pasada, o dentro de un st.form
+            pass
+        return salida
+
+    error._registra = True
+    st.error = error
+
+
+def mostrar_sugerencias(donde='lateral'):
+    """El manual y cómo sugerir un cambio o informar de un error. DONDE distingue sus
+    botones (el panel lateral y la documentación)."""
     e = enlaces_sugerencias()
     st.markdown(i18n.pick(
         f'📖 [Manual (wiki), en español e inglés]({e["wiki"]})\n\n'
@@ -333,6 +422,9 @@ def mostrar_sugerencias():
         + (f'\n- [Anonymous form]({e["form"]}): no account, no name and no email, so '
            'nobody can answer you. The version is already filled in.'
            if e['form'] else '')))
+    if e['form']:       # los registros de este ordenador, con el formulario anónimo
+        st.button('→ ' + _textos_registros()['menu'], key=f'registros_{donde}',
+                  type='tertiary', on_click=_abrir_registros)
     st.caption(i18n.pick(
         'No pegues coordenadas de borreguiles: son un hábitat sensible.',
         'Do not paste the coordinates of borreguiles: they are a sensitive habitat.'))
@@ -623,7 +715,7 @@ def render_docs():
 
     # ---- 6. Manual y sugerencias --------------------------------------------
     st.markdown(i18n.pick('### 💬 Manual y sugerencias', '### 💬 Manual and suggestions'))
-    mostrar_sugerencias()
+    mostrar_sugerencias('documentacion')
 
 
 # ---- Qué modelo ha dado la probabilidad y cuánto acierta con los puntos de campo ----
@@ -1411,7 +1503,10 @@ class _SalidaPorHilo(io.TextIOBase):
         return w if w is not None else self.original
 
     def write(self, s):
-        return self._destino().write(s)
+        destino = self._destino()
+        if destino is not self.original:   # lo del análisis, también al registro
+            registros.anotar(s)
+        return destino.write(s)
 
     def flush(self):
         try:
@@ -1479,6 +1574,9 @@ _lang_choice = st.sidebar.selectbox(
     index=0, key='ui_lang')
 i18n.set_lang('en' if _lang_choice == 'English' else 'es')
 i18n.install(st)   # traduce todos los st.* a partir de aquí (fallback a ES)
+_vigilar_errores()  # cada st.error, al registro, y con «Enviar los registros» si es de Python
+if st.session_state.pop('_abrir_registros', False):
+    abrir_dialogo_registros()
 
 # --- Modelos nuevos de GitHub ------------------------------------------------
 # Una vez por arranque (antes del desplegable de modelos, para que ya salgan en él).

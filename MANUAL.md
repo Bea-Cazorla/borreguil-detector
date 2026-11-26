@@ -1839,6 +1839,16 @@ con cuenta de GitHub; puedes pegar pantallazos y seguir la respuesta). Sin cuent
 texto de la consola. No pide nombre ni correo, así que no te podrán contestar. No
 pegues coordenadas de borreguiles: son un hábitat sensible.
 
+**Enviar los registros.** La app apunta lo que hace y los errores que tiene en
+`registro.log`, en la carpeta **Borreguil** de tu usuario (guarda solo lo más
+reciente). Si algo falla, pulsa **→ Enviar los registros de este ordenador**, en el
+mismo apartado, o **Enviar los registros**, debajo del error: se abre una ventana con
+las últimas líneas, sin tus carpetas, tu nombre de usuario, el del ordenador, correos,
+claves ni tu proyecto de Earth Engine. Léelas y borra o cambia lo que prefieras no
+enviar; di, si quieres, qué estabas haciendo y en qué parte de la app, y pulsa
+**Enviar**: van al equipo con el formulario anónimo. Es lo mismo que «Enviar los
+registros» del asistente de MonitorEO.
+
 Si usas este programa en un trabajo científico, cítalo mediante el **DOI** de la
 versión utilizada (ver `CITATION.cff` y la página de Zenodo del repositorio).
 
