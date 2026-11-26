@@ -79,6 +79,13 @@ git push -u origin main
 > Debe hacerse **antes** de crear la primera Release: Zenodo solo archiva las
 > versiones publicadas después de activarlo.
 
+> **Este repositorio es de la organización `monitoreo-obsnev`** (desde el 26-11-2026).
+> El interruptor lo ve quien administra la organización, entrando en Zenodo con su
+> cuenta de GitHub. Para saber si ya está conectado, en GitHub: el repositorio →
+> **Settings → Webhooks**. Si hay uno de `zenodo.org`, cada Release crea un DOI, y un
+> DOI no se puede borrar. Si todavía no queréis DOI, apagad el interruptor en Zenodo
+> antes de publicar.
+
 ---
 
 ## Paso 4 · Publicar la primera versión
@@ -97,6 +104,12 @@ Esto dispara automáticamente:
 
 Si prefieres hacerlo desde la web: **Releases → Draft a new release → Create new
 tag `v1.0.0` → Publish release**.
+
+> **La primera versión publicada será la `v1.0.3`** (la de `CITATION.cff`). Antes de
+> la etiqueta, pon en `date-released` la fecha del día. Después, en el README, el
+> TUTORIAL (2.1) y la wiki (Primeros pasos / Getting started), quita «(ahora todavía
+> lo está)» / «(it still is for now)»: desde ese momento las descargas están en
+> Releases, sin cuenta.
 
 ---
 

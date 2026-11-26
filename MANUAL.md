@@ -57,7 +57,9 @@ validación espacial honesta
 ## 2. Instalación y arranque
 
 No hay instalación: se descomprime y se ejecuta. Todo va dentro (Python,
-librerías y modelos).
+librerías y modelos). Dónde descargarlo: [TUTORIAL, 2.1](TUTORIAL.md#21-descargar)
+(en *Releases* cuando haya una versión publicada; mientras, en la última compilación,
+con cuenta de GitHub).
 
 | Sistema | Fichero | Ejecutar |
 |---|---|---|

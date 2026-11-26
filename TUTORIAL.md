@@ -50,8 +50,17 @@ El programa los busca automáticamente:
 
 ### 2.1 Descargar
 
-Ve a la página de **Releases** del repositorio (cuando haya una versión publicada) y
-descarga el archivo de tu sistema:
+Descarga el archivo de tu sistema:
+
+- **Si hay una versión publicada** en la página de
+  [**Releases**](https://github.com/monitoreo-obsnev/borreguil-detector/releases),
+  descárgala de ahí. No hace falta cuenta.
+- **Si Releases está vacía** (ahora todavía lo está), descárgalo de la última compilación.
+  Hace falta una cuenta de GitHub (es gratis) y haber entrado con ella: abre la
+  [lista de compilaciones](https://github.com/monitoreo-obsnev/borreguil-detector/actions/workflows/build-standalone.yml?query=is%3Asuccess),
+  entra en la primera (la más reciente), baja hasta **Artifacts** y pulsa el de tu
+  sistema. Se descarga un `.zip` que tiene **otro dentro**: descomprime los dos. Cada
+  compilación se puede descargar durante 30 días.
 
 | Tu ordenador | Archivo a descargar |
 |---|---|

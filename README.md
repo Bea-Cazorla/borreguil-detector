@@ -35,9 +35,8 @@ versiones sin radar (0,833 y 0,937). Por defecto el modelo se usa tal cual; con
 
 ## ⬇️ Descargar el programa (recomendado)
 
-**No necesitas instalar Python ni ninguna librería.** Cuando haya una versión
-publicada, descarga el ejecutable de tu sistema desde la página de
-[**Releases**](../../releases), descomprime y ejecuta:
+**No necesitas instalar Python ni ninguna librería.** Descarga el archivo de tu
+sistema, descomprímelo y ejecuta el programa:
 
 | Sistema | Archivo |
 |---|---|
@@ -45,6 +44,22 @@ publicada, descarga el ejecutable de tu sistema desde la página de
 | macOS Apple Silicon (M1-M4), con macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
 | macOS Intel | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte; si no, usa el código fuente) |
 | Linux x86-64 | `Borreguil-linux.tar.gz` |
+
+**Dónde está:**
+
+- **Si hay una versión publicada** en [**Releases**](../../releases), descárgala de ahí. No
+  hace falta cuenta.
+- **Si Releases está vacía** (ahora todavía lo está), descárgalo de la última compilación.
+  Hace falta una cuenta de GitHub (es gratis) y haber entrado con ella:
+  1. Abre la [lista de compilaciones](https://github.com/monitoreo-obsnev/borreguil-detector/actions/workflows/build-standalone.yml?query=is%3Asuccess)
+     y entra en la primera, que es la más reciente.
+  2. Baja hasta el final de la página, a **Artifacts**, y pulsa el de tu sistema (por
+     ejemplo `Borreguil-windows`).
+  3. Se descarga un `.zip` que tiene **otro dentro** (`Borreguil-windows.zip`).
+     Descomprime los dos.
+
+  Cada compilación se puede descargar durante 30 días. Si la primera no tiene tu sistema
+  o pone que ha caducado (*expired*), prueba con la siguiente o avisa en [Issues](https://github.com/monitoreo-obsnev/borreguil-detector/issues).
 
 Al abrirlo, el programa se actualiza solo con la última versión de la app (ver el
 [MANUAL](MANUAL.md#2-instalación-y-arranque)).
