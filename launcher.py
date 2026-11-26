@@ -21,8 +21,21 @@ Diseño:
     descarga, la comprueba y arranca con ella (actualizador.py; 25-11-2026, para las
     aulas). Sin conexión, sigue con el código que haya.
 
+  · VERSIÓN CON VENTANA PROPIA (rama «pywebview», 26-11-2026, la autora: «hazme una
+    versión de la app en pywebview»): la app se abre en una ventana del programa
+    (pywebview, con el motor web del sistema: Edge WebView2 en Windows, WebKit en Mac)
+    en lugar de en el navegador. El servidor de Streamlit va en otro proceso (este mismo
+    programa con --servidor), porque pywebview y Streamlit quieren los dos el hilo
+    principal. Al cerrar la ventana se cierra también el servidor. Si la ventana no se
+    puede abrir (Linux sin GTK ni Qt, por ejemplo), se abre el navegador como siempre.
+
 Ejecutar en desarrollo (sin compilar):  python launcher.py
 Opciones:
+  --navegador              abrir la app en el navegador, como la versión normal.
+  --servidor               (interno) solo el servidor de Streamlit, sin ventana: lo
+                           lanza la ventana en otro proceso.
+  --probar-ventana         abrir la ventana, comprobar que la app se ve en ella y
+                           cerrarla (lo usa la compilación).
   --selftest               autodiagnóstico del ejecutable (lo usa la compilación).
   --probar-codigo CARPETA  el mismo autodiagnóstico con el código de CARPETA (lo usa
                            el actualizador antes de dar por buena una versión nueva).
@@ -36,6 +49,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -177,6 +191,7 @@ def selftest(res: Path) -> int:
     comprobar('scipy.ndimage', lambda: __import__('scipy.ndimage', fromlist=['ndimage']))
     comprobar('sklearn', lambda: __import__('sklearn.ensemble', fromlist=['ensemble']))
     comprobar('pyproj', lambda: __import__('pyproj'))
+    comprobar('pywebview (la ventana del programa)', lambda: __import__('webview'))
 
     # 2) Recursos que deben viajar dentro del ejecutable.
     comprobar('app.py incluido', lambda: (res / 'app.py').read_text(encoding='utf-8'))
@@ -249,6 +264,163 @@ def buscar_version_nueva(res, out):
     return r
 
 
+TITULO_VENTANA = f'{APP_NAME} — detección de borreguiles'
+
+_PAGINA = """<!doctype html><html lang="es"><head><meta charset="utf-8">
+<title>{titulo}</title><style>
+html,body{{height:100%;margin:0}}
+body{{display:flex;align-items:center;justify-content:center;background:#F1F8E9;
+color:#1B1B1B;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}}
+.caja{{max-width:34em;padding:2em;text-align:center}}
+h1{{color:#2E7D32;font-size:1.6em;margin:0 0 .5em}} p{{line-height:1.5;margin:.4em 0}}
+.gira{{width:2.2em;height:2.2em;margin:1.4em auto 0;border-radius:50%;
+border:.3em solid #C5E1A5;border-top-color:#2E7D32;animation:g 1s linear infinite}}
+@keyframes g{{to{{transform:rotate(360deg)}}}}
+</style></head><body><div class="caja">{cuerpo}</div></body></html>"""
+
+CARGANDO = _PAGINA.format(
+    titulo=TITULO_VENTANA,
+    cuerpo='<h1>Borreguil</h1><p>Abriendo la app…</p>'
+           '<p>La primera vez puede tardar hasta un minuto.</p><div class="gira"></div>')
+
+NO_ARRANCA = _PAGINA.format(
+    titulo=TITULO_VENTANA,
+    cuerpo='<h1>No se ha podido abrir la app</h1>'
+           '<p>El motor de la app no ha arrancado. El motivo está en la ventana de '
+           'consola.</p><p>Cierra esta ventana y vuelve a abrir el programa. Si sigue '
+           'igual, copia el texto de la consola y avisa en '
+           'github.com/Bea-Cazorla/borreguil-detector/issues.</p>')
+
+
+def lanzar_servidor(port: int):
+    """El servidor de Streamlit en otro proceso: este mismo programa con --servidor.
+    No vuelve a buscar versiones nuevas: ya lo ha hecho este proceso."""
+    if getattr(sys, 'frozen', False):
+        cmd = [sys.executable]
+    else:
+        cmd = [sys.executable, str(Path(__file__).resolve())]
+    cmd += ['--servidor', '--sin-actualizar']
+    return subprocess.Popen(cmd, env=dict(os.environ, BORREGUIL_PUERTO=str(port)))
+
+
+def esperar_servidor(port: int, hijo, timeout: float = 180.0) -> bool:
+    """True en cuanto el servidor responde; False si el proceso termina o se agota el
+    tiempo."""
+    url = f'http://localhost:{port}/_stcore/health'
+    fin = time.time() + timeout
+    while time.time() < fin:
+        if hijo.poll() is not None:
+            return False
+        try:
+            with urllib.request.urlopen(url, timeout=3) as r:
+                if r.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(0.4)
+    return False
+
+
+def parar_servidor(hijo):
+    if hijo is None or hijo.poll() is not None:
+        return
+    hijo.terminate()
+    try:
+        hijo.wait(timeout=10)
+    except Exception:
+        hijo.kill()
+
+
+def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
+    """La app en su propia ventana (pywebview). Devuelve (estado, proceso del servidor):
+
+    - ('cerrada', None): la persona ha cerrado la ventana (y con ella, el servidor).
+    - ('sin_ventana', hijo o None): no se puede abrir la ventana; si el servidor ya
+      está en marcha, se devuelve para seguir con él en el navegador.
+    - con probar: ('ok' | 'no_arranca' | 'no_se_ve', None)."""
+    try:
+        import webview
+    except Exception as exc:                     # noqa: BLE001
+        print(f'  (sin ventana propia: {type(exc).__name__}: {exc})', flush=True)
+        return 'sin_ventana', None
+
+    hijo = lanzar_servidor(port)
+    resultado = {'estado': 'cerrada'}
+
+    def cargar(ventana):
+        if not esperar_servidor(port, hijo):
+            resultado['estado'] = 'no_arranca'
+            ventana.load_html(NO_ARRANCA)
+            if probar:
+                ventana.destroy()
+            return
+        ventana.load_url(url)
+        if not probar:
+            return
+        # Prueba: la app tiene que verse en la ventana (el panel lateral escrito por
+        # app.py, no solo el servidor).
+        resultado['estado'] = 'no_se_ve'
+        fin = time.time() + 150
+        while time.time() < fin:
+            time.sleep(2)
+            try:
+                texto = ventana.evaluate_js(
+                    'document.body ? document.body.innerText : ""') or ''
+            except Exception:                    # noqa: BLE001
+                texto = ''
+            if 'Área de estudio' in texto:
+                resultado['estado'] = 'ok'
+                break
+        ventana.destroy()
+
+    webview.settings['ALLOW_DOWNLOADS'] = True               # botones de descarga
+    webview.settings['OPEN_EXTERNAL_LINKS_IN_BROWSER'] = True  # GitHub, formulario…
+    ventana = webview.create_window(TITULO_VENTANA, html=CARGANDO, width=1400,
+                                    height=900, min_size=(900, 600),
+                                    maximized=not probar, text_select=True)
+    try:
+        # private_mode=False y una carpeta propia: la ventana recuerda lo que el
+        # navegador recordaría (preferencias de Streamlit) entre sesiones.
+        webview.start(cargar, (ventana,), private_mode=False,
+                      storage_path=str(out / '.ventana'))
+    except KeyboardInterrupt:
+        pass
+    except Exception as exc:                     # noqa: BLE001
+        print(f'  (no se ha podido abrir la ventana: {type(exc).__name__}: {exc})',
+              flush=True)
+        return 'sin_ventana', hijo
+    parar_servidor(hijo)
+    return resultado['estado'], None
+
+
+def arrancar_streamlit(app_path: Path, port: int):
+    """El servidor de Streamlit en este proceso (hasta que se cierre)."""
+    # Opciones de Streamlit. OJO: las claves usan guion bajo (la propia librería las
+    # convierte a 'server.address', etc.) y hay que cargarlas con load_config_options
+    # ANTES de run() — pasarlas solo a run() no surte efecto.
+    # server_address='localhost' evita exponer la app a toda la red local.
+    flag_options = {
+        # Dentro del ejecutable, Streamlit no reconoce su propia instalación y activa
+        # el «modo desarrollo», que es incompatible con fijar el puerto. Hay que
+        # desactivarlo explícitamente o el arranque falla.
+        'global_developmentMode': False,
+        'server_address': 'localhost',
+        'server_port': port,
+        'server_headless': True,
+        'server_fileWatcherType': 'none',
+        'server_maxUploadSize': 50,
+        'browser_gatherUsageStats': False,
+    }
+    from streamlit import config as _st_config
+    from streamlit.web import bootstrap
+    _st_config._main_script_path = str(app_path)   # como hace la CLI de Streamlit
+    bootstrap.load_config_options(flag_options=flag_options)
+    try:
+        bootstrap.run(str(app_path), is_hello=False, args=[], flag_options=flag_options)
+    except KeyboardInterrupt:
+        print('\nCerrando…')
+
+
 def main():
     res = resource_dir()
 
@@ -293,7 +465,9 @@ def main():
 
     # Configuración de Streamlit por entorno (evita depender de .streamlit/config.toml
     # y del asistente de primer arranque que pide un email).
-    port = free_port()
+    servidor = '--servidor' in sys.argv
+    port = (int(os.environ['BORREGUIL_PUERTO'])
+            if servidor and os.environ.get('BORREGUIL_PUERTO') else free_port())
     os.environ.setdefault('STREAMLIT_SERVER_HEADLESS', 'true')          # no abre él el navegador
     os.environ.setdefault('STREAMLIT_BROWSER_GATHER_USAGE_STATS', 'false')
     os.environ.setdefault('STREAMLIT_SERVER_PORT', str(port))
@@ -306,44 +480,51 @@ def main():
     os.environ.setdefault('STREAMLIT_THEME_TEXT_COLOR', '#1B1B1B')
 
     url = f'http://localhost:{port}'
+    if servidor:                          # el proceso que lanza la ventana
+        arrancar_streamlit(app_path, port)
+        return
+
+    sin_navegador = os.environ.get('BORREGUIL_NO_BROWSER', '').lower() in ('1', 'true',
+                                                                              'yes')
+    probar = '--probar-ventana' in sys.argv
+    con_ventana = probar or not ('--navegador' in sys.argv or sin_navegador)
+
     print('=' * 64)
     print(f'  {APP_NAME} — detección de borreguiles / wet-meadow finder')
     print('=' * 64)
-    print(f'  Abriendo el navegador en:  {url}')
+    if con_ventana:
+        print('  La app se abre en su propia ventana.')
+    else:
+        print(f'  Abriendo el navegador en:  {url}')
     print(f'  Tus modelos y salidas:     {out}')
     print()
-    print('  Deja ESTA ventana abierta mientras uses el programa.')
-    print('  Para cerrarlo: cierra esta ventana o pulsa Ctrl+C.')
+    print('  Deja ESTA ventana (la consola) abierta mientras uses el programa.')
+    if con_ventana:
+        print('  Para cerrarlo: cierra la ventana de la app.')
+    else:
+        print('  Para cerrarlo: cierra esta ventana o pulsa Ctrl+C.')
     print('=' * 64, flush=True)
 
-    if os.environ.get('BORREGUIL_NO_BROWSER', '').lower() not in ('1', 'true', 'yes'):
+    if con_ventana:
+        estado, hijo = abrir_en_ventana(url, port, out, probar=probar)
+        if probar:
+            print(f'  Prueba de la ventana: {estado}', flush=True)
+            sys.exit(0 if estado == 'ok' else 1)
+        if estado != 'sin_ventana':
+            return
+        print('  No se ha podido abrir la ventana de la app: se abre el navegador en',
+              url, flush=True)
+        if hijo is not None:              # el servidor ya está en marcha
+            open_browser_when_ready(url, port)
+            try:
+                hijo.wait()
+            except KeyboardInterrupt:
+                parar_servidor(hijo)
+            return
+
+    if not sin_navegador:
         open_browser_when_ready(url, port)
-
-    # Opciones de Streamlit. OJO: las claves usan guion bajo (la propia librería las
-    # convierte a 'server.address', etc.) y hay que cargarlas con load_config_options
-    # ANTES de run() — pasarlas solo a run() no surte efecto.
-    # server_address='localhost' evita exponer la app a toda la red local.
-    flag_options = {
-        # Dentro del ejecutable, Streamlit no reconoce su propia instalación y activa
-        # el «modo desarrollo», que es incompatible con fijar el puerto. Hay que
-        # desactivarlo explícitamente o el arranque falla.
-        'global_developmentMode': False,
-        'server_address': 'localhost',
-        'server_port': port,
-        'server_headless': True,
-        'server_fileWatcherType': 'none',
-        'server_maxUploadSize': 50,
-        'browser_gatherUsageStats': False,
-    }
-    from streamlit import config as _st_config
-    from streamlit.web import bootstrap
-    _st_config._main_script_path = str(app_path)   # como hace la CLI de Streamlit
-    bootstrap.load_config_options(flag_options=flag_options)
-    try:
-        bootstrap.run(str(app_path), is_hello=False, args=[], flag_options=flag_options)
-    except KeyboardInterrupt:
-        print('\nCerrando…')
-
+    arrancar_streamlit(app_path, port)
 
 if __name__ == '__main__':
     # En el ejecutable, un proceso hijo que lance una librería (multiprocessing,

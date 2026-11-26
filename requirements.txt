@@ -22,6 +22,10 @@ folium>=0.14
 # Minimo probado: la app usa width='stretch', que versiones antiguas no admiten.
 streamlit>=1.58
 streamlit-folium>=0.15
+# La ventana propia del programa (rama pywebview). En Windows usa Edge WebView2 (viene
+# con Windows 10/11) a través de pythonnet; en Mac, WebKit. En Linux necesita GTK o Qt:
+# si no los hay, el programa abre el navegador como la versión normal.
+pywebview>=5.0
 altair>=5
 pystac-client>=0.7
 planetary-computer>=1.0

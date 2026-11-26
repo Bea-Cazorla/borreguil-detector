@@ -69,6 +69,14 @@ for pkg in ('altair', 'folium', 'streamlit_folium', 'branca', 'jinja2', 'pydeck'
 for pkg in ('pyproj', 'geopandas', 'shapely', 'rasterio', 'fiona', 'pyogrio'):
     add_package(pkg)
 
+# --- La ventana propia (rama pywebview) ------------------------------------
+# Los hooks de pyinstaller-hooks-contrib (webview, clr, clr_loader) traen sus DLL y
+# su JavaScript; launcher.py importa webview dentro de una función, así que se
+# declara aquí también. En Windows va con pythonnet (clr).
+hiddenimports += ['webview']
+if sys.platform == 'win32':
+    hiddenimports += ['clr', 'clr_loader']
+
 # --- Ciencia de datos -------------------------------------------------------
 # (tifffile: con él escribe y lee el mapa sus GeoTIFF, sin rasterio)
 for pkg in ('sklearn', 'scipy', 'skimage', 'tifffile', 'joblib', 'numpy', 'pandas'):
