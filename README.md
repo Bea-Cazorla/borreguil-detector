@@ -44,7 +44,7 @@ Al abrirlo, el programa se actualiza solo con la última versión de la app (ver
 
 📖 **[TUTORIAL.md](TUTORIAL.md)** — primeros pasos, incluido el alta en Google Earth Engine
 📘 **[MANUAL.md](MANUAL.md)** — referencia completa de todas las opciones
-🌐 **[Wiki](https://github.com/Bea-Cazorla/borreguil-detector/wiki)** — manual en línea, en español e inglés
+🌐 **[Wiki](https://github.com/monitoreo-obsnev/borreguil-detector/wiki)** — manual en línea, en español e inglés
 🏷️ **[PUBLICAR.md](PUBLICAR.md)** — cómo publicar una versión, un modelo y obtener el DOI
 
 ¿Un error o una idea? En la app, **«💬 Sugerir un cambio o informar de un error»**

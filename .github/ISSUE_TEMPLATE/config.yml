@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: Manual / Manual
-    url: https://github.com/Bea-Cazorla/borreguil-detector/wiki
+    url: https://github.com/monitoreo-obsnev/borreguil-detector/wiki
     about: How to use the app, in Spanish and English / Cómo usar la app, en español e inglés
   # Formulario anónimo (sin cuenta de GitHub): pendiente de decidir si es el del equipo de
   # MonitorEO, con «Borreguil · Wet Meadow Finder» como opción, o uno propio. Cuando esté, añadir:

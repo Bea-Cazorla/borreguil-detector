@@ -49,7 +49,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = 'https://raw.githubusercontent.com/Bea-Cazorla/borreguil-detector/'
+REPO = 'https://raw.githubusercontent.com/monitoreo-obsnev/borreguil-detector/'
 MANIFIESTO = 'codigo.json'
 URL_POR_DEFECTO = REPO + 'main/' + MANIFIESTO
 VARIABLE_URL = 'BORREGUIL_CODIGO_URL'
@@ -60,7 +60,7 @@ TIEMPO_S = 5                           # espera máxima de cada conexión
 TIEMPO_FICHERO_S = 30
 MAX_BYTES = 20 * 1024 * 1024           # ningún fichero del código pesa tanto
 FORMATO = 1                            # versión del formato de codigo.json
-DESCARGAS_RELEASE = ('https://github.com/Bea-Cazorla/borreguil-detector/'
+DESCARGAS_RELEASE = ('https://github.com/monitoreo-obsnev/borreguil-detector/'
                      'releases/latest')
 
 # Nivel de las librerías de ESTE instalador. Se sube cuando el instalador cambia lo que
