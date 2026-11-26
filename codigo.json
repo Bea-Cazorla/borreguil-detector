@@ -2,7 +2,7 @@
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
   "version": "1.0.3",
-  "commit": "fb4db6860980a34621c42749e55acce90aab1b90",
+  "commit": "417854e28a83bd0742f81e9e2213808542bc9c58",
   "fecha": "2026-11-26",
   "instalador_minimo": 1,
   "ficheros": [
@@ -68,17 +68,17 @@
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "d43d833788f7c7251a079b38eec1e41a427680b12cae35d93afaed0cfc88fa61",
-      "bytes": 114813
+      "sha256": "c5a53785efe9c36082bea0e18bbc7817f2b720caa810e261124ce8b378daa77b",
+      "bytes": 116038
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "50fc4767c0b7312601d7f917c97393c24eff78cb072c0fea49d4c990561be478",
-      "bytes": 18626
+      "sha256": "8ccae5ddd0189e1e5159b695d4a907cad1e038656b806c3d6928359c48ea3ef2",
+      "bytes": 20150
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "f735348b0e947d06aa4d20ccc1861ba62923300c9025d8ed1a6232eb0986585c",
+      "sha256": "2abdfe05c3d0ab46800191e3edfffc4577447ef30b73074dd6ffe33205ec7198",
       "bytes": 3073
     },
     {
