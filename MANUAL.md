@@ -73,8 +73,11 @@ pago, así que el sistema advierte la primera vez:
 
 - **Windows**: «Windows protegió su PC» → *Más información* → *Ejecutar de todas
   formas*.
-- **macOS**: clic derecho → *Abrir* → *Abrir*. Si insiste:
-  `xattr -dr com.apple.quarantine /ruta/a/Borreguil`
+- **macOS**: lo bloquea, y desde macOS 15 ya no sirve «clic derecho → *Abrir*». En
+  Terminal: `xattr -dr com.apple.quarantine ` (con un espacio al final), arrastrar la
+  carpeta `Borreguil` a la ventana y pulsar Intro; desbloquea toda la carpeta de una vez.
+  O, sin Terminal: doble clic en `Borreguil` → *OK* → *Ajustes del Sistema →
+  Privacidad y seguridad* → *Abrir igualmente* (pide la contraseña).
 
 Al arrancar se abre una **ventana de consola** (el motor: no cerrarla) y, a los pocos
 segundos, la **ventana de la app**. El primer arranque tarda 30–60 s.
@@ -1784,7 +1787,7 @@ de puntos y acota los años de Sentinel-2.
 |---|---|---|
 | **Detecta muy pocos puntos** (1 de 500) | Umbral en **Manual** | Cambiar a **Otsu**. |
 | Windows bloquea el ejecutable | Sin firma comercial | *Más información* → *Ejecutar de todas formas*. |
-| macOS: «no se puede comprobar» | Cuarentena de Gatekeeper | Clic derecho → *Abrir*, o `xattr -dr com.apple.quarantine`. |
+| macOS no deja abrirlo («no se puede comprobar», «no se puede abrir») | Sin firma de Apple (cuarentena de Gatekeeper) | `xattr -dr com.apple.quarantine` + la carpeta `Borreguil` en Terminal, o *Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente*. «Clic derecho → Abrir» ya no sirve desde macOS 15. |
 | La ventana de la app no se abre o sale en blanco | Falta el motor de Edge (WebView2) o, en Linux, GTK o Qt | El programa abre entonces el navegador; si tampoco, ir a la dirección que da la ventana de consola, normalmente **http://localhost:8501**. Para tener la ventana en Windows, instalar *WebView2 Runtime* (developer.microsoft.com/microsoft-edge/webview2). O abrir siempre en el navegador: `Borreguil --navegador`. |
 | Muy lento | Backend MPC | Cambiar a GEE y/o **⚡ Modo rápido**. |
 | Error de autenticación GEE | Proyecto mal escrito o alta pendiente | Revisar `ee-tunombre` y volver a autenticar. O dejar el campo vacío para usar la cuenta compartida. |

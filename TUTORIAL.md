@@ -84,15 +84,22 @@ Descarga el archivo de tu sistema:
 
 #### 🍎 macOS
 
-1. Doble clic en el `.zip` para descomprimirlo.
-2. **La primera vez**, clic derecho (o Control+clic) sobre **`Borreguil`** →
-   **Abrir** → **Abrir**. *(Si haces doble clic normal, macOS lo bloqueará.)*
-3. Si aparece «no se puede comprobar que no contenga malware», abre la app
-   **Terminal** y pega esto, sustituyendo la ruta por la de tu carpeta:
+1. Doble clic en el `.zip` para descomprimirlo (si dentro hay otro `.zip`, también).
+2. **La primera vez, macOS bloquea el programa** porque no está firmado. Desde macOS 15
+   ya no sirve «clic derecho → Abrir». Desbloquéalo de una de estas dos formas:
+   - **En Terminal** (la más segura: desbloquea toda la carpeta de una vez). Abre la app
+     **Terminal**, escribe esto **con un espacio al final**:
 
-   ```bash
-   xattr -dr com.apple.quarantine /ruta/a/Borreguil
-   ```
+     ```bash
+     xattr -dr com.apple.quarantine 
+     ```
+
+     arrastra la carpeta **`Borreguil`** a la ventana de Terminal (así se escribe su
+     ruta) y pulsa **Intro**. Después, doble clic en **`Borreguil`**.
+   - **Sin Terminal.** Doble clic en **`Borreguil`**. Cuando diga que no se puede abrir,
+     pulsa **OK**. Ve a **Ajustes del Sistema → Privacidad y seguridad**, baja hasta el
+     final, pulsa **«Abrir igualmente»** y pon tu contraseña. Si al seguir sale otro
+     aviso parecido, usa la forma de Terminal.
 
 #### 🐧 Linux
 
@@ -405,7 +412,7 @@ en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 | Síntoma | Solución |
 |---|---|
 | Windows bloquea el programa | **Más información** → **Ejecutar de todas formas**. |
-| macOS: «no se puede comprobar» | Clic derecho → **Abrir**, o el comando `xattr` del punto 2.2. |
+| macOS no deja abrirlo («no se puede comprobar», «no se puede abrir») | El comando `xattr` del punto 2.2, o **Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente»**. «Clic derecho → Abrir» ya no sirve desde macOS 15. |
 | La ventana de la app no se abre o sale en blanco | El programa abre entonces el navegador; si tampoco, entra en la dirección que da la consola, normalmente **http://localhost:8501**. También puedes abrirlo con `Borreguil --navegador`. |
 | **Solo detecta 1 o 2 puntos** | Casi seguro tienes el umbral en **Manual**. Cámbialo a **Otsu**. |
 | Va lentísimo | Usa **GEE** en vez de MPC y marca **⚡ Modo rápido**. |
