@@ -9,7 +9,7 @@
 # Tras el primer release, añadir el DOI que asigne Zenodo y actualizar `version`
 # y `date-released` en cada versión nueva.
 cff-version: 1.2.0
-title: "Borreguil · Wet Meadow Finder — finding and mapping borreguiles (high-mountain wet meadows)"
+title: "Borreguil · Wet Meadow Finder - finding and mapping borreguiles (high-mountain wet meadows)"
 message: "If you use this software in scientific work, please cite it using the DOI of the version you used."
 type: software
 
