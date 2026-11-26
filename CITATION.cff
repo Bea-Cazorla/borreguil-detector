@@ -26,7 +26,7 @@ authors:
 repository-code: "https://github.com/Bea-Cazorla/borreguil-detector"
 url: "https://github.com/Bea-Cazorla/borreguil-detector"
 license: GPL-3.0-or-later                                   # ver el fichero LICENSE
-version: "1.0.0"                                            # actualizar en cada release
+version: "1.0.1"                                            # actualizar en cada release
 date-released: "2026-07-29"                                 # actualizar en cada release
 # doi: "10.5281/zenodo.XXXXXXX"    # Zenodo lo asigna automáticamente; añádelo tras el primer release.
 
