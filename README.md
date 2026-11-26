@@ -260,14 +260,11 @@ carga a esa cuenta.
 
 ## Agradecimientos
 
-Este programa se ha desarrollado en el marco de dos proyectos:
+Texto de agradecimiento de los proyectos (el mismo que va en Zenodo):
 
-- **EVEREST** — *Variables esenciales para la caracterización y seguimiento remoto de ecosistemas de montaña a lo largo de un gradiente biogeográfico: del dato a la toma de decisiones* (PID2023-151939OB-I00), financiado por
-  MICIU/AEI/10.13039/501100011033 y por FEDER, UE. Investigadores principales:
-  Javier Martínez López y Domingo Alcaraz Segura (Universidad de Granada).
-- **PRESINMED** — *Preserving the singularity of Mediterranean high-mountain biodiversity hotspots: a NBS approach* (PCI2025-163175),
-  de la convocatoria Biodiversa+ NBS 2023. Investigador principal: Regino Zamora
-  (Universidad de Granada).
+> This software was funded by the Spanish Multi-regional Program, through the Ministerio de Ciencia, Innovación y Universidades, and by the Project Preserving the singularity of Mediterranean high-mountain biodiversity hotspots: a NBS approach (PRESINMED). PCI 2025-163175. Biodiversa+NBS 2023. Principal investigator: Regino Zamora (University of Granada).
+>
+> EVEREST project (PID2023-151939OB-I00), funded by MICIU/AEI/10.13039/501100011033 and by the ERDF/EU. Principal investigators: Javier Martínez-López and Domingo Alcaraz-Segura (University of Granada).
 
 ## Cómo citar
 

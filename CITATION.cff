@@ -9,23 +9,23 @@
 # Tras el primer release, añadir el DOI que asigne Zenodo y actualizar `version`
 # y `date-released` en cada versión nueva.
 cff-version: 1.2.0
-title: "Borreguil · Wet Meadow Finder — buscador y mapa de borreguiles (prados húmedos de alta montaña)"
-message: "Si utilizas este software en un trabajo científico, cítalo con el DOI de la versión empleada."
+title: "Borreguil · Wet Meadow Finder — finding and mapping borreguiles (high-mountain wet meadows)"
+message: "If you use this software in scientific work, please cite it using the DOI of the version you used."
 type: software
 
 authors:
   - given-names: "Beatriz P."
     family-names: "Cazorla"
     email: "b.cazorla@go.ugr.es"
-    affiliation: "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)"
+    affiliation: "Department of Botany, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain"
     orcid: "https://orcid.org/0000-0003-3583-8391"
   - given-names: "Domingo"
     family-names: "Alcaraz-Segura"
-    affiliation: "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)"
+    affiliation: "Department of Botany, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain"
     orcid: "https://orcid.org/0000-0001-8988-4540"
   - given-names: "Javier"
     family-names: "Martínez-López"
-    affiliation: "Departamento de Ecología, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)"
+    affiliation: "Department of Ecology, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain"
     orcid: "https://orcid.org/0000-0002-0825-7252"
 
 repository-code: "https://github.com/monitoreo-obsnev/borreguil-detector"
@@ -49,21 +49,18 @@ keywords:
   - habitat mapping
 
 abstract: >-
-  Aplicación de escritorio para la identificación automática de borreguiles
-  (cervunales higroturbosos o prados húmedos de alta montaña) mediante
-  teledetección multi-fuente y aprendizaje automático. Combina series temporales
-  de Sentinel-2 (índices de vegetación, humedad y agua), radar Sentinel-1,
-  variables topográficas derivadas del modelo digital de elevaciones Copernicus
-  (altitud, pendiente y curvatura) y descriptores
-  de textura obtenidos de ortofotografía de alta resolución. Un clasificador
-  Random Forest, entrenado con 769 puntos verificados en Sierra Nevada (España;
-  372 borreguiles y 397 no) y validado mediante validación cruzada espacial por
-  cuencas hidrográficas, estima la probabilidad de presencia de borreguil en cada
-  punto. Con los puntos revisados, entrena además un modelo para la zona de
-  estudio, lo valida por zonas y genera el mapa de borreguil a 10 m en Google
-  Earth Engine.
-  El programa incorpora además una clasificación jerárquica del tipo de borreguil
-  (ambiente, humedad y pureza del píxel), selección automática del umbral de
-  decisión y la posibilidad de reentrenar el modelo con datos de campo locales.
-  Se distribuye como ejecutable autocontenido para Windows, macOS y Linux, sin
-  necesidad de instalar Python ni dependencias.
+  Desktop application for the automatic identification of borreguiles (high-mountain
+  wet meadows, including peaty Nardus grasslands) using multi-source remote sensing and
+  machine learning. It combines Sentinel-2 time series (vegetation, moisture and water
+  indices), Sentinel-1 radar, topographic variables derived from the Copernicus digital
+  elevation model (elevation, slope and curvature) and texture descriptors from
+  high-resolution orthophotography. A Random Forest classifier, trained on 769 verified
+  points in Sierra Nevada (Spain; 372 borreguiles and 397 non-borreguiles) and validated
+  with spatial cross-validation by river catchment, estimates the probability that each
+  point is a borreguil. With the reviewed points, it also trains a model for the study
+  area, validates it by zones and produces a 10 m borreguil map in Google Earth Engine.
+  The program also includes a hierarchical classification of borreguil type (environment,
+  moisture and pixel purity), automatic selection of the decision threshold and the
+  option to retrain the model with local field data. It is distributed as a
+  self-contained executable for Windows, macOS and Linux, with no need to install Python
+  or any dependencies.

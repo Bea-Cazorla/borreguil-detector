@@ -1,40 +1,40 @@
 {
-  "title": "Borreguil · Wet Meadow Finder — buscador y mapa de borreguiles (prados húmedos de alta montaña)",
+  "title": "Borreguil · Wet Meadow Finder — finding and mapping borreguiles (high-mountain wet meadows)",
   "upload_type": "software",
-  "description": "<p>Aplicación de escritorio para la identificación automática de borreguiles (cervunales higroturbosos o prados húmedos de alta montaña) mediante teledetección multi-fuente y aprendizaje automático. Combina series temporales de Sentinel-2 (índices de vegetación, humedad y agua), radar Sentinel-1, variables topográficas derivadas del modelo digital de elevaciones Copernicus (altitud, pendiente y curvatura) y descriptores de textura obtenidos de ortofotografía de alta resolución. Un clasificador Random Forest, entrenado con 769 puntos verificados en Sierra Nevada (España; 372 borreguiles y 397 no) y validado mediante validación cruzada espacial por cuencas hidrográficas, estima la probabilidad de presencia de borreguil en cada punto. Con los puntos revisados, entrena además un modelo para la zona de estudio, lo valida por zonas y genera el mapa de borreguil a 10 m en Google Earth Engine. El programa incorpora además una clasificación jerárquica del tipo de borreguil (ambiente, humedad y pureza del píxel), selección automática del umbral de decisión y la posibilidad de reentrenar el modelo con datos de campo locales. Se distribuye como ejecutable autocontenido para Windows, macOS y Linux, sin necesidad de instalar Python ni dependencias.</p>",
+  "description": "<p>Desktop application for the automatic identification of borreguiles (high-mountain wet meadows, including peaty Nardus grasslands) using multi-source remote sensing and machine learning. It combines Sentinel-2 time series (vegetation, moisture and water indices), Sentinel-1 radar, topographic variables derived from the Copernicus digital elevation model (elevation, slope and curvature) and texture descriptors from high-resolution orthophotography. A Random Forest classifier, trained on 769 verified points in Sierra Nevada (Spain; 372 borreguiles and 397 non-borreguiles) and validated with spatial cross-validation by river catchment, estimates the probability that each point is a borreguil. With the reviewed points, it also trains a model for the study area, validates it by zones and produces a 10 m borreguil map in Google Earth Engine. The program also includes a hierarchical classification of borreguil type (environment, moisture and pixel purity), automatic selection of the decision threshold and the option to retrain the model with local field data. It is distributed as a self-contained executable for Windows, macOS and Linux, with no need to install Python or any dependencies.</p>",
   "creators": [
     {
       "name": "Cazorla, Beatriz P.",
-      "affiliation": "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)",
+      "affiliation": "Department of Botany, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain",
       "orcid": "0000-0003-3583-8391"
     },
     {
       "name": "Alcaraz-Segura, Domingo",
-      "affiliation": "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)",
+      "affiliation": "Department of Botany, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain",
       "orcid": "0000-0001-8988-4540"
     },
     {
       "name": "Martínez-López, Javier",
-      "affiliation": "Departamento de Ecología, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)",
+      "affiliation": "Department of Ecology, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain",
       "orcid": "0000-0002-0825-7252"
     }
   ],
   "contributors": [
     {
       "name": "Martínez-López, Javier",
-      "affiliation": "Departamento de Ecología, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)",
+      "affiliation": "Department of Ecology, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain",
       "orcid": "0000-0002-0825-7252",
       "type": "ProjectLeader"
     },
     {
       "name": "Alcaraz-Segura, Domingo",
-      "affiliation": "Departamento de Botánica, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)",
+      "affiliation": "Department of Botany, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain",
       "orcid": "0000-0001-8988-4540",
       "type": "ProjectLeader"
     },
     {
       "name": "Zamora, Regino",
-      "affiliation": "Departamento de Ecología, Universidad de Granada; Instituto Interuniversitario de Investigación del Sistema Tierra en Andalucía (IISTA-CEAMA)",
+      "affiliation": "Department of Ecology, University of Granada, Granada, Spain; Andalusian Inter-University Institute for Earth System Research (IISTA-CEAMA), Granada, Spain",
       "type": "ProjectLeader"
     }
   ],
@@ -52,5 +52,6 @@
     "habitat mapping"
   ],
   "license": "gpl-3.0-or-later",
-  "notes": "Agradecimientos. Este programa se ha desarrollado en el marco de los proyectos EVEREST («Variables esenciales para la caracterización y seguimiento remoto de ecosistemas de montaña a lo largo de un gradiente biogeográfico: del dato a la toma de decisiones», PID2023-151939OB-I00), financiado por MICIU/AEI/10.13039/501100011033 y por FEDER, UE, cuyos investigadores principales son Javier Martínez López y Domingo Alcaraz Segura (Universidad de Granada), y PRESINMED («Preserving the singularity of Mediterranean high-mountain biodiversity hotspots: a NBS approach», PCI2025-163175), de la convocatoria Biodiversa+ NBS 2023, cuyo investigador principal es Regino Zamora (Universidad de Granada)."
+  "notes": "Acknowledgements. This software was funded by the Spanish Multi-regional Program, through the Ministerio de Ciencia, Innovación y Universidades, and by the Project Preserving the singularity of Mediterranean high-mountain biodiversity hotspots: a NBS approach (PRESINMED). PCI 2025-163175. Biodiversa+NBS 2023. Principal investigator: Regino Zamora (University of Granada). EVEREST project (PID2023-151939OB-I00), funded by MICIU/AEI/10.13039/501100011033 and by the ERDF/EU. Principal investigators: Javier Martínez-López and Domingo Alcaraz-Segura (University of Granada).",
+  "language": "eng"
 }
