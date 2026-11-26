@@ -1,15 +1,15 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.0",
-  "commit": "0268829585a12d27334da9debdb8bf31f11c261c",
-  "fecha": "2026-11-25",
+  "version": "1.0.1",
+  "commit": "e59a3e9425a8301bb2cdae7ff4cd7f3733d4999a",
+  "fecha": "2026-11-26",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "b5590accc5ab962acb70f7c4079bf75c8873d49c55bcb3809d88519c469a9cbd",
-      "bytes": 575179
+      "sha256": "dcab4c6aa68c48409595f0e8d81805d2331b42a847990f79a616d285ae06fee2",
+      "bytes": 588708
     },
     {
       "ruta": "borreguil_pipeline.py",
@@ -33,13 +33,13 @@
     },
     {
       "ruta": "random_points.py",
-      "sha256": "a8c87ee827d30232b5228ea4fdf5706178384584c328ee34ad7a3e86542e9c36",
-      "bytes": 13247
+      "sha256": "c6c02ccba562d1807e6f4b448c96dcca48cae90d9db6855465ff47963092eab2",
+      "bytes": 30664
     },
     {
       "ruta": "study_area.py",
-      "sha256": "79df631ddcdce4f7ba63396e6fdc9e25c00fcdbc83c1d1cd6a916c05ee90e53b",
-      "bytes": 15053
+      "sha256": "9caa370a4c589c65d87341da761d92353d6a403a8f25fe088f93fdc061f20b57",
+      "bytes": 15412
     },
     {
       "ruta": "mapeo_rf.py",
@@ -68,17 +68,17 @@
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "953c8fdf171db26d45fbcc0728a53e62a17ccfae782f4375b9e76c5b10ca8aae",
-      "bytes": 110375
+      "sha256": "0796f2fea388ee2c3152d1a2a32c4e6bc8a95449260e42c33b2f17be32c62e09",
+      "bytes": 112602
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "a1a4c25052ada95c3cae3e1576e92d5fd610f83f64fb48ecff207314e7f07c48",
-      "bytes": 17211
+      "sha256": "3915b7cfb10371367e35b69600f4c9fc78a1259f361ea3095980b511d4492da3",
+      "bytes": 17757
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "6c96dc9edc2f0bff5670d9dd22553d1331209ce5362c9e1d7082d349fa773abb",
+      "sha256": "4d22aad566c1a766cd408675563be5341fa3636807f2481bebe4e88f845b3da3",
       "bytes": 3054
     },
     {
