@@ -74,12 +74,16 @@ pago, así que el sistema advierte la primera vez:
 - **macOS**: clic derecho → *Abrir* → *Abrir*. Si insiste:
   `xattr -dr com.apple.quarantine /ruta/a/Borreguil`
 
-Al arrancar se abre una **ventana de consola** (el motor: no cerrarla) y el
-navegador en **http://localhost:8501** (si ese puerto está ocupado, 8502-8505: la
-dirección exacta sale en la ventana de consola). El primer arranque tarda 30–60 s.
+Al arrancar se abre una **ventana de consola** (el motor: no cerrarla) y, a los pocos
+segundos, la **ventana de la app**. El primer arranque tarda 30–60 s.
 
-**Para cerrar el programa**: cierra la ventana de consola o pulsa `Ctrl+C` en ella.
-Cerrar solo la pestaña del navegador no lo detiene.
+Si la ventana no se puede abrir (Windows sin el motor de Edge, WebView2; Linux sin GTK
+ni Qt), la app se abre en el navegador, en **http://localhost:8501** (si ese puerto
+está ocupado, 8502-8505: la dirección exacta sale en la ventana de consola). Para
+abrirla siempre en el navegador: `Borreguil --navegador`.
+
+**Para cerrar el programa**: cierra la ventana de la app (o la de consola, o pulsa
+`Ctrl+C` en ella). En el navegador, cerrar solo la pestaña no lo detiene.
 
 **El programa se actualiza solo.** Al abrirlo, mira en GitHub si hay una versión nueva
 de la app. Si la hay, descarga solo lo que ha cambiado y lo comprueba antes de usarlo; la
@@ -1779,7 +1783,7 @@ de puntos y acota los años de Sentinel-2.
 | **Detecta muy pocos puntos** (1 de 500) | Umbral en **Manual** | Cambiar a **Otsu**. |
 | Windows bloquea el ejecutable | Sin firma comercial | *Más información* → *Ejecutar de todas formas*. |
 | macOS: «no se puede comprobar» | Cuarentena de Gatekeeper | Clic derecho → *Abrir*, o `xattr -dr com.apple.quarantine`. |
-| El navegador no abre | — | Ir a la dirección que da la ventana de consola, normalmente **http://localhost:8501**. |
+| La ventana de la app no se abre o sale en blanco | Falta el motor de Edge (WebView2) o, en Linux, GTK o Qt | El programa abre entonces el navegador; si tampoco, ir a la dirección que da la ventana de consola, normalmente **http://localhost:8501**. Para tener la ventana en Windows, instalar *WebView2 Runtime* (developer.microsoft.com/microsoft-edge/webview2). O abrir siempre en el navegador: `Borreguil --navegador`. |
 | Muy lento | Backend MPC | Cambiar a GEE y/o **⚡ Modo rápido**. |
 | Error de autenticación GEE | Proyecto mal escrito o alta pendiente | Revisar `ee-tunombre` y volver a autenticar. O dejar el campo vacío para usar la cuenta compartida. |
 | «Has gastado las horas de cálculo de este mes» | Se han acabado las horas de la cuenta compartida de MonitorEO | Usar tu propio proyecto (campo **Proyecto de Google Cloud** y **🔑 Autenticar GEE**) o esperar al día 1. |

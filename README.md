@@ -2,17 +2,12 @@
 
 *Buscador y mapa de borreguiles*
 
-> **Versión con ventana propia (rama `pywebview`).** Es la misma app, pero se abre en
-> una ventana del programa en lugar de en el navegador. Usa
-> [pywebview](https://pywebview.flowrl.com/) con el motor web del sistema: Edge
-> WebView2 en Windows 10/11 y WebKit en Mac. Al cerrar la ventana se cierra el
-> programa. En Linux, si no hay GTK ni Qt, se abre el navegador como en la versión
-> normal. Con `Borreguil --navegador` se abre siempre en el navegador.
->
-> La app en sí (análisis, revisión, mapas) es la de la rama `main` y se actualiza
-> sola desde ella; esta rama solo cambia el lanzador (`launcher.py`) y la
-> compilación. Sus ejecutables se compilan con etiquetas `prueba-*` y se llaman
-> `Borreguil-ventana-<sistema>`. Esta versión no publica Releases ni DOI.
+> **Se abre en su propia ventana.** El programa abre la app en una ventana suya, sin
+> navegador, con [pywebview](https://pywebview.flowrl.com/) y el motor web del sistema:
+> Edge WebView2 en Windows 10/11 y WebKit en Mac. Al cerrar la ventana se cierra el
+> programa. Si la ventana no se puede abrir (Windows sin el motor de Edge, Linux sin
+> GTK ni Qt), se abre el navegador. Con `Borreguil --navegador` se abre siempre en el
+> navegador.
 
 App (Streamlit) para identificar **borreguiles** (mountain wet meadows /
 cervunales higroturbosos) en cualquier zona de alta montaña y hacer su mapa.

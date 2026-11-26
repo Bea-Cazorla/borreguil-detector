@@ -96,10 +96,12 @@ cd Borreguil
 ### 2.3 Qué debe ocurrir
 
 Se abre una **ventana negra de consola** (no la cierres: es el motor del programa)
-y, a los pocos segundos, tu **navegador** con la interfaz.
+y, a los pocos segundos, la **ventana de la app**. Para cerrar el programa, cierra la
+ventana de la app.
 
-Si el navegador no se abre solo, entra en la dirección que muestra la consola
-(«Abriendo el navegador en: …»), normalmente **http://localhost:8501**.
+Si la ventana no se puede abrir (en Windows, si falta el motor de Edge), la app se abre
+en tu **navegador**. Si tampoco, entra en la dirección que muestra la consola,
+normalmente **http://localhost:8501**.
 
 Al abrirse, el programa mira también si hay una **versión nueva de la app**. Si la hay,
 la descarga, la comprueba y arranca con ella; la consola dice «App actualizada». Sin
@@ -395,7 +397,7 @@ en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 |---|---|
 | Windows bloquea el programa | **Más información** → **Ejecutar de todas formas**. |
 | macOS: «no se puede comprobar» | Clic derecho → **Abrir**, o el comando `xattr` del punto 2.2. |
-| El navegador no se abre | Entra en la dirección que da la consola, normalmente **http://localhost:8501**. |
+| La ventana de la app no se abre o sale en blanco | El programa abre entonces el navegador; si tampoco, entra en la dirección que da la consola, normalmente **http://localhost:8501**. También puedes abrirlo con `Borreguil --navegador`. |
 | **Solo detecta 1 o 2 puntos** | Casi seguro tienes el umbral en **Manual**. Cámbialo a **Otsu**. |
 | Va lentísimo | Usa **GEE** en vez de MPC y marca **⚡ Modo rápido**. |
 | Error de Earth Engine | Con tu proyecto: revisa su identificador y vuelve a **🔑 Autenticar GEE**. Con la cuenta compartida (campo vacío): prueba más tarde o usa tu proyecto. |

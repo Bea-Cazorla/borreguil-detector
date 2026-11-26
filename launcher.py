@@ -21,13 +21,14 @@ Diseño:
     descarga, la comprueba y arranca con ella (actualizador.py; 25-11-2026, para las
     aulas). Sin conexión, sigue con el código que haya.
 
-  · VERSIÓN CON VENTANA PROPIA (rama «pywebview», 26-11-2026, la autora: «hazme una
-    versión de la app en pywebview»): la app se abre en una ventana del programa
-    (pywebview, con el motor web del sistema: Edge WebView2 en Windows, WebKit en Mac)
-    en lugar de en el navegador. El servidor de Streamlit va en otro proceso (este mismo
-    programa con --servidor), porque pywebview y Streamlit quieren los dos el hilo
-    principal. Al cerrar la ventana se cierra también el servidor. Si la ventana no se
-    puede abrir (Linux sin GTK ni Qt, por ejemplo), se abre el navegador como siempre.
+  · LA APP SE ABRE EN SU PROPIA VENTANA (26-11-2026, la autora: «hazme una versión de
+    la app en pywebview»; desde el mismo día es la versión principal, en main): una
+    ventana del programa (pywebview, con el motor web del sistema: Edge WebView2 en
+    Windows, WebKit en Mac) en lugar del navegador. El servidor de Streamlit va en otro
+    proceso (este mismo programa con --servidor), porque pywebview y Streamlit quieren
+    los dos el hilo principal. Al cerrar la ventana se cierra también el servidor. Si la
+    ventana no se puede abrir (Windows sin el motor de Edge, Linux sin GTK ni Qt…), se
+    abre el navegador como antes.
 
 Ejecutar en desarrollo (sin compilar):  python launcher.py
 Opciones:
@@ -336,6 +337,35 @@ def parar_servidor(hijo):
         hijo.kill()
 
 
+_WEBVIEW2 = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'   # Microsoft Edge WebView2 Runtime
+
+
+def hay_motor_de_edge() -> bool:
+    """Windows: si está el motor de Edge (WebView2 Runtime) que usa la ventana. Viene
+    con Windows 11 y con casi todo Windows 10 al día. Sin él, pywebview usaría el de
+    Internet Explorer, en el que la app sale en blanco: entonces mejor el navegador.
+    BORREGUIL_SIN_WEBVIEW2=1 hace como si no estuviera (para probarlo)."""
+    if os.environ.get('BORREGUIL_SIN_WEBVIEW2', '').lower() in ('1', 'true', 'yes'):
+        return False
+    try:
+        import winreg
+    except ImportError:                          # no es Windows
+        return True
+    claves = [(winreg.HKEY_CURRENT_USER, rf'SOFTWARE\Microsoft\EdgeUpdate\Clients\{_WEBVIEW2}'),
+              (winreg.HKEY_LOCAL_MACHINE,
+               rf'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{_WEBVIEW2}'),
+              (winreg.HKEY_LOCAL_MACHINE, rf'SOFTWARE\Microsoft\EdgeUpdate\Clients\{_WEBVIEW2}')]
+    for raiz, ruta in claves:
+        try:
+            with winreg.OpenKey(raiz, ruta) as clave:
+                version, _ = winreg.QueryValueEx(clave, 'pv')
+        except OSError:
+            continue
+        if str(version or '').strip() not in ('', '0.0.0.0'):
+            return True
+    return False
+
+
 def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
     """La app en su propia ventana (pywebview). Devuelve (estado, proceso del servidor):
 
@@ -343,6 +373,11 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
     - ('sin_ventana', hijo o None): no se puede abrir la ventana; si el servidor ya
       está en marcha, se devuelve para seguir con él en el navegador.
     - con probar: ('ok' | 'no_arranca' | 'no_se_ve', None)."""
+    if sys.platform == 'win32' and not hay_motor_de_edge():
+        print('  (sin ventana propia: falta el motor de Edge, WebView2 Runtime; se puede '
+              'instalar desde https://developer.microsoft.com/microsoft-edge/webview2/)',
+              flush=True)
+        return 'sin_ventana', None
     try:
         import webview
     except Exception as exc:                     # noqa: BLE001

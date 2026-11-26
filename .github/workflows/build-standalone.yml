@@ -1,16 +1,18 @@
-name: Compilar ejecutables standalone (ventana propia, pywebview)
+name: Compilar ejecutables standalone
 
-# Genera los ejecutables de la VERSIÓN CON VENTANA PROPIA (rama pywebview) para
-# Windows, macOS (Intel y Apple Silicon) y Linux.
+# Genera los ejecutables para Windows, macOS (Intel y Apple Silicon) y Linux. La app se
+# abre en su propia ventana (pywebview; desde el 26-11-2026), y la compilación comprueba
+# en Windows y Mac que se ve en ella.
 #
-#   · Solo ensayos: etiquetas prueba-* o a mano desde «Actions» (workflow_dispatch).
-#     Los ejecutables quedan como artefactos de la ejecución (30 días).
-#   · Esta versión NO publica Releases (ni DOI de Zenodo): eso queda para la app
-#     original (rama main), para que no se mezclen las dos.
+#   · Al publicar una etiqueta v* (p. ej. v1.0.0) los adjunta a la Release, que es
+#     lo que Zenodo archiva para asignar el DOI.
+#   · También se puede lanzar a mano desde la pestaña «Actions» (workflow_dispatch)
+#     para probar sin publicar nada.
 
 on:
   push:
     tags:
+      - 'v*'         # versión real: compila y publica la Release (Zenodo -> DOI)
       - 'prueba-*'   # ensayo: compila pero NO crea Release. El sufijo elige el
                      # sistema, p. ej. 'prueba-macos-arm' compila solo ese.
   workflow_dispatch:
@@ -27,7 +29,7 @@ on:
           - linux
 
 permissions:
-  contents: read         # sin Releases: solo hace falta leer el código
+  contents: write        # necesario para adjuntar los binarios a la Release
 
 jobs:
   # Decide qué sistemas se compilan. Al publicar una etiqueta se compilan siempre
@@ -44,18 +46,18 @@ jobs:
           import json, os, sys
           sistemas = {
             'windows':     {'os': 'windows-latest', 'nombre': 'Windows x64',
-                            'artefacto': 'Borreguil-ventana-windows'},
+                            'artefacto': 'Borreguil-windows'},
             'macos-arm':   {'os': 'macos-latest',   'nombre': 'macOS Apple Silicon',
-                            'artefacto': 'Borreguil-ventana-macos-arm64'},
+                            'artefacto': 'Borreguil-macos-arm64'},
             # OJO: los runners Intel de macOS son escasos y las imágenes antiguas
             # (macos-13) están retiradas: un trabajo encolado ahí espera horas y
             # acaba caducando. Por eso Intel NO entra en 'todas': se compila solo
             # si se pide expresamente.
             'macos-intel': {'os': 'macos-15-intel', 'nombre': 'macOS Intel',
-                            'artefacto': 'Borreguil-ventana-macos-intel'},
+                            'artefacto': 'Borreguil-macos-intel'},
             # glibc antigua = compatible con más distribuciones
             'linux':       {'os': 'ubuntu-22.04',   'nombre': 'Linux x64',
-                            'artefacto': 'Borreguil-ventana-linux'},
+                            'artefacto': 'Borreguil-linux'},
           }
           elegida = (os.environ.get('ELEGIDA') or '').strip()
           # Etiqueta de ensayo 'prueba-<sistema>': el sufijo indica qué compilar.
@@ -256,8 +258,9 @@ jobs:
 
       # La ventana propia (pywebview): se abre, se espera a que la app se vea dentro (el
       # panel lateral) y se cierra. Va después de guardar el artefacto, para que haya
-      # descarga aunque falle. En Linux no: el runner no tiene pantalla, y allí el
-      # programa abre el navegador si no hay GTK ni Qt.
+      # descarga aunque falle, y antes de la Release, para no publicar un programa cuya
+      # ventana no funciona. En Linux no: el runner no tiene pantalla, y allí el programa
+      # abre el navegador si no hay GTK ni Qt.
       - name: Comprobar que la app se abre en su ventana
         if: runner.os != 'Linux'
         shell: bash
@@ -268,3 +271,28 @@ jobs:
           cd dist/Borreguil
           if [ "${{ runner.os }}" = "Windows" ]; then EXE=./Borreguil.exe; else EXE=./Borreguil; fi
           "$EXE" --probar-ventana < /dev/null
+
+      - name: Adjuntar a la Release (solo en etiquetas v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artefacto }}.zip
+            ${{ matrix.artefacto }}.tar.gz
+          fail_on_unmatched_files: false
+          body: |
+            ## Descargas
+
+            | Sistema | Archivo |
+            |---|---|
+            | Windows 10/11 | `Borreguil-windows.zip` |
+            | macOS Apple Silicon (M1-M4), macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
+            | Linux x86-64 | `Borreguil-linux.tar.gz` |
+
+            No requieren instalar Python ni ninguna librería: se descomprimen y se ejecutan.
+            La app se abre en su propia ventana; con `Borreguil --navegador`, en el navegador.
+            Consulta el **TUTORIAL.md** para los primeros pasos y el **MANUAL.md** como referencia.
+            Al abrirse, el programa se actualiza solo con la última versión de la app.
+
+            > La primera vez, Windows y macOS avisan de que el programa no está firmado
+            > (es normal en software científico): ver la sección de instalación del tutorial.
