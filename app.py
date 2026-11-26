@@ -490,14 +490,14 @@ def render_docs():
             '**diferencia VV–VH del radar**, el **NDVI de inicio de verano** y la '
             '**variación del NDWI**. Cada modelo usa una '
             'sola variable de cada grupo de las que dicen lo mismo, así que el peso no se '
-            'reparte entre repetidas.',
+            'reparte entre variables correlacionadas.',
             f'Ranking of the selected model (`{Path(_mp).name}`), variable by variable. It '
             'changes with the model: in the `_cir` ones the **NDVI contrast at 0.25 m** '
             'leads; in the base model, **elevation**, the **seasonal NDVI drop**, the '
             '**radar VV–VH difference**, **early-summer NDVI** and the **NDWI '
             'variability**. Each model uses a single '
             'variable from each group of those that say the same, so the weight is not '
-            'shared among repeated ones.'))
+            'shared among correlated ones.'))
     else:
         st.caption(i18n.pick(
             'Este modelo no trae el peso de sus variables, así que no se puede mostrar '
@@ -575,10 +575,10 @@ def render_docs():
         width='stretch')
     st.caption(i18n.pick(
         'Línea: media de 10 repeticiones; franja: 8 de cada 10. Línea discontinua: con '
-        'todos los puntos. Procedimiento de la app con «Quitar las variables repetidas: '
+        'todos los puntos. Procedimiento de la app con «Quitar las variables correlacionadas: '
         'Con el VIF» (umbral 10), Random Forest y validación por zonas.',
         'Line: mean of 10 repetitions; band: 8 out of 10. Dashed line: with all the '
-        'points. Same procedure as the app with "Remove repeated variables: With the '
+        'points. Same procedure as the app with "Remove correlated variables: With the '
         'VIF" (threshold 10), Random Forest and spatial validation.'))
 
     # ---- 5. Cómo usar la app ------------------------------------------------
@@ -668,6 +668,7 @@ def _nombre_columna(c):
     nombres = {
         'cuenca_id': ('Cuenca', 'Basin'),
         'source': ('Fuente', 'Source'),
+        'cuartil': ('Cuartil', 'Quartile'),
         'origin': ('Origen', 'Origin'),
         # (25-11-2026, la autora: «no entiendo borreguil (tu etiqueta)» → «mejor revisado»)
         'Borreguil': ('¿Borreguil? (revisado)', 'Borreguil? (reviewed)'),
@@ -1251,6 +1252,24 @@ def _etiquetas_de_partes(partes, campo=False):
             shutil.rmtree(os.path.dirname(ruta), ignore_errors=True)
 
 
+@st.cache_data(show_spinner=False)
+def _leer_capa_cuartiles(datos, nombre):
+    """La capa de polígonos para lanzar puntos por cuartiles (random_points.leer_capa),
+    leída una sola vez por fichero. Devuelve (capa, error)."""
+    import random_points
+    carpeta = Path(tempfile.mkdtemp(prefix='capa_cuartiles_'))
+    try:
+        ruta = carpeta / Path(nombre).name
+        ruta.write_bytes(datos)
+        return random_points.leer_capa(ruta), None
+    except ValueError as e:
+        return None, str(e)
+    except Exception as e:                               # noqa: BLE001
+        return None, f'{type(e).__name__}: {e}'
+    finally:
+        shutil.rmtree(carpeta, ignore_errors=True)
+
+
 # ── Perfil espectral por punto vs. referencia de borreguiles ─────────────────
 # Las gráficas viven en point_profile.py (puro altair/numpy/pandas, testeable sin la app).
 @st.cache_data(show_spinner=False)
@@ -1482,6 +1501,7 @@ with st.sidebar:
     f_input = None; gen_n = 0; gen_mode = 'stratified_elev'
     gen_min_elev = None; gen_max_elev = None; gen_seed = 42; gen_min_dist = 50
     gen_lejos = 0
+    gen_capa = None; gen_frac_q1 = 0.75
     if input_mode.startswith('📁'):
         # Varios ficheros a la vez: un Shapefile son varios (.shp, .dbf, .shx, .prj)
         f_input = st.file_uploader(
@@ -1513,6 +1533,7 @@ with st.sidebar:
             'uniform': i18n.pick('Al azar', 'At random'),
             'poisson_disc': i18n.pick('Al azar, separados una distancia mínima',
                                       'At random, a minimum distance apart'),
+            'cuartiles': i18n.pick('Por cuartiles de una capa', 'By quartiles of a layer'),
         }
         gen_mode = st.selectbox(
             i18n.pick('Estrategia', 'Strategy'), list(_nombre_estrategia), index=0,
@@ -1522,12 +1543,136 @@ with st.sidebar:
                 'franjas iguales y se toma el mismo número de puntos en cada una, para '
                 'cubrir todo el gradiente. **Al azar**: sin ninguna regla. **Al azar, '
                 'separados una distancia mínima**: ningún par de puntos queda más cerca '
-                'de la distancia que elijas, para que no salgan puntos pegados.',
+                'de la distancia que elijas, para que no salgan puntos pegados. '
+                '**Por cuartiles de una capa**: subes una capa de polígonos (por ejemplo, '
+                'las áreas probables de borreguil) y la mayoría de los puntos caen en los '
+                'polígonos del cuartil 1 y el resto en los demás.',
                 '**Spread across elevation**: the elevation range of the area is split '
                 'into 5 equal bands and the same number of points is taken in each, to '
                 'cover the whole gradient. **At random**: no rule. **At random, a '
                 'minimum distance apart**: no pair of points is closer than the distance '
-                'you choose, so that no points end up side by side.'))
+                'you choose, so that no points end up side by side. **By quartiles of a '
+                'layer**: you upload a polygon layer (for instance, the probable borreguil '
+                'areas) and most points fall in the polygons of quartile 1 and the rest in '
+                'the others.'))
+        if gen_mode == 'cuartiles':
+            # 26-11-2026, la autora: «quiero lanzar por cuartiles de una capa (que la
+            # subirán los usuarios): el 75 % de los puntos en el primer cuartil y el 25 %
+            # en el resto». Los puntos van sin etiqueta: al revisarlos salen presencias
+            # y ausencias. El reparto lo hace random_points.por_cuartiles.
+            import random_points
+            _f_capa = st.file_uploader(
+                i18n.pick('Capa de polígonos', 'Polygon layer'),
+                type=list(random_points.FORMATOS_CAPA), key='subir_capa_cuartiles',
+                help=i18n.pick(
+                    'Una capa de polígonos con una columna «cuartil» (1, 2, 3 o 4; el 1 es '
+                    'el primero) o con una columna numérica de la que la app calcula los '
+                    'cuartiles. GeoPackage (.gpkg) o GeoJSON; KML, KMZ o un Shapefile en '
+                    '.zip, si el ordenador puede leerlos. Si es un .zip, que traiga una '
+                    'sola capa.',
+                    'A polygon layer with a "cuartil" column (1, 2, 3 or 4; 1 is the '
+                    'first) or with a numeric column from which the app computes the '
+                    'quartiles. GeoPackage (.gpkg) or GeoJSON; KML, KMZ or a zipped '
+                    'Shapefile, if the computer can read them. If it is a .zip, it must '
+                    'hold a single layer.'))
+            if _f_capa is None:
+                st.caption(i18n.pick(
+                    'Sube la capa para elegir la columna y el reparto. Los puntos caen '
+                    'dentro de sus polígonos y del área de estudio.',
+                    'Upload the layer to choose the column and the split. The points fall '
+                    'inside its polygons and inside the study area.'))
+            else:
+                _capa_c, _err_c = _leer_capa_cuartiles(_f_capa.getvalue(), _f_capa.name)
+                _cols_c = (random_points.columnas_para_cuartiles(_capa_c['atributos'])
+                           if _capa_c else [])
+                if _err_c:
+                    st.error(i18n.pick(f'No se puede usar la capa: {_err_c}.',
+                                       f'The layer cannot be used: {_err_c}.'))
+                elif not _cols_c:
+                    st.error(i18n.pick(
+                        'La capa no tiene ninguna columna «cuartil» ni numérica con la que '
+                        'hacer cuartiles.',
+                        'The layer has no "cuartil" column and no numeric column to make '
+                        'quartiles with.'))
+                else:
+                    # 26-11-2026, la autora: «el desplegable "columna de los cuartiles"
+                    # no me encanta… que automáticamente lea la columna cuartil sin
+                    # preguntar» o pida el campo con el que calcularlos. Si la capa trae
+                    # la columna «cuartil», se usa sin preguntar (con una casilla para
+                    # calcularlos con otro campo); si no, se elige ese campo.
+                    _at_c = _capa_c['atributos']
+                    _ya_cols = [c for c in _cols_c
+                                if random_points.es_columna_de_cuartiles(c, _at_c[c])]
+                    _num_cols = [c for c in _cols_c if c not in _ya_cols]
+                    _n_pol = len(_capa_c['geoms'])
+                    _otro_c = bool(_ya_cols) and bool(_num_cols) and st.checkbox(
+                        i18n.pick('Calcular los cuartiles con otro campo',
+                                  'Compute the quartiles from another field'),
+                        key='capa_cuartiles_otro',
+                        help=i18n.pick(
+                            f'La capa ya trae los cuartiles (columna «{_ya_cols[0]}») y '
+                            'se usan tal cual. Marca la casilla para calcularlos con otro '
+                            'campo de la capa.',
+                            f'The layer already holds the quartiles ("{_ya_cols[0]}" '
+                            'column) and they are used as they are. Tick the box to compute '
+                            'them from another field of the layer.') if _ya_cols else None)
+                    if _ya_cols and not _otro_c:
+                        _col_c = _ya_cols[0]
+                        st.caption(i18n.pick(
+                            f"«{_capa_c['capa']}»: {_n_pol} polígonos. Se usan los "
+                            f'cuartiles que trae la capa (columna «{_col_c}»).',
+                            f"\"{_capa_c['capa']}\": {_n_pol} polygons. The quartiles "
+                            f'that the layer holds are used ("{_col_c}" column).'))
+                    else:
+                        _col_c = st.selectbox(
+                            i18n.pick('Campo para calcular los cuartiles',
+                                      'Field to compute the quartiles from'), _num_cols,
+                            key='capa_cuartiles_campo',
+                            help=i18n.pick(
+                                'Un campo numérico de la capa (por ejemplo, el borreguil '
+                                'esperado). La app ordena los polígonos que caen en el área '
+                                'de estudio de mayor a menor valor y los reparte en cuatro '
+                                'grupos con el mismo número de polígonos: el cuartil 1 es '
+                                'el 25 % con los valores más altos.',
+                                'A numeric field of the layer (for instance, the expected '
+                                'borreguil). The app sorts the polygons that fall in the '
+                                'study area from the highest to the lowest value and splits '
+                                'them into four groups with the same number of polygons: '
+                                'quartile 1 is the 25 % with the highest values.'))
+                        st.caption(i18n.pick(
+                            f"«{_capa_c['capa']}»: {_n_pol} polígonos. Los cuartiles se "
+                            f'calculan con «{_col_c}» y los polígonos que caen en el área '
+                            'de estudio: el 1 es el 25 % con los valores más altos.',
+                            f"\"{_capa_c['capa']}\": {_n_pol} polygons. The quartiles are "
+                            f'computed from "{_col_c}" and the polygons that fall in the '
+                            'study area: 1 is the 25 % with the highest values.'))
+                    _pct_c = st.slider(
+                        i18n.pick('% de los puntos en el cuartil 1',
+                                  '% of the points in quartile 1'),
+                        50, 100, 75, 5, key='capa_cuartiles_pct',
+                        help=i18n.pick(
+                            'El resto cae en los cuartiles 2, 3 y 4 juntos. Dentro de cada '
+                            'grupo, al azar según la superficie: un polígono grande recibe '
+                            'más puntos que uno pequeño. Los puntos no llevan etiqueta: al '
+                            'revisarlos salen borreguiles (sobre todo en el cuartil 1) y '
+                            'ausencias (sobre todo en el resto).',
+                            'The rest falls in quartiles 2, 3 and 4 together. Within each '
+                            'group, at random by area: a large polygon gets more points '
+                            'than a small one. The points carry no label: when you review '
+                            'them you get borreguiles (mostly in quartile 1) and absences '
+                            '(mostly in the rest).'))
+                    gen_frac_q1 = _pct_c / 100
+                    _n1_c = int(round(gen_n * gen_frac_q1))
+                    st.caption(i18n.pick(
+                        f'{_n1_c} puntos en el cuartil 1 y {gen_n - _n1_c} en los cuartiles '
+                        '2 a 4. Cada punto lleva su cuartil (columna «Cuartil» de la tabla y '
+                        'de las descargas).',
+                        f'{_n1_c} points in quartile 1 and {gen_n - _n1_c} in quartiles 2 to '
+                        '4. Each point carries its quartile ("Quartile" column of the table '
+                        'and the downloads).'))
+                    gen_capa = {'geoms': _capa_c['geoms'],
+                                'valores': list(_capa_c['atributos'][_col_c]),
+                                'columna': _col_c}
         if gen_mode == 'poisson_disc':
             gen_min_dist = st.number_input(
                 i18n.pick('Distancia mínima entre puntos (m)',
@@ -1540,8 +1685,11 @@ with st.sidebar:
                     'also snapped to the centre of the Sentinel-2 pixel (10 m).'))
         col1, col2 = st.columns(2)
         with col1:
-            gen_min_elev_str = st.text_input('Elev. mín (m)', value='2000',
-                                                help='Opcional: filtra por SRTM 30m')
+            # Por cuartiles, vacía de entrada: la capa ya dice dónde, y en parques más
+            # bajos que 2000 m no saldría ningún punto.
+            gen_min_elev_str = st.text_input(
+                'Elev. mín (m)', value='' if gen_mode == 'cuartiles' else '2000',
+                help='Opcional: filtra por SRTM 30m')
         with col2:
             gen_max_elev_str = st.text_input('Elev. máx (m)', value='',
                                                 help='Opcional')
@@ -2203,6 +2351,13 @@ with tab_analisis:
             if not study_geom:
                 st.error('Para generar puntos hace falta un área de estudio válida.')
                 parar_ejecucion()
+            if gen_mode == 'cuartiles' and not gen_capa:
+                st.error(i18n.pick(
+                    'Para lanzar puntos por cuartiles, sube la capa de polígonos en el panel '
+                    'lateral (Datos de entrada) y elige su columna.',
+                    'To place points by quartiles, upload the polygon layer in the side '
+                    'panel (Inputs) and choose its column.'))
+                parar_ejecucion()
             with st.status(f'Generando {gen_n} puntos aleatorios ({gen_mode})…', expanded=True) as status:
                 import random_points
                 # Lejos de los puntos de campo, si se ha pedido y están subidos
@@ -2219,7 +2374,8 @@ with tab_analisis:
                                                 max_elev=gen_max_elev,
                                                 min_dist_m=int(gen_min_dist),
                                                 seed=int(gen_seed),
-                                                excluir=_excluir, lejos_m=float(gen_lejos))
+                                                excluir=_excluir, lejos_m=float(gen_lejos),
+                                                capa=gen_capa, frac_q1=gen_frac_q1)
                 status.update(label=f'{len(rows)} puntos generados'
                               + (f' a {gen_lejos:.0f} m o más de tus {len(_excluir)} '
                                  'puntos de campo' if _excluir else ''), state='complete')
@@ -2229,7 +2385,13 @@ with tab_analisis:
                 reason = gen_stats.get('reason')
                 amax = gen_stats.get('area_elev_max')
                 amin = gen_stats.get('area_elev_min')
-                if reason == 'min_elev_above_area' and amax is not None:
+                if reason == 'capa_fuera_del_area':
+                    st.warning(i18n.pick(
+                        '⚠ Ningún polígono de la capa cae dentro del área de estudio. '
+                        'Comprueba que la capa y el área son de la misma zona.',
+                        '⚠ No polygon of the layer falls inside the study area. Check that '
+                        'the layer and the area are of the same place.'))
+                elif reason == 'min_elev_above_area' and amax is not None:
                     st.warning(
                         f'⚠ El área de estudio **no alcanza la altitud mínima** de '
                         f'**{gen_min_elev:.0f} m** que has indicado. La altitud máxima del '
@@ -2257,6 +2419,34 @@ with tab_analisis:
                 parar_ejecucion()
 
             st.write(f'**{len(rows)} puntos generados**')
+            _cu = gen_stats.get('cuartiles')
+            if _cu:
+                st.write(i18n.pick(
+                    f"{_cu[1]['salen']} en el cuartil 1 ({_cu[1]['poligonos']} polígonos, "
+                    f"≈ {_num(_cu[1]['ha'])} ha) y {_cu[2]['salen']} en los cuartiles 2 a 4 "
+                    f"({_cu[2]['poligonos']} polígonos, ≈ {_num(_cu[2]['ha'])} ha), dentro "
+                    'del área de estudio.',
+                    f"{_cu[1]['salen']} in quartile 1 ({_cu[1]['poligonos']} polygons, "
+                    f"≈ {_num(_cu[1]['ha'])} ha) and {_cu[2]['salen']} in quartiles 2 to 4 "
+                    f"({_cu[2]['poligonos']} polygons, ≈ {_num(_cu[2]['ha'])} ha), inside "
+                    'the study area.'))
+                for _g, _nom_g in ((1, i18n.pick('el cuartil 1', 'quartile 1')),
+                                   (2, i18n.pick('los cuartiles 2 a 4',
+                                                 'quartiles 2 to 4'))):
+                    if _cu[_g]['salen'] < _cu[_g]['pedidos']:
+                        st.warning(i18n.pick(
+                            f"⚠ En {_nom_g} solo han salido {_cu[_g]['salen']} de "
+                            f"{_cu[_g]['pedidos']} puntos"
+                            + (': no hay polígonos de ese grupo en el área de estudio.'
+                               if not _cu[_g]['poligonos'] else
+                               ': los demás no cumplen la altitud o la distancia a tus '
+                               'puntos de campo.'),
+                            f"⚠ In {_nom_g} only {_cu[_g]['salen']} of "
+                            f"{_cu[_g]['pedidos']} points came out"
+                            + (': there are no polygons of that group in the study area.'
+                               if not _cu[_g]['poligonos'] else
+                               ': the others do not meet the elevation or the distance to '
+                               'your field points.')))
             if rows and 'elev_m_initial' in rows[0]:
                 elevs = [r.get('elev_m_initial') for r in rows if r.get('elev_m_initial')]
                 if elevs:
@@ -3434,7 +3624,7 @@ with tab_analisis:
             # (Sin la cuenca: para revisar no aporta y salía vacía en los puntos que no
             # la traen; quitada el 25-11-2026 a petición de la autora. Sigue en el
             # punto, para la validación por zonas, y en las descargas.)
-            cols_show = (['ID', 'source', 'origin', 'Borreguil', 'decision',
+            cols_show = (['ID', 'source', 'cuartil', 'origin', 'Borreguil', 'decision',
                           'rf_proba', 'ambiente', 'humedad', 'pureza', 'tipo_revisado']
                          + _vars_tab + ['dist_cauce_m', 'lat', 'lon'])
             df = pd.DataFrame(rows)
@@ -3442,7 +3632,8 @@ with tab_analisis:
             # Las columnas opcionales que están vacías en todos los puntos (p. ej.
             # la cuenca, si el fichero no la trae) no se muestran: solo ocupaban
             # ancho y empujaban fuera de la pantalla la decisión y el tipo.
-            _opcionales = ('cuenca_id', 'source', 'origin', 'Borreguil', 'dist_cauce_m')
+            _opcionales = ('cuenca_id', 'source', 'cuartil', 'origin', 'Borreguil',
+                           'dist_cauce_m')
             cols_show = [c for c in cols_show if c not in _opcionales
                          or any(bp._txt(v) != '' for v in df[c])]
             # Los valores del pipeline son españoles; se traducen SOLO para
@@ -3575,6 +3766,11 @@ with tab_analisis:
                     'Where the point comes from. Empty: from your "Your points" file. '
                     '"field": from your field points file, at a place where none of your '
                     'points was. "map": you added it by clicking on the map.'),
+                'cuartil': (
+                    'Si el punto se lanzó por cuartiles de una capa, el cuartil del polígono '
+                    'en el que cayó: 1 es el primero (el de los valores más altos).',
+                    'If the point was placed by quartiles of a layer, the quartile of the '
+                    'polygon it fell in: 1 is the first (the one with the highest values).'),
                 'origin': (
                     'Si se revisó en la app. «verificado»: una persona lo revisó aquí o lo '
                     'añadió en el mapa. «dudoso»: lo marcó como dudoso. Vacío: no se ha '
@@ -5389,22 +5585,22 @@ with tab_tipos:
                               'compare. What was applied is undone.'))
 
             # La tabla de entrenamiento con todas las variables elegidas (la de «2 ·
-            # Tabla» antes de quitar las repetidas), si ya hay algo leído
+            # Tabla» antes de quitar las correlacionadas), si ya hay algo leído
             _tab_todas = (mr.construir_tabla(_res, _leidos, _predictores)
                           if _predictores and any(mr.clave_punto(f['lon'], f['lat'])
                                                   in _leidos for f in _usadas) else None)
 
-            # ---- Variables repetidas: con el VIF o con un PCA. Desde el 24-11 se decide
+            # ---- Variables correlacionadas: con el VIF o con un PCA. Desde el 24-11 se decide
             # aquí, junto a las variables (lo pidió la autora), y desde el 25-11 se
             # aplica aquí con un botón, que enseña qué variables se quedan y por qué. Se
             # calcula con los valores de las muestras (la lectura de «2 · Tabla» trae
             # siempre todas las variables). De entrada no se quita nada.
-            st.markdown(i18n.pick('**Variables repetidas**', '**Repeated variables**'))
+            st.markdown(i18n.pick('**Variables correlacionadas**', '**Correlated variables**'))
             _met_txt = {'ninguno': i18n.pick('No quitar ninguna', 'Remove none'),
                         'vif': i18n.pick('Con el VIF', 'With the VIF'),
                         'pca': i18n.pick('Con un PCA', 'With a PCA')}
             _metodo = st.radio(
-                i18n.pick('Quitar las variables repetidas', 'Remove repeated variables'),
+                i18n.pick('Quitar las variables correlacionadas', 'Remove correlated variables'),
                 list(_met_txt), format_func=_met_txt.get, key='mrf_seleccion',
                 horizontal=True,
                 help=i18n.pick(
@@ -5412,7 +5608,7 @@ with tab_tipos:
                     'ejemplo). Hay dos formas de quedarse con menos:\n\n'
                     '- **Con el VIF**: el VIF de una variable dice qué parte de ella se '
                     'puede adivinar con todas las demás juntas (5 quiere decir el 80 %; 10, '
-                    'el 90 %). Se quita la que más se repite, se vuelve a calcular y se '
+                    'el 90 %). Se quita la más correlacionada con las demás, se vuelve a calcular y se '
                     'sigue mientras alguna pase del umbral.\n'
                     '- **Con un PCA**: el PCA resume las variables en unos pocos ejes '
                     'independientes. De cada eje importante (valor propio mayor que 1) se '
@@ -5432,7 +5628,7 @@ with tab_tipos:
                     'instance). There are two ways of keeping fewer:\n\n'
                     '- **With the VIF**: the VIF of a variable says how much of it can be '
                     'guessed from all the others together (5 means 80 %; 10, 90 %). The '
-                    'most repeated one is removed, the VIF is computed again, and so on '
+                    'one most correlated with the others is removed, the VIF is computed again, and so on '
                     'while any is above the threshold.\n'
                     '- **With a PCA**: the PCA summarises the variables in a few '
                     'independent axes. One variable is kept from each important axis '
@@ -5868,32 +6064,32 @@ with tab_tipos:
                         'figures are computed in each year and then averaged across years · '
                         'the relief comes at 30 m and is smoothed to 10 m.'))
 
-                # ---- Variables repetidas (VIF o PCA). Se eligen y se aplican en
+                # ---- Variables correlacionadas (VIF o PCA). Se eligen y se aplican en
                 # «1 · Datos», que enseña cuáles se quedan y por qué (25-11-2026); aquí se
                 # sigue con la tabla de las que se quedan, que es la que usan el modelo, el
                 # mapa y el peso.
                 if _metodo == 'ninguno':
                     st.caption(i18n.pick(
-                        'Para quitar las variables repetidas, elige el VIF o un PCA en '
+                        'Para quitar las variables correlacionadas, elige el VIF o un PCA en '
                         '«1 · Datos», debajo de las variables.',
-                        'To remove repeated variables, choose the VIF or a PCA under '
+                        'To remove correlated variables, choose the VIF or a PCA under '
                         '"1 · Data", below the variables.'))
                 elif _sel_vig is None:
                     st.info(i18n.pick(
-                        f'Has elegido quitar las variables repetidas con {_nom_met}, pero no '
+                        f'Has elegido quitar las variables correlacionadas con {_nom_met}, pero no '
                         f"está aplicado: se usan las {len(_tab['predictores'])} variables. "
                         f'Para aplicarlo, pulsa «✔ Aplicar {_nom_met}» en «1 · Datos».',
-                        f'You chose to remove repeated variables with {_nom_met}, but it is '
+                        f'You chose to remove correlated variables with {_nom_met}, but it is '
                         f"not applied: the {len(_tab['predictores'])} variables are used. To "
                         f'apply it, press "✔ Apply {_nom_met}" under "1 · Data".'))
                 else:
                     _s_ap = _sel_vig['sel']
                     _m_ap = 'VIF' if _vif_si else 'PCA'
                     st.markdown(i18n.pick(
-                        f"**Variables repetidas ({_m_ap}):** se quedan "
+                        f"**Variables correlacionadas ({_m_ap}):** se quedan "
                         f"{len(_s_ap['quedan'])} de {_sel_vig['de']}; cuáles y por qué, en "
                         '«1 · Datos». El modelo, el mapa y el peso usan solo esas.',
-                        f"**Repeated variables ({_m_ap}):** {len(_s_ap['quedan'])} of "
+                        f"**Correlated variables ({_m_ap}):** {len(_s_ap['quedan'])} of "
                         f"{_sel_vig['de']} stay; which ones and why, under \"1 · Data\". "
                         'The model, the map and the weights use only those.'))
                     # La tabla con la que se sigue: solo con las que se quedan (puede
@@ -6658,8 +6854,8 @@ with tab_tipos:
                         + (i18n.pick(f"una por eje del PCA ({v['n_var']})",
                                      f"one per PCA axis ({v['n_var']})")
                            if v.get('pca') else
-                           i18n.pick(f"sin repetidas: VIF ≤ {v['vif']:g} ({v['n_var']})",
-                                     f"no repeats: VIF ≤ {v['vif']:g} ({v['n_var']})")
+                           i18n.pick(f"sin las correlacionadas: VIF ≤ {v['vif']:g} ({v['n_var']})",
+                                     f"without correlated ones: VIF ≤ {v['vif']:g} ({v['n_var']})")
                            if v['vif'] else
                            i18n.pick(f"las de «1 · Datos» ({v['n_var']})",
                                      f"those of \"1 · Data\" ({v['n_var']})")),
@@ -6671,13 +6867,13 @@ with tab_tipos:
                     'muestras; ▶ es el de ahora, el que hace el mapa. El F1 medio es el de '
                     'la validación por zonas. Una diferencia de unas centésimas puede ser '
                     'azar: con pocas muestras, una sola cambia la cifra. Para quedarte con '
-                    'otro, cambia la opción de las variables repetidas en «1 · Datos» y '
+                    'otro, cambia la opción de las variables correlacionadas en «1 · Datos» y '
                     'vuelve a entrenar.',
                     'Each row is a model trained in this session with the same samples; ▶ '
                     'is the current one, which makes the map. The mean F1 is that of the '
                     'validation by zones. A difference of a few hundredths may be chance: '
                     'with few samples, a single one changes the figure. To keep another '
-                    'one, change the repeated-variables option under "1 · Data" and '
+                    'one, change the correlated-variables option under "1 · Data" and '
                     'train again.'))
 
         # ------------------------------------------------------------ 4 · Mapa

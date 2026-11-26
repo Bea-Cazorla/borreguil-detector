@@ -1845,7 +1845,7 @@ def guion_tabla(lang):
     mod['importancia'] = guardado_imp
     at.run()
 
-    print('  T7 · quitar las variables repetidas con el VIF, y comparar el acierto')
+    print('  T7 · quitar las variables correlacionadas con el VIF, y comparar el acierto')
     caja = control(at, 'radio', 'mrf_seleccion')
     comprobar(caja is not None and caja.value == 'ninguno'
               and list(caja.options) == [T('No quitar ninguna', 'Remove none'),
@@ -1853,7 +1853,7 @@ def guion_tabla(lang):
                                          T('Con un PCA', 'With a PCA')]
               and control(at, 'number_input', 'mrf_vif_umbral') is None
               and T('Recomendado:', 'Recommended:') in (caja.help or ''),
-              'la opción de las variables repetidas (VIF o PCA) está; de entrada no se '
+              'la opción de las variables correlacionadas (VIF o PCA) está; de entrada no se '
               'quita nada')
 
     def pestana_datos():
@@ -1861,9 +1861,9 @@ def guion_tabla(lang):
 
     comprobar(pestana_datos()
               and any(c.key == 'mrf_seleccion' for c in pestana_datos()[0].radio)
-              and hay(at, T('Para quitar las variables repetidas, elige el VIF o un PCA en '
+              and hay(at, T('Para quitar las variables correlacionadas, elige el VIF o un PCA en '
                             '«1 · Datos»',
-                            'To remove repeated variables, choose the VIF or a PCA under '
+                            'To remove correlated variables, choose the VIF or a PCA under '
                             '"1 · Data"')),
               'el VIF y el PCA se eligen en «1 · Datos», junto a las variables, y «2 · Tabla» '
               'lo dice')
@@ -1919,9 +1919,9 @@ def guion_tabla(lang):
                             f'**With the VIF, {len(quedan)} of 20 variables stay:**'))
               and hay(at, T(f'2 · Tabla · 22 muestras, {len(quedan)} variables (VIF)',
                             f'2 · Table · 22 samples, {len(quedan)} variables (VIF)'))
-              and hay(at, T(f'**Variables repetidas (VIF):** se quedan {len(quedan)} de 20; '
+              and hay(at, T(f'**Variables correlacionadas (VIF):** se quedan {len(quedan)} de 20; '
                             'cuáles y por qué, en «1 · Datos»',
-                            f'**Repeated variables (VIF):** {len(quedan)} of 20 stay; which '
+                            f'**Correlated variables (VIF):** {len(quedan)} of 20 stay; which '
                             'ones and why, under "1 · Data"'))
               and hay(at, T('el VIF no es fiable', 'the VIF is not reliable')),
               'al aplicarlo dice cuáles se quedan (la altitud, siempre) y cuáles se quitan; '
@@ -3459,6 +3459,84 @@ def guion_sin_puntos(lang):
                   in str(i.value) for i in at.info),
               '«Mapa Modelo RF» no queda en blanco: remite al aviso',
               str([str(i.value)[:60] for i in at.info]))
+
+    print('  Z3 · lanzar los puntos por cuartiles de una capa')
+    est = [s for s in at.selectbox if s.label == T('Estrategia', 'Strategy')][0]
+    comprobar(T('Por cuartiles de una capa', 'By quartiles of a layer') in est.options,
+              'la estrategia «por cuartiles de una capa» está en el menú', str(est.options))
+    est.set_value('cuartiles')
+    at.run()
+    sin_error(at, 'Z3')
+    comprobar(hay(at, T('Sube la capa para elegir la columna y el reparto',
+                        'Upload the layer to choose the column and the split'))
+              and [t_ for t_ in at.text_input
+                   if t_.label == T('Elev. mín (m)', 'Min elev. (m)')][0].value == '',
+              'pide la capa y la altitud mínima va vacía de entrada')
+    # AppTest no sabe subir ficheros: el selector de la capa devuelve un GeoPackage de
+    # prueba (8 cuadrados, con su columna «cuartil» y otra numérica, «valor»).
+    import streamlit as _st
+    import test_puntos_cuartiles as tpc
+    datos = tpc.gpkg('pantalla.gpkg', tpc.CUADRADOS,
+                     {'cuartil': tpc.CUARTIL, 'valor': tpc.VALORES}).read_bytes()
+
+    class _Capa:
+        name = 'areas_probables.gpkg'
+
+        def getvalue(self):
+            return datos
+    subir = _st.file_uploader
+    _st.file_uploader = (lambda *a, **k: _Capa() if k.get('key') == 'subir_capa_cuartiles'
+                         else subir(*a, **k))
+    try:
+        at.run()
+        sin_error(at, 'Z3 · capa')
+        campo = [s for s in at.selectbox if s.key == 'capa_cuartiles_campo']
+        otro = [c for c in at.checkbox if c.key == 'capa_cuartiles_otro']
+        comprobar(not campo and otro and not otro[0].value
+                  and hay(at, T('«area_probable»: 8 polígonos. Se usan los cuartiles que '
+                                'trae la capa (columna «cuartil»).',
+                                '"area_probable": 8 polygons. The quartiles that the layer '
+                                'holds are used ("cuartil" column).'))
+                  and hay(at, T('150 puntos en el cuartil 1 y 50 en los cuartiles 2 a 4',
+                                '150 points in quartile 1 and 50 in quartiles 2 to 4')),
+                  'con la capa subida: usa su columna «cuartil» sin preguntar, y el 75 % de '
+                  '200 puntos')
+        otro[0].check()
+        [s for s in at.slider if s.key == 'capa_cuartiles_pct'][0].set_value(60)
+        at.run()
+        sin_error(at, 'Z3 · otro campo')
+        campo = [s for s in at.selectbox if s.key == 'capa_cuartiles_campo']
+        comprobar(campo and list(campo[0].options) == ['valor']
+                  and campo[0].label == T('Campo para calcular los cuartiles',
+                                          'Field to compute the quartiles from')
+                  and hay(at, T('Los cuartiles se calculan con «valor» y los polígonos que '
+                                'caen en el área de estudio',
+                                'The quartiles are computed from "valor" and the polygons '
+                                'that fall in the study area'))
+                  and hay(at, T('120 puntos en el cuartil 1 y 80 en los cuartiles 2 a 4',
+                                '120 points in quartile 1 and 80 in quartiles 2 to 4')),
+                  'con la casilla, se elige el campo con el que calcularlos (solo los '
+                  'numéricos); el reparto se puede cambiar',
+                  str(campo[0].options if campo else None))
+        # una capa sin columna «cuartil»: pide el campo directamente, sin casilla
+        datos_sin = tpc.gpkg('pantalla_sin.gpkg', tpc.CUADRADOS,
+                             {'valor': tpc.VALORES}).read_bytes()
+
+        class _CapaSin(_Capa):
+            name = 'sin_cuartil.gpkg'
+
+            def getvalue(self):
+                return datos_sin
+        _st.file_uploader = (lambda *a, **k: _CapaSin()
+                             if k.get('key') == 'subir_capa_cuartiles' else subir(*a, **k))
+        at.run()
+        sin_error(at, 'Z3 · sin columna cuartil')
+        comprobar(not [c for c in at.checkbox if c.key == 'capa_cuartiles_otro']
+                  and [s.options for s in at.selectbox
+                       if s.key == 'capa_cuartiles_campo'] == [['valor']],
+                  'una capa sin columna «cuartil» pide el campo, sin casilla')
+    finally:
+        _st.file_uploader = subir
 
 
 def guion_anadir(lang):
