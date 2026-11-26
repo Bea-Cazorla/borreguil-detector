@@ -1,15 +1,15 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.2",
-  "commit": "20f42f4cd7490f742256289acae634b5d4f138d1",
+  "version": "1.0.3",
+  "commit": "fb4db6860980a34621c42749e55acce90aab1b90",
   "fecha": "2026-11-26",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "c8fef1b551c8b8baa50274a0f7efb369e94272a20046ea91d4cad8f253003d28",
-      "bytes": 593609
+      "sha256": "1248335c08de30fd63bdad298feb01737f13dd4edc8e127ec4c57802f5ab9dda",
+      "bytes": 593614
     },
     {
       "ruta": "borreguil_pipeline.py",
@@ -63,23 +63,23 @@
     },
     {
       "ruta": "modelos_remotos.py",
-      "sha256": "b407173a1fdf9daab23dcf1bc3012c2bc9fd1892cd514dca20915214f51efcbe",
-      "bytes": 10768
+      "sha256": "dc3bbd2c866c66d68c6fff433ed2b0b792ef12b4883db85b4c366ebf9d54c4db",
+      "bytes": 10773
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "c9502123daad26358c9bcf53ac8edc373d160437dcda17f6a80e099e8b8736c9",
-      "bytes": 114808
+      "sha256": "d43d833788f7c7251a079b38eec1e41a427680b12cae35d93afaed0cfc88fa61",
+      "bytes": 114813
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "dc33431765e5e11b30d8d37197f439274d6c5e4fbe20836e6eb7bb2930c60d36",
-      "bytes": 18621
+      "sha256": "50fc4767c0b7312601d7f917c97393c24eff78cb072c0fea49d4c990561be478",
+      "bytes": 18626
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "fa028dbdebbc4bf27e0f6bc18367a7881bd9237c5b8fd3ea46999d989d1e3c3e",
-      "bytes": 3063
+      "sha256": "f735348b0e947d06aa4d20ccc1861ba62923300c9025d8ed1a6232eb0986585c",
+      "bytes": 3073
     },
     {
       "ruta": "LICENSE",
