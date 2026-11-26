@@ -1,15 +1,15 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.1",
-  "commit": "e59a3e9425a8301bb2cdae7ff4cd7f3733d4999a",
+  "version": "1.0.2",
+  "commit": "20f42f4cd7490f742256289acae634b5d4f138d1",
   "fecha": "2026-11-26",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "dcab4c6aa68c48409595f0e8d81805d2331b42a847990f79a616d285ae06fee2",
-      "bytes": 588708
+      "sha256": "c8fef1b551c8b8baa50274a0f7efb369e94272a20046ea91d4cad8f253003d28",
+      "bytes": 593609
     },
     {
       "ruta": "borreguil_pipeline.py",
@@ -23,13 +23,13 @@
     },
     {
       "ruta": "i18n.py",
-      "sha256": "16e501ff94870f84da98a2159a746c86961e088239e32f4108313cc5d29c719d",
-      "bytes": 41330
+      "sha256": "c76e7c1cb742985f4e5e998a8f41b2907b21650c4363e6e8c23dd3f96efb2d25",
+      "bytes": 41349
     },
     {
       "ruta": "gee_backend.py",
-      "sha256": "7a9c1e0e01a6b085e85734ececb54d381696c80bc417103b0c791affef3f6121",
-      "bytes": 51686
+      "sha256": "35a44781a2c3cb3b5da11a7c87f35ce0551c0694dfe2d4a0515cee5d14aa39a6",
+      "bytes": 58664
     },
     {
       "ruta": "random_points.py",
@@ -68,18 +68,18 @@
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "0796f2fea388ee2c3152d1a2a32c4e6bc8a95449260e42c33b2f17be32c62e09",
-      "bytes": 112602
+      "sha256": "c9502123daad26358c9bcf53ac8edc373d160437dcda17f6a80e099e8b8736c9",
+      "bytes": 114808
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "3915b7cfb10371367e35b69600f4c9fc78a1259f361ea3095980b511d4492da3",
-      "bytes": 17757
+      "sha256": "dc33431765e5e11b30d8d37197f439274d6c5e4fbe20836e6eb7bb2930c60d36",
+      "bytes": 18621
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "4d22aad566c1a766cd408675563be5341fa3636807f2481bebe4e88f845b3da3",
-      "bytes": 3054
+      "sha256": "fa028dbdebbc4bf27e0f6bc18367a7881bd9237c5b8fd3ea46999d989d1e3c3e",
+      "bytes": 3063
     },
     {
       "ruta": "LICENSE",
