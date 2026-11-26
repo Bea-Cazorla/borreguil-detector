@@ -6,10 +6,10 @@
 # (proyectos EVEREST y PRESINMED y sus investigadores principales) están en
 # .zenodo.json («notes» y «contributors») y en el README.
 #
-# Tras el primer release, añadir el DOI que asigne Zenodo y actualizar `version`
-# y `date-released` en cada versión nueva.
+# El DOI lo sube Bea a mano a Zenodo (ver PUBLICAR.md). En cada versión nueva:
+# actualizar `version` y `date-released`, y añadir el DOI de la versión abajo.
 cff-version: 1.2.0
-title: "Borreguil · Wet Meadow Finder - finding and mapping borreguiles (high-mountain wet meadows)"
+title: "Borreguil · Wet Meadow Finder: remote sensing and model-assisted ground-truth generation for mapping high-mountain wet meadows"
 message: "If you use this software in scientific work, please cite it using the DOI of the version you used."
 type: software
 
@@ -33,7 +33,14 @@ url: "https://github.com/monitoreo-obsnev/borreguil-detector"
 license: GPL-3.0-or-later                                   # ver el fichero LICENSE
 version: "1.0.5"                                            # actualizar en cada release
 date-released: "2026-11-26"                                 # actualizar en cada release
-# doi: "10.5281/zenodo.XXXXXXX"    # Zenodo lo asigna automáticamente; añádelo tras el primer release.
+doi: "10.5281/zenodo.24571286"                                # DOI de todas las versiones (lleva a la última)
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.24571286"
+    description: "Concept DOI: all versions (always resolves to the latest one)."
+  - type: doi
+    value: "10.5281/zenodo.24571287"
+    description: "Version 1.0.5."
 
 keywords:
   - borreguil

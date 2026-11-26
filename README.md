@@ -1,5 +1,7 @@
 # 🌿 Borreguil · Wet Meadow Finder
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24571286.svg)](https://doi.org/10.5281/zenodo.24571286)
+
 *Buscador y mapa de borreguiles*
 
 > **Se abre en su propia ventana.** El programa abre la app en una ventana suya, sin
@@ -268,8 +270,14 @@ Texto de agradecimiento de los proyectos (el mismo que va en Zenodo):
 
 ## Cómo citar
 
-Si usas este programa en un trabajo científico, cítalo con el DOI de la versión
-empleada (ver [`CITATION.cff`](CITATION.cff) y [`PUBLICAR.md`](PUBLICAR.md)).
+Si usas este programa en un trabajo científico, cítalo con su DOI de Zenodo
+([ficha](https://zenodo.org/records/24571287)). Para la versión 1.0.5:
+
+> Cazorla, B. P., Alcaraz-Segura, D., & Martínez-López, J. (2026). *Borreguil · Wet Meadow Finder: remote sensing and model-assisted ground-truth generation for mapping high-mountain wet meadows* (Version v1.0.5) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24571287
+
+El DOI **10.5281/zenodo.24571286** vale para todas las versiones (lleva siempre a la última);
+**10.5281/zenodo.24571287** es el de la versión 1.0.5. GitHub da la misma cita en
+«Cite this repository» (fichero [`CITATION.cff`](CITATION.cff)).
 
 ## Licencia
 

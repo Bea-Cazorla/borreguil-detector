@@ -138,6 +138,10 @@ Esto dispara automáticamente:
 
 ## Paso 5 · Recoger el DOI
 
+> **Publicado el 26-11-2026** desde la cuenta de Zenodo de Bea: https://zenodo.org/records/24571287.
+> DOI de todas las versiones **10.5281/zenodo.24571286**; de la versión 1.0.5 **10.5281/zenodo.24571287**.
+> Ya están en `CITATION.cff` y en el README (insignia y «Cómo citar»).
+
 En **https://zenodo.org/me/uploads** aparecerá tu depósito con dos DOI:
 
 | DOI | Para qué |
@@ -267,9 +271,7 @@ concepto. Numeración recomendada (versionado semántico):
 
 ## Cómo citarlo en un artículo
 
-> Cazorla, B. *et al.* (2026). *Borreguil · Wet Meadow Finder: buscador y mapa
-> de prados húmedos de alta montaña mediante teledetección y Random Forest*
-> (v1.0.0) [Software]. Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
+> Cazorla, B. P., Alcaraz-Segura, D., & Martínez-López, J. (2026). *Borreguil · Wet Meadow Finder: remote sensing and model-assisted ground-truth generation for mapping high-mountain wet meadows* (Version v1.0.5) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24571287
 
 En el apartado de métodos conviene indicar: **versión del programa**, **modelo
 empleado** (`rf_sierra_nevada.joblib` o `_cir`), **backend** (GEE o MPC), **años de
