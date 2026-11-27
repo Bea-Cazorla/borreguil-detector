@@ -3670,7 +3670,8 @@ def _frase(texto):
     return texto[:1].upper() + texto[1:].lower()
 
 
-def popup_html(r, traduce=None, textos=None, nombre=None, variables=None, num=None):
+def popup_html(r, traduce=None, textos=None, nombre=None, variables=None, num=None,
+               oscuro=False, es_borreguil=None):
     """Globo de un punto en el mapa (el de la app y el de mapa.html).
 
     - Los números, con 3 decimales.
@@ -3686,6 +3687,12 @@ def popup_html(r, traduce=None, textos=None, nombre=None, variables=None, num=No
     dan, una por línea (las que más pesan en el modelo, como en la tabla); `num`, cómo
     se escribe un número (con coma en español). Sin `variables`, las de siempre:
     altitud, pendiente, NDVI y Clre.
+
+    `oscuro=True` (el mapa de Resultados, como en la demo del 27-11-2026): globo oscuro
+    y en este orden: el punto, su resultado, «Probabilidad de borreguil» con el % en
+    grande y el decimal, el tipo («✓ revisado» o «(propuesta de la app)») y las
+    variables que más pesan. `es_borreguil`: verde (True) o rojo (False), como el
+    color del punto en el mapa.
     """
     import html
     t = {'tipo': 'Tipo', 'revisado': 'revisado', 'altitud': 'Altitud',
@@ -3696,6 +3703,9 @@ def popup_html(r, traduce=None, textos=None, nombre=None, variables=None, num=No
     def esc(x):
         return html.escape(str(x))
 
+    if oscuro:
+        return _globo_oscuro(r, t, tv, esc, nombre, variables, num or fmt_num,
+                             es_borreguil)
     rf = r.get('rf_proba')
     rf_txt = f'{rf * 100:.0f}%' if isinstance(rf, (int, float)) and rf == rf else '—'
     tipo = _txt(r.get('tipo_borreguil'))
@@ -3721,6 +3731,49 @@ def popup_html(r, traduce=None, textos=None, nombre=None, variables=None, num=No
         f"RF: {rf_txt}{tipo_html}<br>"
         + lineas +
         '</div>')
+
+
+def _globo_oscuro(r, t, tv, esc, nombre, variables, num, es_borreguil):
+    """El globo oscuro de popup_html(oscuro=True), con los colores de la demo: verde
+    claro si el punto es borreguil y rojo claro si no (gris sin probabilidad)."""
+    dec = _txt(r.get('decision')) or 'SIN PREDICCIÓN'
+    if es_borreguil is None:
+        d = dec.lower()
+        es_borreguil = 'borreguil' in d and 'no borreguil' not in d
+    rf = r.get('rf_proba')
+    hay_p = isinstance(rf, (int, float)) and rf == rf
+    if not hay_p:
+        c_dec, c_pct = '#AEB6BE', '#AEB6BE'
+    elif es_borreguil:
+        c_dec, c_pct = '#A5D6A7', '#7FD483'
+    else:
+        c_dec, c_pct = '#F5A3A1', '#F28B88'
+    nom = nombre_html(r.get('ID', '?') if nombre is None else nombre)
+    partes = [
+        f'<strong style="color:#F5F7F8;font-size:13px;padding-right:14px">{nom}</strong>',
+        f'<strong style="color:{c_dec}">{esc(_frase(tv(dec)))}</strong>',
+        f'<span style="margin-top:4px;color:#AEB6BE">'
+        f"{esc(t.get('prob', 'Probabilidad de borreguil'))}</span>",
+        '<span style="display:flex;align-items:baseline;gap:8px">'
+        f'<span style="font-family:\'Space Grotesk\',Inter,sans-serif;font-size:34px;'
+        f'font-weight:700;line-height:1.05;color:{c_pct}">'
+        + (f'{rf * 100:.0f} %' if hay_p else '—') + '</span>'
+        f'<span style="color:#AEB6BE">{num(rf) if hay_p else ""}</span></span>',
+    ]
+    tipo = _txt(r.get('tipo_borreguil'))
+    if tipo:
+        marca = (f"✓ {t['revisado']}" if tipo_revisado(r)
+                 else t.get('propuesta', '(propuesta de la app)'))
+        partes.append(f"<span>{esc(t['tipo'])}: <strong style=\"color:#F5F7F8\">"
+                      f"{esc(tv(tipo))}</strong> {esc(marca)}</span>")
+    if variables:
+        partes.append('<span style="font-style:italic;color:#AEB6BE;margin-top:4px">'
+                      f"{esc(t.get('variables', 'Las que más pesan en el modelo'))}:</span>")
+        partes += [f'<span>{esc(etq)}: {num(r.get(col))}</span>' for etq, col in variables]
+    return ('<div class="globo" style="width:250px;max-width:250px;overflow-wrap:anywhere;'
+            'display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:1.45;'
+            'color:#CDD3D9;font-family:Inter,system-ui,sans-serif">'
+            + ''.join(partes) + '</div>')
 
 
 def save_map(rows, out, study_geom=None):

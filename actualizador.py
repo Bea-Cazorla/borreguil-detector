@@ -79,7 +79,7 @@ MODULOS_APP = ('app.py', 'borreguil_pipeline.py', 'point_profile.py', 'i18n.py',
 # tabla de entrenamiento no: van con su modelo.
 DOCS_APP = ('MANUAL.md', 'TUTORIAL.md', 'CITATION.cff', 'LICENSE')
 DATOS_APP = ('lagunas_sierra_nevada.kml', 'cauces_sierra_nevada.geojson')
-SUBCARPETAS_APP = ('plantilla', 'sin_radar')
+SUBCARPETAS_APP = ('plantilla', 'sin_radar', 'imagenes')
 # Lo que no se deja cambiar desde fuera: el lanzador y este módulo viajan dentro del
 # ejecutable y solo cambian con un instalador nuevo.
 PROPIOS = ('launcher', 'actualizador')

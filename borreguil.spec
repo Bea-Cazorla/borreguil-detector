@@ -151,10 +151,12 @@ for name in ('MANUAL.md', 'TUTORIAL.md', 'LICENSE', 'CITATION.cff'):
             datas.append((str(p), '.'))
             break
 
-# Plantilla de datos de campo para quien sube sus puntos (Excel, ejemplo y definiciones).
-for p in (APP_DIR / 'plantilla').glob('*'):
-    if p.is_file() and not p.name.startswith('.'):
-        datas.append((str(p), 'plantilla'))
+# Plantilla de datos de campo para quien sube sus puntos (Excel, ejemplo y definiciones),
+# y las imágenes de la pantalla de inicio (foto del borreguil y logos del pie).
+for sub in ('plantilla', 'imagenes'):
+    for p in (APP_DIR / sub).glob('*'):
+        if p.is_file() and not p.name.startswith('.'):
+            datas.append((str(p), sub))
 
 # Paquetes de terceros que la app no usa. NO excluir aquí submódulos internos de
 # numpy/scipy (p. ej. numpy.f2py): numpy los importa de forma perezosa desde

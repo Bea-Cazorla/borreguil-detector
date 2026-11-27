@@ -59,7 +59,7 @@ def rutas_publicadas(commit):
     """Los ficheros que se publican, tal como están en el commit."""
     rutas = [r for r in (*act.MODULOS_APP, *act.DOCS_APP, *act.DATOS_APP)
              if existe(commit, r)]
-    for sub in ('plantilla',):
+    for sub in ('plantilla', 'imagenes'):
         rutas += [r for r in git('ls-tree', '-r', '--name-only', commit, f'{sub}/')
                   .splitlines() if r and not Path(r).name.startswith('.')]
     return rutas

@@ -20,6 +20,17 @@ COL_NO = '#8E0000'     # rojo oscuro: el no borreguil típico (mediana de los no
 #                        borreguiles), el mismo «no borreguil» de toda la app (25-11-2026)
 COL_GRIS = '#757575'   # gris neutro: líneas de referencia
 
+# La gráfica «Este punto frente a los borreguiles verdaderos» de 2 · Revisar, con los
+# colores de la demo (Revisar.dc.html, 27-11-2026): sobre el fondo oscuro (#131517) el
+# azul y el rojo oscuro de arriba casi no se veían. Solo para esta gráfica: las demás
+# siguen con los de arriba (el «no borreguil» #8E0000 es el de toda la app).
+PERFIL_PUNTO = '#4FA3F7'    # este punto, dentro de lo habitual
+PERFIL_FUERA = '#FF8A3D'    # este punto, por debajo de 10 o por encima de 90
+PERFIL_FRANJA = '#3E6B4F'   # la mitad central de los borreguiles (25–75), maciza
+PERFIL_MEDIANA = '#7CC496'  # el borreguil típico (50), raya continua
+PERFIL_NO = '#E57373'       # el no borreguil típico (rombo)
+PERFIL_VALOR_FUERA = '#FFB27D'  # en la tabla, el valor que se sale de lo habitual
+
 # Etiquetas legibles de TODAS las variables del modelo (para el ranking de importancia)
 FEATURE_LABELS = {
     # topografía
@@ -30,7 +41,7 @@ FEATURE_LABELS = {
     'ndvi_drop': 'Caída NDVI estacional', 'ndwi_late': 'NDWI fin de verano (1 ago – 30 sep; agua)',
     'clre_early': 'Clorofila red-edge inicio de verano (15 jun – 25 jul)', 'clre_late': 'Clorofila red-edge fin de verano (1 ago – 30 sep)',
     'gndvi_early': 'GNDVI inicio de verano (15 jun – 25 jul)', 'gndvi_late': 'GNDVI fin de verano (1 ago – 30 sep)',
-    'ndmi_early': 'NDMI humedad inicio de verano (15 jun – 25 jul)', 'ndmi_late': 'NDMI humedad fin de verano (1 ago – 30 sep)',
+    'ndmi_early': 'NDMI inicio de verano (15 jun – 25 jul)', 'ndmi_late': 'NDMI fin de verano (1 ago – 30 sep)',
     'evi_early': 'EVI inicio de verano (15 jun – 25 jul)', 'evi_late': 'EVI fin de verano (1 ago – 30 sep)', 'nbr_late': 'NBR fin de verano (1 ago – 30 sep)',
     'ndwi_early': 'NDWI inicio de verano (15 jun – 25 jul; agua)', 'nbr_early': 'NBR inicio de verano (15 jun – 25 jul)',
     'aspect_north': 'Orientación (norte)', 'aspect_east': 'Orientación (este)',
@@ -67,7 +78,7 @@ FEATURE_LABELS_EN = {
     'ndvi_drop': 'Seasonal NDVI drop', 'ndwi_late': 'NDWI late summer (1 Aug – 30 Sep; water)',
     'clre_early': 'Red-edge chlorophyll early summer (15 Jun – 25 Jul)', 'clre_late': 'Red-edge chlorophyll late summer (1 Aug – 30 Sep)',
     'gndvi_early': 'GNDVI early summer (15 Jun – 25 Jul)', 'gndvi_late': 'GNDVI late summer (1 Aug – 30 Sep)',
-    'ndmi_early': 'NDMI moisture early summer (15 Jun – 25 Jul)', 'ndmi_late': 'NDMI moisture late summer (1 Aug – 30 Sep)',
+    'ndmi_early': 'NDMI early summer (15 Jun – 25 Jul)', 'ndmi_late': 'NDMI late summer (1 Aug – 30 Sep)',
     'evi_early': 'EVI early summer (15 Jun – 25 Jul)', 'evi_late': 'EVI late summer (1 Aug – 30 Sep)', 'nbr_late': 'NBR late summer (1 Aug – 30 Sep)',
     'ndwi_early': 'NDWI early summer (15 Jun – 25 Jul; water)', 'nbr_early': 'NBR early summer (15 Jun – 25 Jul)',
     'aspect_north': 'Aspect (north)', 'aspect_east': 'Aspect (east)',
@@ -246,10 +257,12 @@ def chart_punto_vs_borreguiles(sel, ref_stats, n=8):
     parecidas, de arriba abajo por peso). Eje común de 0 a 100: la posición del punto
     entre los borreguiles (50 = como el borreguil mediano); franja verde = la mitad
     central de los borreguiles (25–75). Punto azul dentro del 10–90 y naranja fuera.
-    Rombo rojo oscuro: el NO borreguil típico (la mediana de los no borreguiles verdaderos),
+    Rombo rojo: el NO borreguil típico (la mediana de los no borreguiles verdaderos),
     en la misma escala, para ver si el punto se parece más a uno o a otro (añadido el
     24-11-2026). A la derecha, el valor del punto y el rango habitual de los
-    borreguiles (p25–p75), con 3 decimales. Devuelve (chart|None, recs)."""
+    borreguiles (p25–p75), con 3 decimales. Colores PERFIL_* (los de la demo, que se
+    leen sobre el fondo oscuro). Devuelve (chart|None, recs); 2 · Revisar dibuja los
+    `recs` en HTML con html_punto_vs_borreguiles."""
     feats = (ref_stats or {}).get('features') or {}
     con_ref = {f for f, d in feats.items() if (d or {}).get('si')}
     modelo = (ref_stats or {}).get('model_features')
@@ -279,20 +292,21 @@ def chart_punto_vs_borreguiles(sel, ref_stats, n=8):
     df = pd.DataFrame(recs)
     orden = [r['label'] for r in recs]
     xsc = alt.Scale(domain=[0, 100])
-    titulo_x = ('position among the real borreguiles (0–100)' if en
-                else 'posición entre los borreguiles verdaderos (0–100)')
+    # (sin título en el eje: la demo solo pone 0 25 50 75 100)
     franja = alt.Chart(pd.DataFrame({'a': [25], 'b': [75]})).mark_rect(
-        opacity=0.18, color=COL_BORR).encode(
-        x=alt.X('a:Q', scale=xsc, title=titulo_x), x2='b:Q')
+        color=PERFIL_FRANJA).encode(
+        x=alt.X('a:Q', scale=xsc, title=None, axis=alt.Axis(values=[0, 25, 50, 75, 100])),
+        x2='b:Q')
     mediana = alt.Chart(pd.DataFrame({'x': [50]})).mark_rule(
-        color=COL_BORR, strokeDash=[4, 3]).encode(x=alt.X('x:Q', scale=xsc))
+        color=PERFIL_MEDIANA, strokeWidth=2).encode(x=alt.X('x:Q', scale=xsc))
     con_valor = df[df['pct'].notna()]
     # Todas las variables en su fila, también las que no tienen dato en este punto.
     y = alt.Y('label:N', sort=orden, title=None, scale=alt.Scale(domain=orden),
               axis=alt.Axis(labelLimit=260, labelFontSize=12))
-    puntos = alt.Chart(con_valor).mark_point(filled=True, size=150).encode(
+    puntos = alt.Chart(con_valor).mark_point(filled=True, size=150, stroke='#131517',
+                                             strokeWidth=2, opacity=1).encode(
         x=alt.X('pct:Q', scale=xsc), y=y,
-        color=alt.condition('datum.fuera', alt.value(COL_OUT), alt.value(COL_PT)),
+        color=alt.condition('datum.fuera', alt.value(PERFIL_FUERA), alt.value(PERFIL_PUNTO)),
         tooltip=[alt.Tooltip('label:N', title='variable'),
                  alt.Tooltip('val:Q', title=('this point' if en else 'este punto'),
                              format='.3f'),
@@ -304,7 +318,7 @@ def chart_punto_vs_borreguiles(sel, ref_stats, n=8):
     capas = [franja, mediana]
     if len(con_no):
         capas.append(alt.Chart(con_no).mark_point(
-            shape='diamond', filled=True, size=110, color=COL_NO, opacity=0.85).encode(
+            shape='diamond', filled=True, size=110, color=PERFIL_NO, opacity=1).encode(
             x=alt.X('pct_no:Q', scale=xsc), y=y,
             tooltip=[alt.Tooltip('label:N', title='variable'),
                      alt.Tooltip('no_med:Q', title=('typical non-borreguil' if en
@@ -315,46 +329,169 @@ def chart_punto_vs_borreguiles(sel, ref_stats, n=8):
     return grafica.configure_view(stroke=None).configure_axis(grid=False), recs
 
 
-# La franja de la gráfica es COL_BORR con opacidad 0,18 sobre blanco
-_FRANJA_HTML = '#d6e8d7'
-
-
 def leyenda_punto_vs_borreguiles():
-    """Leyenda (HTML) de la gráfica chart_punto_vs_borreguiles: qué es cada color."""
+    """Leyenda (HTML) de la gráfica del punto, como en la demo (Revisar.dc.html): cuatro
+    entradas en una fila que se parte si no cabe."""
     en = i18n.get_lang() == 'en'
-
-    def punto(color):
-        return (f'<span style="display:inline-block;width:12px;height:12px;'
-                f'border-radius:50%;background:{color};vertical-align:middle"></span>')
-
-    franja = (f'<span style="display:inline-block;width:22px;height:12px;'
-              f'background:{_FRANJA_HTML};vertical-align:middle"></span>')
-    linea = (f'<span style="display:inline-block;width:0;height:14px;'
-             f'border-left:2px dashed {COL_BORR};margin:0 10px 0 9px;'
-             'vertical-align:middle"></span>')
-    vacio = ('<span style="display:inline-block;width:12px;height:12px;'
-             'border:1px dashed #999;border-radius:50%;vertical-align:middle"></span>')
-    rombo = (f'<span style="display:inline-block;width:9px;height:9px;margin:0 2px;'
-             f'background:{COL_NO};transform:rotate(45deg);vertical-align:middle"></span>')
+    caja = 'display:inline-block;flex:none'
     items = [
-        (punto(COL_PT), 'This point: within the usual for borreguiles' if en else
+        (f'<span style="{caja};width:12px;height:12px;border-radius:50%;'
+         f'background:{PERFIL_PUNTO}"></span>',
+         'This point: within the usual for borreguiles' if en else
          'Este punto: dentro de lo habitual en los borreguiles'),
-        (punto(COL_OUT), 'This point: lower or higher than almost all borreguiles '
-         '(below 10 or above 90)' if en else
-         'Este punto: más bajo o más alto que casi todos los borreguiles (por debajo de '
-         '10 o por encima de 90)'),
-        (franja, 'Middle half of the real borreguiles (25–75)' if en else
-         'Mitad central de los borreguiles verdaderos (25–75)'),
-        (linea, 'The typical borreguil (50)' if en else 'El borreguil típico (50)'),
-        (rombo, 'The typical non-borreguil, on the same scale: if this point is closer to '
-         'it than to the green band, it looks more like a non-borreguil' if en else
-         'El no borreguil típico, en la misma escala: si este punto está más cerca de él '
-         'que de la franja verde, se parece más a un no borreguil'),
-        (vacio, 'Row without a dot: this point has no value for that variable' if en else
-         'Fila sin punto: este punto no tiene dato en esa variable'),
+        (f'<span style="{caja};width:12px;height:12px;border-radius:50%;'
+         f'background:{PERFIL_FUERA}"></span>',
+         'This point: lower or higher than almost all (below 10 or above 90)' if en else
+         'Este punto: más bajo o más alto que casi todos (por debajo de 10 o por '
+         'encima de 90)'),
+        (f'<span style="{caja};width:18px;height:10px;border-radius:3px;'
+         f'background:{PERFIL_FRANJA}"></span>',
+         'The middle half of the borreguiles (25–75)' if en else
+         'La mitad central de los borreguiles (25–75)'),
+        (f'<span style="{caja};width:10px;height:10px;background:{PERFIL_NO};'
+         'transform:rotate(45deg)"></span>',
+         'The typical non-borreguil' if en else 'El no borreguil típico'),
     ]
-    filas = ''.join(f'<div style="margin:3px 0">{s}&nbsp;&nbsp;{t}</div>' for s, t in items)
-    return f'<div style="font-size:0.9em;line-height:1.3">{filas}</div>'
+    filas = ''.join(f'<span style="display:flex;align-items:center;gap:6px">{s}{t}</span>'
+                    for s, t in items)
+    return ('<div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;'
+            f'color:#CDD3D9">{filas}</div>')
+
+
+def _esc(t):
+    import html
+    return html.escape(str(t))
+
+
+def _minuscula(t):
+    """«Altitud (m)» → «altitud (m)», pero «NDWI variabilidad…» se queda igual."""
+    t = str(t)
+    return t[:1].lower() + t[1:] if len(t) > 1 and t[1:2].islower() else t
+
+
+def nota_punto_vs_borreguiles(recs):
+    """La frase del punto bajo «Cómo se lee esta gráfica»: en qué variables se sale de
+    lo habitual en los borreguiles (por debajo de 10 o por encima de 90), o que no se
+    sale en ninguna."""
+    en = i18n.get_lang() == 'en'
+    con_dato = [r for r in recs if r.get('pct') is not None]
+    if not con_dato:
+        return ('This point has no value for these variables.' if en else
+                'Este punto no tiene dato en estas variables.')
+    fuera = [_minuscula(r['label']) for r in con_dato if r.get('fuera')]
+    if fuera:
+        return (('At this point it is out of the usual for borreguiles: ' if en else
+                 'En este punto se sale de lo habitual en los borreguiles: ')
+                + ', '.join(fuera) + '.')
+    return ('At this point, all the variables fall within the usual for borreguiles.'
+            if en else
+            'En este punto, todas las variables caen dentro de lo habitual en los '
+            'borreguiles.')
+
+
+def html_punto_vs_borreguiles(recs, n_si='?'):
+    """La gráfica del punto en HTML, como en la demo (Revisar.dc.html): la frase de
+    entrada, la leyenda, una fila por variable (su nombre, la pista de 0 a 100 con la
+    franja 25–75, la raya del 50, el rombo del no borreguil típico y el punto, y a la
+    derecha su posición), el eje, la tabla de valores (los que se salen de lo habitual,
+    en naranja) y «Cómo se lee esta gráfica y para qué sirve», cerrado. Sin la
+    interactividad de Altair, que la demo no tiene, y con los colores de la demo."""
+    en = i18n.get_lang() == 'en'
+    b = 'font-weight:700'
+    if en:
+        entrada = (f'Each coloured dot is <span style="{b}">the point you are looking '
+                   f'at</span>, in one variable: where it falls among the <span '
+                   f'style="{b}">{n_si} real borreguiles</span> the model learnt from, for '
+                   'the variables that weigh most (top to bottom). 0 = lower than all, '
+                   '50 = like the typical borreguil, 100 = higher than all. Below, the '
+                   'values.')
+    else:
+        entrada = (f'Cada punto de color es <span style="{b}">el punto que estás '
+                   f'mirando</span>, en una variable: dónde cae entre los <span '
+                   f'style="{b}">{n_si} borreguiles verdaderos</span> de los que aprendió '
+                   'el modelo, en las variables que más pesan (de arriba abajo). 0 = más '
+                   'bajo que todos, 50 = como el borreguil típico, 100 = más alto que '
+                   'todos. Debajo, los valores.')
+    filas = []
+    for r in recs:
+        marcas = ''
+        if r.get('pct_no') is not None:
+            marcas += (f'<span style="position:absolute;top:3px;left:calc({r["pct_no"]:.1f}% '
+                       f'- 6px);width:12px;height:12px;background:{PERFIL_NO};'
+                       'transform:rotate(45deg)"></span>')
+        if r.get('pct') is not None:
+            col = PERFIL_FUERA if r.get('fuera') else PERFIL_PUNTO
+            marcas += (f'<span style="position:absolute;top:2px;left:calc({r["pct"]:.1f}% '
+                       f'- 7px);width:14px;height:14px;border-radius:50%;background:{col};'
+                       'border:2px solid #131517;box-sizing:border-box"></span>')
+        pos = '—' if r.get('pct') is None else f'{r["pct"]:.0f}'
+        filas.append(
+            '<div style="display:flex;align-items:center;gap:10px">'
+            '<span style="width:250px;max-width:42%;flex:none;font-size:12.5px;'
+            f'line-height:1.3;color:#ECEFF1">{_esc(r["label"])}</span>'
+            '<div style="flex:1;height:18px;position:relative;min-width:80px">'
+            '<div style="position:absolute;left:0;right:0;top:8px;height:2px;'
+            'background:#343B41"></div>'
+            '<div style="position:absolute;left:25%;width:50%;top:3px;height:12px;'
+            f'background:{PERFIL_FRANJA};border-radius:4px"></div>'
+            '<div style="position:absolute;left:50%;top:1px;width:2px;height:16px;'
+            f'background:{PERFIL_MEDIANA}"></div>{marcas}</div>'
+            '<span style="width:40px;flex:none;text-align:right;font-size:12px;'
+            f'color:#AEB6BE">{pos}</span></div>')
+    eje = ('<div style="display:flex;gap:10px;font-size:11px;color:#98A2AB">'
+           '<span style="width:250px;max-width:42%;flex:none"></span>'
+           '<div style="flex:1;display:flex;justify-content:space-between;min-width:80px">'
+           + ''.join(f'<span>{v}</span>' for v in (0, 25, 50, 75, 100))
+           + '</div><span style="width:40px;flex:none"></span></div>')
+    cab = (('Variable', 'This point', 'Borreguiles (middle half)', 'Typical non-borreguil',
+            'Weight') if en else
+           ('Variable', 'Este punto', 'Borreguiles (mitad central)', 'No borreguil típico',
+            'Peso'))
+    h = ('padding:8px 10px;color:#AEB6BE;font-weight:500;font-size:12.5px;'
+         'border-bottom:1px solid #2C3237;white-space:nowrap')
+    c = 'padding:7px 10px;font-size:12.5px;border-bottom:1px solid #262B2F;white-space:nowrap'
+    celdas = ''.join(f'<span style="{h}">{t}</span>' for t in cab)
+    for r in recs:
+        val = (f'color:{PERFIL_VALOR_FUERA};font-weight:700' if r.get('fuera')
+               else 'color:#ECEFF1;font-weight:600')
+        # (el nombre se parte en dos líneas si no cabe: en la demo pisaba el valor)
+        celdas += (f'<span style="{c};color:#ECEFF1;white-space:normal;line-height:1.3">'
+                   f'{_esc(r["label"])}</span>'
+                   f'<span style="{c};{val}">{_tres(r["val"])}</span>'
+                   f'<span style="{c};color:#CDD3D9">{r["rango"]}</span>'
+                   f'<span style="{c};color:#CDD3D9">{_tres(r.get("no_med"))}</span>'
+                   f'<span style="{c};color:#CDD3D9">{r["peso_txt"]}</span>')
+    tabla = ('<div style="overflow-x:auto;border:1px solid #2C3237;border-radius:12px;'
+             'background:#1D2124"><div style="display:grid;grid-template-columns:'
+             'minmax(150px,1.4fr) minmax(90px,0.8fr) minmax(150px,1.2fr) '
+             'minmax(110px,0.9fr) minmax(60px,0.5fr);min-width:600px">'
+             + celdas + '</div></div>')
+    if en:
+        leer = ('How to read this chart and what it is for',
+                'If almost all the coloured dots fall in the green band, the point looks '
+                'like the borreguiles the model learnt from. If they fall near the red '
+                'diamond, it looks more like the typical non-borreguil. The orange ones are '
+                'the variables in which the point is out of the usual.',
+                'It helps to understand why the model says what it says, and what to look '
+                'at on the orthophoto. It does not decide for you: always look at the '
+                'yellow square.')
+    else:
+        leer = ('Cómo se lee esta gráfica y para qué sirve',
+                'Si casi todos los puntos de color caen en la franja verde, el punto se '
+                'parece a los borreguiles con los que aprendió el modelo. Si caen cerca del '
+                'rombo rojo, se parece más al no borreguil típico. Los naranjas son las '
+                'variables en las que el punto se sale de lo habitual.',
+                'Sirve para entender por qué el modelo dice lo que dice, y en qué fijarte '
+                'en la ortofoto. No decide por ti: mira siempre el recuadro amarillo.')
+    como = ('<details class="rev-leer"><summary>' + leer[0] + '</summary>'
+            '<div class="rev-leer-cuerpo">'
+            f'<span>{leer[1]}</span><span>{leer[2]}</span>'
+            f'<span style="color:#ECEFF1">{_esc(nota_punto_vs_borreguiles(recs))}</span>'
+            '</div></details>')
+    return (f'<span style="line-height:1.5">{entrada}</span>'
+            + leyenda_punto_vs_borreguiles()
+            + '<div style="display:flex;flex-direction:column;gap:9px">'
+            + ''.join(filas) + eje + '</div>' + tabla + como)
 
 
 def tabla_punto_vs_borreguiles(recs):
@@ -422,7 +559,7 @@ def chart_curva_puntos(curva, n=None, marcas=(), en=None):
         for k, (m, _) in enumerate(marcas):
             capas.append(alt.Chart(dm[dm['n'] == m]).mark_text(
                 align='left' if k == 0 else 'right', dx=8 if k == 0 else -8,
-                dy=18 if k == 0 else -14, fontSize=11, color='#37474f')
+                dy=18 if k == 0 else -14, fontSize=11, color='#AEB6BE')
                 .encode(x=x, y=y, text='txt:N'))
     if n:
         nv = min(max(int(n), xmin), xmax)
@@ -476,7 +613,7 @@ def chart_curva_propia(cifras, en=None):
              base.mark_line(color=COL_PT, strokeWidth=2).encode(x=x, y=y),
              base.mark_point(color=COL_PT, filled=True, size=70, opacity=1,
                              stroke='white', strokeWidth=2).encode(x=x, y=y, tooltip=tip),
-             base.mark_text(dy=16, fontSize=11, color='#37474f').encode(
+             base.mark_text(dy=16, fontSize=11, color='#AEB6BE').encode(
                  x=x, y=y, text='parte:N')]
     return alt.layer(*capas).properties(height=260)
 
@@ -506,7 +643,7 @@ def chart_importance(rs, topn=12):
         tooltip=[alt.Tooltip('label:N', title='variable'),
                  alt.Tooltip('imp:Q', title='importancia %', format='.3f'),
                  alt.Tooltip('rango:N', title='rango borreguil p25–p75')])
-    txt = alt.Chart(df).mark_text(align='left', dx=4, fontSize=10, color='#2e7d32').encode(
+    txt = alt.Chart(df).mark_text(align='left', dx=4, fontSize=10, color='#7CC496').encode(
         x=alt.X('imp:Q', scale=xsc), y=alt.Y('label:N', sort=order), text='rango:N')
     return (bars + txt).properties(height=max(150, 26 * len(recs))), recs
 
@@ -991,7 +1128,7 @@ def chart_decision_counts(rows):
                  alt.Tooltip('texto:N', title='nº')])
     barras = base.mark_bar(cornerRadiusEnd=4, size=20).encode(
         color=alt.Color('color:N', scale=None, legend=None))
-    numeros = base.mark_text(align='left', dx=5, color='#424242',
+    numeros = base.mark_text(align='left', dx=5, color='#AEB6BE',
                              fontSize=12).encode(text='texto:N')
     return (barras + numeros).properties(height=60 + 32 * len(df))
 
@@ -1094,7 +1231,7 @@ def chart_type_counts(rows):
         # automático la dejaba en una raya).
         barras = base.mark_bar(cornerRadiusEnd=4, size=18).encode(
             color=alt.Color('color:N', scale=None, legend=None))
-        numeros = base.mark_text(align='left', dx=4, color='#424242').encode(text='n:Q')
+        numeros = base.mark_text(align='left', dx=4, color='#AEB6BE').encode(text='n:Q')
         # En la app, la altura incluye el eje de abajo y su título (unos 60 px): sin
         # sumarlos, las barras se quedaban sin sitio y los nombres se montaban.
         out.append((titulos[clave],

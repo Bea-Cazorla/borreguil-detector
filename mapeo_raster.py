@@ -105,6 +105,24 @@ def color(categoria, i=0):
     return COLORES.get(categoria, _RESERVA[i % len(_RESERVA)])
 
 
+# Los colores del VISOR del mapa en «3 · Hacer el mapa», los de la demo (27-11-2026):
+# borreguil y borreguil húmedo en verde claro, borreguil seco en amarillo verdoso, el agua
+# de laguna (que se quita del borreguil) en azul claro, y «no borreguil» sin pintar, para
+# ver el terreno. Solo cambian la imagen del visor, su leyenda y la imagen PNG que se
+# descarga: el GeoTIFF y las gráficas siguen con COLORES. Lo que no está aquí (los
+# ambientes con su humedad, la paleta que eligió la autora, y la pureza) lleva su color
+# de COLORES.
+COLORES_VISOR = {'borreguil': '#7CC496', 'húmedo': '#7CC496', 'seco': '#C5D94A'}
+COLOR_AGUA = '#4FC3F7'
+# En el visor, «no borreguil» no se pinta (opacidad 0)
+TENUES_VISOR = {'no borreguil': 0.0}
+
+
+def color_visor(categoria, i=0):
+    """El color de una categoría en el visor del mapa (ver COLORES_VISOR)."""
+    return COLORES_VISOR.get(categoria) or color(categoria, i)
+
+
 def _rgb(hexa):
     h = hexa.lstrip('#')
     return tuple(int(h[k:k + 2], 16) for k in (0, 2, 4))
@@ -1174,15 +1192,29 @@ def _dibujar_encuadre(src, banda, x0, y0, x1, y1, res, categorica, max_px):
             'cubre': (c0 * res, f0 * res, c1 * res, f1 * res), 'res': res}
 
 
-def dibujar_vista(memoria, ruta, banda, vista, zoom, pintar, categorica=False):
+def dibujar_vista(memoria, ruta, banda, vista, zoom, pintar, categorica=False, encima=None):
     """La imagen que hay que poner en el visor para esa vista: (texto «data:image…»,
     límites), o None si el mapa no asoma.
 
     `memoria` es un dict que se conserva entre llamadas (uno por mapa y capa): si la
     vista nueva sigue cabiendo en lo último que se dibujó, al mismo zoom, se devuelve
     lo mismo y el visor no tiene que cambiar nada. `pintar` convierte la matriz en una
-    imagen RGBA (pintar_clases o pintar_probabilidad).
+    imagen RGBA (pintar_clases o pintar_probabilidad). `encima`: (ruta, banda, pintar) de
+    otro ráster de la misma rejilla que se pinta por encima donde no es transparente
+    (en el visor, el agua de laguna sobre las categorías).
     """
+    if encima is not None:
+        r2, b2, p2 = encima
+        p1 = pintar
+
+        def pintar(m, _vista=vista, _zoom=zoom):
+            rgba = p1(m)
+            img2 = imagen_encuadre(r2, b2, _vista, _zoom, categorica=True)
+            if img2 is not None and img2['matriz'].shape == m.shape:
+                sobre = p2(img2['matriz'])
+                hay = sobre[..., 3] > 0
+                rgba[hay] = sobre[hay]
+            return rgba
     import mapeo_tif as mt
     if 'marco' not in memoria:                      # lo que ocupa el mapa, en Mercator
         with mt.abrir(ruta) as src:
@@ -1266,17 +1298,51 @@ def guion_capas(imagenes, opacidad, elegida='', nombre=''):
             json.dumps(str(nombre)))
 
 
-def pintar_clases(matriz, categorias, opacidad=0.75):
+def pintar_clases(matriz, categorias, opacidad=0.75, tenues=None):
     """Matriz de códigos → imagen RGBA (uint8) con el color de cada categoría; lo que
-    no tiene dato queda transparente, y las categorías de TENUES, más transparentes
-    que las demás."""
+    no tiene dato queda transparente, y las categorías de `tenues` (de entrada,
+    TENUES), más transparentes que las demás."""
     import numpy as np
+    tenues = TENUES if tenues is None else tenues
     rgba = np.zeros(matriz.shape + (4,), dtype='uint8')
     for c in categorias:
         donde = matriz == c['codigo']
-        alfa = 255 * opacidad * TENUES.get(c['categoria'], 1.0)
+        alfa = 255 * opacidad * tenues.get(c['categoria'], 1.0)
         rgba[donde] = _rgb(c['color']) + (int(round(alfa)),)
     return rgba
+
+
+def pintar_agua(matriz, opacidad=1.0):
+    """El agua de laguna (código 1 de agua_de_laguna.tif) en COLOR_AGUA; lo demás,
+    transparente."""
+    return pintar_clases(matriz, [{'codigo': 1, 'categoria': 'agua', 'color': COLOR_AGUA}],
+                         opacidad, tenues={})
+
+
+def png_del_mapa(carpeta, categorias):
+    """El mapa como imagen PNG (bytes), con los colores del visor: los de `categorias`
+    ([{codigo, categoria, color}], los de COLORES_VISOR), «no borreguil» sin pintar y el agua
+    de laguna encima si el mapa la tiene. Un punto por píxel de 10 m, sin coordenadas: para
+    verlo o ponerlo en un documento."""
+    import io
+
+    import mapeo_tif as mt
+    from PIL import Image
+    carpeta = Path(carpeta)
+    with mt.abrir(carpeta / FICHEROS['clase']) as src:
+        m = src.leer(1)
+    rgba = pintar_clases(m, categorias, 1.0, tenues=TENUES_VISOR)
+    ruta_agua = carpeta / FICHEROS['agua']
+    if ruta_agua.exists():
+        with mt.abrir(ruta_agua) as src:
+            a = src.leer(1)
+        if a.shape == m.shape:
+            sobre = pintar_agua(a)
+            hay = sobre[..., 3] > 0
+            rgba[hay] = sobre[hay]
+    buf = io.BytesIO()
+    Image.fromarray(rgba).save(buf, format='PNG', optimize=True)
+    return buf.getvalue()
 
 
 def pintar_probabilidad(matriz, opacidad=0.8):

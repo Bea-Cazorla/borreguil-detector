@@ -274,12 +274,12 @@ TITULO_VENTANA = f'{APP_NAME} · Wet Meadow Finder'
 _PAGINA = """<!doctype html><html lang="es"><head><meta charset="utf-8">
 <title>{titulo}</title><style>
 html,body{{height:100%;margin:0}}
-body{{display:flex;align-items:center;justify-content:center;background:#F1F8E9;
-color:#1B1B1B;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}}
+body{{display:flex;align-items:center;justify-content:center;background:#131517;
+color:#ECEFF1;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}}
 .caja{{max-width:34em;padding:2em;text-align:center}}
-h1{{color:#2E7D32;font-size:1.6em;margin:0 0 .5em}} p{{line-height:1.5;margin:.4em 0}}
+h1{{color:#F5F7F8;font-size:1.6em;margin:0 0 .5em}} p{{line-height:1.5;margin:.4em 0;color:#AEB6BE}}
 .gira{{width:2.2em;height:2.2em;margin:1.4em auto 0;border-radius:50%;
-border:.3em solid #C5E1A5;border-top-color:#2E7D32;animation:g 1s linear infinite}}
+border:.3em solid #2C3237;border-top-color:#7CC496;animation:g 1s linear infinite}}
 @keyframes g{{to{{transform:rotate(360deg)}}}}
 </style></head><body><div class="caja">{cuerpo}</div></body></html>"""
 
@@ -295,7 +295,7 @@ NO_ARRANCA = _PAGINA.format(
            '<p>El motor de la app no ha arrancado. El motivo está en la ventana de '
            'consola.</p><p>Cierra esta ventana y vuelve a abrir el programa. Si sigue '
            'igual, copia el texto de la consola y avisa en '
-           'github.com/Bea-Cazorla/borreguil-detector/issues.</p>')
+           'github.com/monitoreo-obsnev/borreguil-detector/issues.</p>')
 
 
 def lanzar_servidor(port: int):
@@ -397,8 +397,8 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
         ventana.load_url(url)
         if not probar:
             return
-        # Prueba: la app tiene que verse en la ventana (el panel lateral escrito por
-        # app.py, no solo el servidor).
+        # Prueba: la app tiene que verse en la ventana (lo que escribe app.py, no solo
+        # el servidor).
         resultado['estado'] = 'no_se_ve'
         fin = time.time() + 150
         while time.time() < fin:
@@ -408,7 +408,8 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
                     'document.body ? document.body.innerText : ""') or ''
             except Exception:                    # noqa: BLE001
                 texto = ''
-            if 'Área de estudio' in texto:
+            # El Inicio (título) o, en versiones de antes, el panel lateral.
+            if 'Encuentra los borreguiles' in texto or 'Área de estudio' in texto:
                 resultado['estado'] = 'ok'
                 break
         ventana.destroy()
@@ -417,6 +418,7 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
     webview.settings['OPEN_EXTERNAL_LINKS_IN_BROWSER'] = True  # GitHub, formulario…
     ventana = webview.create_window(TITULO_VENTANA, html=CARGANDO, width=1400,
                                     height=900, min_size=(900, 600),
+                                    background_color='#131517',   # sin destello blanco
                                     maximized=not probar, text_select=True)
     try:
         # private_mode=False y una carpeta propia: la ventana recuerda lo que el
@@ -514,10 +516,8 @@ def main():
     os.environ.setdefault('STREAMLIT_SERVER_ADDRESS', 'localhost')
     os.environ.setdefault('STREAMLIT_SERVER_FILE_WATCHER_TYPE', 'none')  # innecesario y frágil al compilar
     os.environ.setdefault('STREAMLIT_SERVER_MAX_UPLOAD_SIZE', '50')
-    os.environ.setdefault('STREAMLIT_THEME_PRIMARY_COLOR', '#2E7D32')
-    os.environ.setdefault('STREAMLIT_THEME_BACKGROUND_COLOR', '#FFFFFF')
-    os.environ.setdefault('STREAMLIT_THEME_SECONDARY_BACKGROUND_COLOR', '#F1F8E9')
-    os.environ.setdefault('STREAMLIT_THEME_TEXT_COLOR', '#1B1B1B')
+    # El tema (oscuro) lo pone app.py: estas variables no llegaban a Streamlit sin la
+    # orden «streamlit run», y app.py se actualiza sola.
 
     url = f'http://localhost:{port}'
     if servidor:                          # el proceso que lanza la ventana

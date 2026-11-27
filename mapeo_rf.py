@@ -2094,14 +2094,14 @@ def cifras_curva(curva, mod):
 G_INICIO = 'Sentinel-2 · inicio de verano (15 jun – 24 jul)'
 G_FIN = 'Sentinel-2 · fin de verano (1 ago – 29 sep)'
 G_CAMBIO = 'Sentinel-2 · cambio estacional'
-G_PERIODO = 'Sentinel-2 · estadísticas de jun – sep (1 jun – 29 sep)'
+G_PERIODO = 'Sentinel-2 · estadísticas de junio a septiembre (1 jun – 29 sep)'
 G_TOPO = 'Topografía (Copernicus DEM, 30 m)'
 GRUPOS = (G_INICIO, G_FIN, G_CAMBIO, G_PERIODO, G_TOPO)
 GRUPOS_EN = {
     G_INICIO: 'Sentinel-2 · early summer (15 Jun – 24 Jul)',
     G_FIN: 'Sentinel-2 · late summer (1 Aug – 29 Sep)',
     G_CAMBIO: 'Sentinel-2 · seasonal change',
-    G_PERIODO: 'Sentinel-2 · Jun – Sep statistics (1 Jun – 29 Sep)',
+    G_PERIODO: 'Sentinel-2 · June to September statistics (1 Jun – 29 Sep)',
     G_TOPO: 'Topography (Copernicus DEM, 30 m)',
 }
 
@@ -2148,13 +2148,165 @@ NO_DISPONIBLES = (
      'Sentinel-1, radar (5 variables)',
      'it is downloaded point by point; bringing it as a map from Earth Engine is new code'),
     ('GNDVI (2 variables)',
-     'es el NDWI con el signo cambiado: tenerlas las dos sería repetir la misma variable',
+     'es el NDWI con el signo cambiado; tener las dos sería repetir la misma variable',
      'GNDVI (2 variables)',
      'it is NDWI with the sign flipped: keeping both would repeat the same variable'),
 )
 
 
 _GRUPO_DE = {p[0]: p[1] for p in PREDICTORES}        # variable → su grupo
+
+
+# ============================================================
+# Los nombres de las variables DEL MAPA, con sus fechas exactas
+# ------------------------------------------------------------
+# Earth Engine deja fuera el último día de un filtro de fechas (ee.Filter.date), así
+# que las ventanas del mapa son 15 jun – 24 jul, 1 ago – 29 sep y 1 jun – 29 sep (la
+# autora insiste: son las fechas de verdad). Los puntos del detector usan otras ventanas
+# (15 jun – 25 jul, 1 ago – 30 sep): sus nombres están en point_profile.FEATURE_LABELS.
+# Estos son los de la pantalla «3 · Hacer el mapa», como en la demo:
+#   · corta: la de las fichas de «1 · Datos» (el grupo ya lleva las fechas);
+#   · tabla: la de «Qué mide cada variable» (la columna «Cuándo» lleva las fechas);
+#   · larga: la de todo lo demás, con sus fechas.
+# ============================================================
+F_INICIO = ('15 jun – 24 jul', '15 Jun – 24 Jul')
+F_FIN = ('1 ago – 29 sep', '1 Aug – 29 Sep')
+F_PERIODO = ('1 jun – 29 sep', '1 Jun – 29 Sep')
+_INDICE_NOMBRE = {'ndvi': ('NDVI', 'NDVI'), 'ndwi': ('NDWI', 'NDWI'),
+                  'clre': ('Clorofila', 'Chlorophyll'), 'ndmi': ('NDMI', 'NDMI'),
+                  'evi': ('EVI', 'EVI'), 'nbr': ('NBR', 'NBR'), 'wavi': ('WAVI', 'WAVI'),
+                  'albedo': ('Albedo', 'Albedo')}
+_INDICE_QUE = {'ndvi': ('vigor de la vegetación', 'vegetation vigour'),
+               'ndwi': ('agua en superficie', 'surface water'),
+               'clre': ('clorofila (borde del rojo)', 'chlorophyll (red edge)'),
+               'ndmi': ('humedad de la vegetación', 'vegetation moisture'),
+               'evi': ('vigor corregido', 'corrected vigour'),
+               'nbr': ('infrarrojo de onda corta', 'short-wave infrared')}
+_PERIODO_QUE = {'wavi': ('vegetación sobre agua', 'vegetation over water'),
+                'albedo': ('brillo de la superficie', 'surface brightness'),
+                'ndmi': ('humedad', 'moisture'), 'ndwi': ('agua', 'water')}
+_ESTAD_NOMBRE = {s: (es, en) for s, es, en in _ESTADISTICOS}
+_ESTAD_QUE = {'mean': ('media', 'mean'), 'min': ('el valor más bajo', 'the lowest value'),
+              'max': ('el valor más alto', 'the highest value'),
+              'sd': ('cuánto varía', 'how much it varies')}
+# relieve: (corta, tabla, larga, qué mide), cada una (es, en)
+_TOPO_NOMBRE = {
+    'elev_dem_m': (('Altitud', 'Elevation'), ('Altitud', 'Elevation'),
+                   ('Altitud (m)', 'Elevation (m)'),
+                   ('altitud del terreno', 'terrain elevation')),
+    'slope_deg': (('Pendiente', 'Slope'), ('Pendiente', 'Slope'), ('Pendiente (°)', 'Slope (°)'),
+                  ('inclinación del terreno', 'terrain steepness')),
+    'aspect_north': (('Orientación norte', 'Aspect north'),
+                     ('Orientación: componente norte', 'Aspect: north component'),
+                     ('Orientación: componente norte', 'Aspect: north component'),
+                     ('cuánto mira al norte', 'how much it faces north')),
+    'aspect_east': (('Orientación este', 'Aspect east'),
+                    ('Orientación: componente este', 'Aspect: east component'),
+                    ('Orientación: componente este', 'Aspect: east component'),
+                    ('cuánto mira al este', 'how much it faces east')),
+    'curvature': (('Curvatura', 'Curvature'), ('Curvatura del terreno', 'Terrain curvature'),
+                  ('Curvatura del terreno', 'Terrain curvature'),
+                  ('si el terreno es una hondonada o una loma',
+                   'whether the ground is a hollow or a ridge')),
+}
+_CAIDA = {'corta': ('Caída del NDVI', 'NDVI drop'),
+          'larga': (f'Caída del NDVI, del inicio de verano ({F_INICIO[0]}) al fin de verano '
+                    f'({F_FIN[0]})',
+                    f'NDVI drop, from early summer ({F_INICIO[1]}) to late summer '
+                    f'({F_FIN[1]})'),
+          'que': (f'cuánto baja el verdor del inicio de verano ({F_INICIO[0]}) al fin de '
+                  f'verano ({F_FIN[0]})',
+                  f'how much the greenness drops from early summer ({F_INICIO[1]}) to late '
+                  f'summer ({F_FIN[1]})')}
+# Qué se quita de las imágenes en cada grupo (gee_backend: _season_composite con la SCL;
+# _period_new_stats con s2cloudless y la máscara de nieve)
+_FILTRO_SCL = ('Escenas con menos del 40 % de nubes; en cada píxel se quitan nubes, sombras '
+               'de nube, cirros y píxeles oscuros o saturados (clasificación SCL de '
+               'Sentinel-2). La nieve no se quita.',
+               'Scenes with less than 40 % cloud; in each pixel, clouds, cloud shadows, '
+               'cirrus and dark or saturated pixels are removed (Sentinel-2 SCL '
+               'classification). Snow is not removed.')
+FILTRO_GRUPO = {
+    G_INICIO: _FILTRO_SCL, G_FIN: _FILTRO_SCL,
+    G_CAMBIO: ('Como el inicio y el fin de verano, de los que sale.',
+               'Like early and late summer, which it comes from.'),
+    G_PERIODO: ('Se quitan las nubes (s2cloudless: probabilidad de nube mayor del 30 %) y '
+                'la nieve (NDSI de 0,4 o más, o nieve en la SCL). Las sombras de nube no se '
+                'quitan.',
+                'Clouds (s2cloudless: cloud probability above 30 %) and snow (NDSI of 0.4 '
+                'or more, or snow in the SCL) are removed. Cloud shadows are not removed.'),
+    G_TOPO: ('No hace falta: es el relieve.', 'Not needed: it is the relief.'),
+}
+
+
+def etiqueta(nombre, en=False, forma='larga'):
+    """El nombre de una variable del mapa, con las fechas del mapa (ver arriba).
+    `forma`: 'larga' (con sus fechas), 'tabla' o 'corta'."""
+    i = 1 if en else 0
+    if nombre in _TOPO_NOMBRE:
+        return _TOPO_NOMBRE[nombre][{'corta': 0, 'tabla': 1}.get(forma, 2)][i]
+    if nombre == 'ndvi_drop':
+        return _CAIDA['corta' if forma != 'larga' else 'larga'][i]
+    k, _, s = nombre.rpartition('_')
+    if k not in _INDICE_NOMBRE:
+        return nombre
+    idx = _INDICE_NOMBRE[k][i]
+    if s in ('early', 'late'):
+        if forma == 'corta':
+            return idx
+        if s == 'early':
+            return (f'{idx} early summer ({F_INICIO[1]})' if en
+                    else f'{idx} inicio de verano ({F_INICIO[0]})')
+        return (f'{idx} late summer ({F_FIN[1]})' if en
+                else f'{idx} fin de verano ({F_FIN[0]})')
+    if s in _ESTAD_NOMBRE:
+        base = f'{idx} {_ESTAD_NOMBRE[s][i]}'
+        return base if forma != 'larga' else f'{base} ({F_PERIODO[i]})'
+    return nombre
+
+
+def que_mide(nombre, en=False):
+    """Qué mide una variable del mapa, como en la tabla «Qué mide cada variable»."""
+    i = 1 if en else 0
+    if nombre in _TOPO_NOMBRE:
+        return _TOPO_NOMBRE[nombre][3][i]
+    if nombre == 'ndvi_drop':
+        return _CAIDA['que'][i]
+    k, _, s = nombre.rpartition('_')
+    if s in ('early', 'late') and k in _INDICE_QUE:
+        return _INDICE_QUE[k][i]
+    if s in _ESTAD_QUE and k in _PERIODO_QUE:
+        return f'{_PERIODO_QUE[k][i]}: {_ESTAD_QUE[s][i]}'
+    return descripcion(nombre, en)
+
+
+def cuando_grupo(grupo, anios='', en=False):
+    """Las fechas de un grupo de variables del mapa (la columna «Cuándo»). `anios`:
+    los años del panel de Analizar, ya escritos («2017–2025»)."""
+    a = f', {anios}' if anios else ''
+    i = 1 if en else 0
+    if grupo == G_INICIO:
+        return (f'Early summer: {F_INICIO[1]}{a}' if en
+                else f'Inicio de verano: {F_INICIO[0]}{a}')
+    if grupo == G_FIN:
+        return (f'Late summer: {F_FIN[1]}{a}' if en else f'Fin de verano: {F_FIN[0]}{a}')
+    if grupo == G_CAMBIO:
+        return (f'Early ({F_INICIO[1]}) minus late ({F_FIN[1]})' if en
+                else f'Inicio ({F_INICIO[0]}) menos fin ({F_FIN[0]})')
+    if grupo == G_PERIODO:
+        return (f'{F_PERIODO[1]} of each year{a}' if en
+                else f'{F_PERIODO[0]} de cada año{a}')
+    return ('No date: the relief (Copernicus DEM)', 'Sin fecha: el relieve (Copernicus DEM)')[1 - i]
+
+
+def filtro_grupo(grupo, en=False):
+    """Qué se quita de las imágenes en un grupo de variables del mapa."""
+    return FILTRO_GRUPO.get(grupo, ('', ''))[1 if en else 0]
+
+
+def grupo_de(nombre):
+    """El grupo (época u origen) de una variable del mapa."""
+    return _GRUPO_DE.get(nombre)
 
 # Familias: variables que salen del mismo índice (el NDVI de inicio de verano, el de
 # fin y su caída) o de la topografía. Se parecen mucho entre sí, así que su peso se
@@ -2175,6 +2327,39 @@ FAMILIAS = {
 def familia(nombre):
     """La familia de un predictor: el índice del que sale, o la topografía."""
     return 'topo' if _GRUPO_DE.get(nombre) == G_TOPO else nombre.split('_')[0]
+
+
+# Grupos de EBVs (variables esenciales de biodiversidad, Essential Biodiversity Variables,
+# de GEO BON): las variables juntas según lo que miden de la vegetación o del agua. La
+# autora confirmó la agrupación el 26-11-2026. El relieve va aparte: no es una EBV, es el
+# contexto físico. El peso de un grupo es la suma del de sus variables.
+EBV = {
+    'productividad': ('Productividad y vigor (NDVI, EVI, WAVI)',
+                      'Productivity and vigour (NDVI, EVI, WAVI)'),
+    'agua_vegetacion': ('Contenido de agua de la vegetación (NDMI)',
+                        'Vegetation water content (NDMI)'),
+    'clorofila': ('Clorofila (borde del rojo)', 'Chlorophyll (red edge)'),
+    'fenologia': ('Fenología (caída del NDVI)', 'Phenology (NDVI drop)'),
+    'agua': ('Agua en superficie (NDWI)', 'Surface water (NDWI)'),
+    'suelo': ('Cubierta y brillo del suelo (albedo)', 'Ground cover and brightness (albedo)'),
+    'perturbaciones': ('Perturbaciones (NBR)', 'Disturbance (NBR)'),
+    'relieve': ('Relieve (no es una EBV)', 'Terrain (not an EBV)'),
+}
+_EBV_DE_FAMILIA = {'ndvi': 'productividad', 'evi': 'productividad', 'wavi': 'productividad',
+                   'ndmi': 'agua_vegetacion', 'clre': 'clorofila', 'ndwi': 'agua',
+                   'albedo': 'suelo', 'nbr': 'perturbaciones', 'topo': 'relieve'}
+
+
+def grupo_ebv(nombre):
+    """El grupo de EBVs de un predictor (la caída del NDVI, fenología)."""
+    if nombre == 'ndvi_drop':
+        return 'fenologia'
+    return _EBV_DE_FAMILIA.get(familia(nombre), 'relieve')
+
+
+def nombre_ebv(clave, en=False):
+    es, eng = EBV.get(clave, (clave, clave))
+    return eng if en else es
 
 
 def nombre_familia(clave, en=False):

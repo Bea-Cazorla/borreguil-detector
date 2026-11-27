@@ -244,7 +244,10 @@ def test_uso_de_la_cuenta_compartida():
 
 def test_la_app_pone_la_compartida_por_defecto_y_deja_elegir_la_propia():
     texto = (APP / 'app.py').read_text(encoding='utf-8')
-    assert "'Proyecto de Google Cloud (vacío: cuenta compartida)'" in texto
+    # Desde el 27-11-2026, «Datos de satélite»: cuenta compartida (de entrada), mi cuenta
+    # (con su proyecto) o sin Earth Engine.
+    assert "'compartida': i18n.pick('Cuenta compartida', 'Shared account')" in texto
+    assert "i18n.pick('Tu proyecto de Google Cloud', 'Your Google Cloud project')" in texto
     assert 'def _uso_cuenta_compartida' in texto
     # el mapa ya no exige un proyecto: sin él, la cuenta compartida
     assert '_puede = bool(_res[\'listo\'] and _predictores and _anios)' in texto

@@ -417,13 +417,14 @@ def test_grafica_del_punto_con_el_modelo_de_sierra_nevada():
 
 def test_leyenda_de_la_grafica_del_punto():
     html = pp.leyenda_punto_vs_borreguiles()
-    # los dos colores del punto y la franja/línea de los borreguiles, cada uno explicado
-    for color in (pp.COL_PT, pp.COL_OUT, pp.COL_BORR, pp.COL_NO):
+    # los dos colores del punto, la franja de los borreguiles y el rombo del no
+    # borreguil típico, cada uno explicado (como en la demo de 2 · Revisar, 27-11-2026)
+    for color in (pp.PERFIL_PUNTO, pp.PERFIL_FUERA, pp.PERFIL_FRANJA, pp.PERFIL_NO):
         assert color in html, color
-    for texto in ('Este punto: dentro de lo habitual', 'más bajo o más alto que casi todos',
-                  'Mitad central de los borreguiles verdaderos (25–75)',
-                  'El borreguil típico (50)', 'El no borreguil típico, en la misma escala',
-                  'Fila sin punto'):
+    for texto in ('Este punto: dentro de lo habitual en los borreguiles',
+                  'Este punto: más bajo o más alto que casi todos (por debajo de 10 o por '
+                  'encima de 90)',
+                  'La mitad central de los borreguiles (25–75)', 'El no borreguil típico'):
         assert texto in html, texto
     i18n.set_lang('en')
     try:
@@ -432,6 +433,32 @@ def test_leyenda_de_la_grafica_del_punto():
         assert 'The typical non-borreguil' in en
     finally:
         i18n.set_lang('es')
+
+
+def test_grafica_del_punto_en_html():
+    """2 · Revisar dibuja la gráfica del punto en HTML, como la demo: una fila por
+    variable con su posición a la derecha, el eje de 0 a 100, la tabla de valores (lo
+    que se sale de lo habitual, en naranja) y «Cómo se lee», con la nota del punto."""
+    b = bp.load_model_bundle(Path(__file__).resolve().parent.parent / 'rf_sierra_nevada.joblib')
+    rs = dict(b['ref_stats'], importances=b['importances'], model_features=b['features'])
+    sel = punto(evi_early=0.5, ndvi_drop=0.1, ndwi_sd=None)
+    _, recs = pp.chart_punto_vs_borreguiles(sel, rs, n=8)
+    html = pp.html_punto_vs_borreguiles(recs, 372)
+    assert 'entre los <span style="font-weight:700">372 borreguiles verdaderos</span>' in html
+    assert html.count('transform:rotate(45deg)') == 1 + sum(
+        1 for r in recs if r['pct_no'] is not None)
+    assert all(pp._esc(r['label']) in html for r in recs)
+    assert 'Cómo se lee esta gráfica y para qué sirve' in html
+    assert pp.nota_punto_vs_borreguiles(recs) in html
+    fuera = [r for r in recs if r['fuera']]
+    assert (pp.PERFIL_VALOR_FUERA in html) == bool(fuera)
+    # la nota del punto: en qué variables se sale de lo habitual, o en ninguna
+    nota = pp.nota_punto_vs_borreguiles(recs)
+    assert nota.startswith('En este punto se sale de lo habitual en los borreguiles: '
+                           if fuera else 'En este punto, todas las variables caen dentro')
+    assert pp.nota_punto_vs_borreguiles([]) == 'Este punto no tiene dato en estas variables.'
+    assert pp._minuscula('Altitud (m)') == 'altitud (m)'
+    assert pp._minuscula('NDWI variabilidad (desviación típica)').startswith('NDWI')
 
 
 def test_grafica_del_punto_sin_valores_de_referencia():

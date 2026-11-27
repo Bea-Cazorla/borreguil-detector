@@ -121,12 +121,11 @@ def test_aviso_en_el_panel_con_planetary_computer():
     at.run()
     assert not at.exception, [str(e.value)[:200] for e in at.exception]
 
-    def aviso():
-        return [str(i.value) for i in at.info if 'entrenada sin radar' in str(i.value)]
+    def aviso():      # desde el 27-11-2026, en la nota gris del modelo (como en la demo)
+        return [str(i.value) for i in at.caption if 'entrenada sin radar' in str(i.value)]
 
     assert not aviso(), 'con Earth Engine no debe salir'
-    radio = [r for r in at.radio if r.label == 'Backend'][0]
-    radio.set_value([o for o in radio.options if 'Planetary' in o][0])
+    at.radio(key='cuenta').set_value('mpc')          # «Sin Earth Engine»
     at.run()
     assert not at.exception, [str(e.value)[:200] for e in at.exception]
     a = aviso()

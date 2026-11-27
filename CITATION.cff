@@ -31,8 +31,8 @@ authors:
 repository-code: "https://github.com/monitoreo-obsnev/borreguil-detector"
 url: "https://github.com/monitoreo-obsnev/borreguil-detector"
 license: GPL-3.0-or-later                                   # ver el fichero LICENSE
-version: "1.0.5"                                            # actualizar en cada release
-date-released: "2026-11-26"                                 # actualizar en cada release
+version: "1.0.6"                                            # actualizar en cada release
+date-released: "2026-11-27"                                 # actualizar en cada release
 doi: "10.5281/zenodo.24571286"                                # DOI de todas las versiones (lleva a la última)
 identifiers:
   - type: doi
