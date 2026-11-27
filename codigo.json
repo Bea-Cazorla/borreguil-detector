@@ -1,24 +1,24 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.8",
-  "commit": "939a118d6809af7b4cfb4a0c697d5d5aa029ab84",
+  "version": "1.0.9",
+  "commit": "bc4a97e982da7c67bd1b237e69b11fa9d7e4441d",
   "fecha": "2026-11-27",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "24b14dc84fc843a89fe39de3a3e456d0bd5b5499eab87f2803a62687c454d7f8",
-      "bytes": 790589
+      "sha256": "08df1fc51f6d4cc952e6995edafbf9fff08a4112559ff7fdb6f0afc8edb0c661",
+      "bytes": 788175
     },
     {
       "ruta": "borreguil_pipeline.py",
-      "sha256": "ee46b05ccd5c75091afdde916d057b85c1de3b38ddef383159ed5f24c3ac638d",
-      "bytes": 190651
+      "sha256": "d4365b77eaddb7b18b7b9843f7dd18d276f314089c3227df83ae8b21d1561774",
+      "bytes": 190648
     },
     {
       "ruta": "point_profile.py",
-      "sha256": "15a0b0d209a2b3f7a52be628b08ac753011b7fd8e6e496b960a823b27b209c63",
+      "sha256": "7cf8cdcbb86c2c6969d987dc0c73b111c67ad13f159f49712bbc0eedcc14d27b",
       "bytes": 68306
     },
     {
@@ -83,7 +83,7 @@
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "da1b7ed5d0760858b577654cb7811c90fe884d78270ad74f8a5cb0bf9bb7470a",
+      "sha256": "8f4af8b83ceaad5426122b5ae091597f9035f7e2b8a684b9fabe23b20fbfbeff",
       "bytes": 3923
     },
     {
