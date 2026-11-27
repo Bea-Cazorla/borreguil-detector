@@ -1,20 +1,20 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.10",
-  "commit": "8bcc858c491e1e87c798c1d706868ea9f6173dbf",
-  "fecha": "2026-11-27",
+  "version": "1.0.11",
+  "commit": "b840e586b24eb0dd4d602d6fce95bf500510955e",
+  "fecha": "2026-11-28",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "08df1fc51f6d4cc952e6995edafbf9fff08a4112559ff7fdb6f0afc8edb0c661",
-      "bytes": 788175
+      "sha256": "5610a70063e7f13803ab4638b24b9de464b21546d95004ea0c43c7878a0cbcd4",
+      "bytes": 813546
     },
     {
       "ruta": "borreguil_pipeline.py",
-      "sha256": "d4365b77eaddb7b18b7b9843f7dd18d276f314089c3227df83ae8b21d1561774",
-      "bytes": 190648
+      "sha256": "556a59957e91c091d4cc1fcd51976835e2d5860d6d75564ffa10661bf1a70176",
+      "bytes": 195331
     },
     {
       "ruta": "point_profile.py",
@@ -23,13 +23,13 @@
     },
     {
       "ruta": "i18n.py",
-      "sha256": "c76e7c1cb742985f4e5e998a8f41b2907b21650c4363e6e8c23dd3f96efb2d25",
-      "bytes": 41349
+      "sha256": "e23f499387b53cf353509e867c6bae7efa439e472848bbe661b8e6ac24647b17",
+      "bytes": 41377
     },
     {
       "ruta": "gee_backend.py",
-      "sha256": "35a44781a2c3cb3b5da11a7c87f35ce0551c0694dfe2d4a0515cee5d14aa39a6",
-      "bytes": 58664
+      "sha256": "deaa0218969244c93c93484097118fbd2706affd02b56c6470ff190d1964e3c2",
+      "bytes": 58898
     },
     {
       "ruta": "random_points.py",
@@ -38,8 +38,8 @@
     },
     {
       "ruta": "study_area.py",
-      "sha256": "9caa370a4c589c65d87341da761d92353d6a403a8f25fe088f93fdc061f20b57",
-      "bytes": 15412
+      "sha256": "d311dcd8420f55a584a72a0950fd01266963e87668f881466e3d69788715d45e",
+      "bytes": 15956
     },
     {
       "ruta": "mapeo_rf.py",
@@ -73,17 +73,17 @@
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "17d98e07bb986b25b87afb217857a621e1fafa43f04a7ee650fc3c24f220eef3",
-      "bytes": 120698
+      "sha256": "69c4a61f825d3808588e44857bd4f458b0c68a63b39f11b3faec49338b5096fb",
+      "bytes": 121498
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "349501303f4439796c1b64fcaf2afddb42e522d5c85d6f1349dd005dd6d80973",
-      "bytes": 22041
+      "sha256": "7b8612b36e571b518ace31dbdd05f17eceac6894734769a6a1d7810536d4cdde",
+      "bytes": 22026
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "1830ba48dba883143afa0ff5ff8665b479233ba6af551efc1dbb38ec966eb09e",
+      "sha256": "80ea3307f9f4319b0f70347631d15eff79087bf7815bc907c9a5b5c6553397fb",
       "bytes": 3923
     },
     {
@@ -103,8 +103,13 @@
     },
     {
       "ruta": "plantilla/definitions_EN.md",
-      "sha256": "db3c2b26740e5ae15bf48f30744c2927eee9f4a064fefdaaf222dba08547b2c8",
-      "bytes": 4449
+      "sha256": "0f6b026c0037cc78a559be3300f01983418d90d272330ed17688c12ebc0c5fc4",
+      "bytes": 4620
+    },
+    {
+      "ruta": "plantilla/example_point_data_sierra_nevada.xlsx",
+      "sha256": "f9b9fbfb9eb89387fb840925510f47dc190d607a30310fde7d6d48adb0a0f167",
+      "bytes": 8703
     },
     {
       "ruta": "plantilla/example_sierra_nevada.csv",
@@ -117,14 +122,14 @@
       "bytes": 7325
     },
     {
-      "ruta": "plantilla/field_points_template.xlsx",
-      "sha256": "4945157c8e4d8dc22e7d8401e76be7dbeb4cc2b6ccaf9abe120e6ad64fc173cd",
-      "bytes": 7698
+      "ruta": "plantilla/point_data_template.xlsx",
+      "sha256": "e2b7d28f0b6d211b2ee3e2d3d6baa523313bd5692241e960e5a07df2e46f1ba6",
+      "bytes": 7834
     },
     {
-      "ruta": "imagenes/borreguil_cerro_del_caballo.jpg",
-      "sha256": "4d1e6f0286b36428e04b8b94903d1eb274660aef9903ce6c9167167af3b9d974",
-      "bytes": 225552
+      "ruta": "imagenes/borreguil_veleta.jpg",
+      "sha256": "037538f2a674c82f546a2531ec353e75c25b358af05154d2e3c2fc084a1a42ad",
+      "bytes": 309170
     },
     {
       "ruta": "imagenes/logo_biodiversa.png",
