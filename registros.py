@@ -223,6 +223,11 @@ class _Copia(io.TextIOBase):
         self.registro = registro
 
     def write(self, s):
+        # click 8.5 escribe bytes cuando la salida no es una terminal: Streamlit, al
+        # pararse («Stopping...»), fallaba aquí y el servidor no se cerraba por las
+        # buenas (27-11-2026, con la app del Escritorio del instalador de Mac).
+        if isinstance(s, (bytes, bytearray)):
+            s = bytes(s).decode(self.encoding, errors='replace')
         if self.original is not None:
             with contextlib.suppress(Exception):
                 self.original.write(s)

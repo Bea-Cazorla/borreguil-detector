@@ -1,0 +1,42 @@
+# Entorno de Python de Borreguil en Mac: lo crea el instalador de Mac (instalador/macos/instalar.command) con
+# micromamba, sin permisos de administrador, como los de MonitorEO y eHabitat+ (27-11-2026).
+# Son las librerías de requirements.txt, que usa la compilación de Windows y Linux: si cambias una, cambia las dos
+# (tests/test_instalador_mac.py lo comprueba).
+#
+# A mano, con Miniforge (solo conda-forge):
+#   conda env create -f environment.yml
+#   conda activate borreguil
+#   python launcher.py
+name: borreguil
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - numpy>=1.24
+  - pandas>=2.0
+  - scipy>=1.10
+  # Versión EXACTA: los modelos .joblib están guardados con ella (ver requirements.txt).
+  - scikit-learn=1.9.0
+  - scikit-image>=0.21
+  - geopandas>=0.13
+  - shapely>=2.0.7
+  - pyproj>=3.5
+  - rasterio>=1.3
+  - tifffile>=2022.8.12
+  - requests>=2.31
+  - pillow>=9.5
+  - openpyxl>=3.1
+  - folium>=0.14
+  - streamlit>=1.58
+  - streamlit-folium>=0.15
+  - altair>=5
+  - pystac-client>=0.7
+  - planetary-computer>=1.0
+  - earthengine-api>=1.4
+  - joblib>=1.3
+  - python-docx>=0.8
+  - pip
+  - pip:
+      # La ventana propia del programa (WebKit en Mac); en conda-forge no está para Mac.
+      - pywebview>=5.0

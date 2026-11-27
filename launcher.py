@@ -43,6 +43,8 @@ Opciones:
   --sin-actualizar         arrancar sin buscar versiones nuevas (o BORREGUIL_CODIGO_URL
                            vacía).
 """
+import contextlib
+import html
 import importlib
 import os
 import socket
@@ -252,14 +254,21 @@ def probar_en_otro_proceso(carpeta):
     return r.returncode == 0, texto[-2000:]
 
 
-def buscar_version_nueva(res, out):
+def buscar_version_nueva(res, out, mostrar=None):
     """Busca en GitHub una versión nueva del código y la deja lista (actualizador.py).
-    Escribe en la consola lo que pasa; nunca para el arranque."""
+    Escribe en la consola lo que pasa y, con `mostrar`, se lo pasa también a la ventana
+    (la página de carga); nunca para el arranque. Devuelve lo que dice el actualizador, o
+    None si no se busca."""
     if '--sin-actualizar' in sys.argv or not actualizador.url_manifiesto():
         return None
-    print('  Buscando una versión nueva de la app…', flush=True)
-    r = actualizador.actualizar(res, out, probar=probar_en_otro_proceso,
-                                aviso=lambda t: print(t, flush=True))
+
+    def avisar(texto):
+        print(texto, flush=True)
+        if mostrar is not None:
+            mostrar(texto.strip())
+
+    avisar('  Buscando una versión nueva de la app…')
+    r = actualizador.actualizar(res, out, probar=probar_en_otro_proceso, aviso=avisar)
     linea = actualizador.texto_estado(r)
     if linea:
         print(linea, flush=True)
@@ -283,30 +292,100 @@ border:.3em solid #403A3C;border-top-color:#7CC496;animation:g 1s linear infinit
 @keyframes g{{to{{transform:rotate(360deg)}}}}
 </style></head><body><div class="caja">{cuerpo}</div></body></html>"""
 
-CARGANDO = _PAGINA.format(
-    titulo=TITULO_VENTANA,
-    cuerpo='<h1>Borreguil · Wet Meadow Finder</h1><p>Buscador y mapa de borreguiles</p>'
-           '<p>Abriendo la app…</p>'
-           '<p>La primera vez puede tardar hasta un minuto.</p><div class="gira"></div>')
+def cargando(texto='Abriendo la app…'):
+    """La página de la ventana mientras arranca: qué se está haciendo (buscar una versión
+    nueva, descargarla y comprobarla, abrir la app). Sin consola (la app del Escritorio
+    del instalador de Mac), es lo único que se ve mientras tanto (27-11-2026)."""
+    return _PAGINA.format(
+        titulo=TITULO_VENTANA,
+        cuerpo='<h1>Borreguil · Wet Meadow Finder</h1><p>Buscador y mapa de borreguiles</p>'
+               f'<p>{html.escape(texto)}</p>'
+               # sin repetirlo si el texto ya dice lo que tarda
+               + ('' if 'minuto' in texto else
+                  '<p>La primera vez puede tardar hasta un minuto.</p>')
+               + '<div class="gira"></div>')
 
-NO_ARRANCA = _PAGINA.format(
-    titulo=TITULO_VENTANA,
-    cuerpo='<h1>No se ha podido abrir la app</h1>'
-           '<p>El motor de la app no ha arrancado. El motivo está en la ventana de '
-           'consola.</p><p>Cierra esta ventana y vuelve a abrir el programa. Si sigue '
-           'igual, copia el texto de la consola y avisa en '
-           'github.com/monitoreo-obsnev/borreguil-detector/issues.</p>')
+
+# Dónde se explica cómo instalar el programa (lo que hay que hacer cuando una versión
+# nueva necesita un instalador nuevo).
+INSTRUCCIONES_MAC = ('https://github.com/monitoreo-obsnev/borreguil-detector/blob/main/'
+                     'TUTORIAL.md#22-descomprimir-y-ejecutar')
+
+
+def aviso_de_la_actualizacion(r):
+    """Lo que la persona tiene que saber de la búsqueda de versiones nuevas, para enseñarlo
+    en la ventana: (título, texto, enlace), o None si no hay nada que hacer. En Windows
+    lo dice también la consola; en Mac, la app del Escritorio no tiene, y sin esto nadie
+    se enteraría de que hace falta volver a instalar (27-11-2026)."""
+    if not r:
+        return None
+    estado, version = r.get('estado'), r.get('version') or ''
+    if sys.platform == 'darwin':
+        reinstalar = ('vuelve a ejecutar el instalador: en la app Terminal, pega la línea '
+                      'del instalador (TUTORIAL, apartado 2.2) y pulsa Intro. Tus modelos '
+                      'y salidas se conservan.')
+        enlace = INSTRUCCIONES_MAC
+    else:
+        reinstalar = ('descarga el programa nuevo e instálalo como la primera vez. Tus '
+                      'modelos y salidas se conservan.')
+        enlace = actualizador.DESCARGAS_RELEASE
+    if estado == 'necesita_instalador':
+        return ('Hay una versión nueva de la app',
+                f'La versión {version} necesita un programa nuevo, porque han cambiado '
+                'Python o sus librerías. Mientras, la app sigue con la versión que '
+                f'tenías.\n\nPara tenerla, cierra la app y {reinstalar}', enlace)
+    if estado == 'no_pasa_prueba':
+        return ('La versión nueva no se ha podido usar',
+                f'Se ha descargado la versión {version} de la app, pero no ha pasado la '
+                'comprobación: la app sigue con la versión que tenías.\n\nSi vuelve a '
+                f'pasar, cierra la app y {reinstalar}', enlace)
+    return None
+
+
+def mostrar_aviso(ventana, aviso):
+    """Enseña el aviso en un cuadro de diálogo de la ventana; si la persona acepta, abre
+    las instrucciones en el navegador."""
+    titulo, texto, enlace = aviso
+    mensaje = texto + '\n\n¿Abrir las instrucciones en el navegador?'
+    if sys.platform == 'darwin':                 # en Mac, pywebview no enseña el título
+        mensaje = f'{titulo}\n\n{mensaje}'
+    try:
+        abrir = ventana.create_confirmation_dialog(titulo, mensaje)
+    except Exception as exc:                     # noqa: BLE001
+        print(f'  (no se ha podido enseñar el aviso: {type(exc).__name__}: {exc})',
+              flush=True)
+        return
+    if abrir and enlace:
+        with contextlib.suppress(Exception):
+            webbrowser.open(enlace)
+
+def no_arranca():
+    """La página de «no se ha podido abrir la app». El motivo está en la consola o, si el
+    programa se abre desde la app del Escritorio que crea el instalador de Mac (sin
+    consola, 27-11-2026), en su fichero de salida, BORREGUIL_SALIDA."""
+    salida = os.environ.get('BORREGUIL_SALIDA', '').strip()
+    donde = (f'en el fichero {html.escape(salida)}' if salida
+             else 'en la ventana de consola')
+    return _PAGINA.format(
+        titulo=TITULO_VENTANA,
+        cuerpo='<h1>No se ha podido abrir la app</h1>'
+               f'<p>El motor de la app no ha arrancado. El motivo está {donde}.</p>'
+               '<p>Cierra esta ventana y vuelve a abrir el programa. Si sigue igual, '
+               'copia las últimas líneas de ese texto y avisa en '
+               'github.com/monitoreo-obsnev/borreguil-detector/issues.</p>')
 
 
 def lanzar_servidor(port: int):
     """El servidor de Streamlit en otro proceso: este mismo programa con --servidor.
-    No vuelve a buscar versiones nuevas: ya lo ha hecho este proceso."""
+    No vuelve a buscar versiones nuevas: ya lo ha hecho este proceso (y elige el código,
+    el descargado o el del instalador, al arrancar)."""
     if getattr(sys, 'frozen', False):
         cmd = [sys.executable]
     else:
         cmd = [sys.executable, str(Path(__file__).resolve())]
     cmd += ['--servidor', '--sin-actualizar']
-    return subprocess.Popen(cmd, env=dict(os.environ, BORREGUIL_PUERTO=str(port)))
+    return subprocess.Popen(cmd, env=dict(os.environ, BORREGUIL_PUERTO=str(port),
+                                          STREAMLIT_SERVER_PORT=str(port)))
 
 
 def esperar_servidor(port: int, hijo, timeout: float = 180.0) -> bool:
@@ -366,36 +445,99 @@ def hay_motor_de_edge() -> bool:
     return False
 
 
-def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
-    """La app en su propia ventana (pywebview). Devuelve (estado, proceso del servidor):
+def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False, buscar=None):
+    """La app en su propia ventana (pywebview). La ventana se abre enseguida, con la
+    página de carga; después, si se da `buscar`, se buscan versiones nuevas de la app
+    (`buscar(mostrar)` dice en la página lo que va pasando y devuelve lo que dice el
+    actualizador), luego se arranca el servidor y se carga la app. Si de la búsqueda sale
+    algo que la persona tiene que hacer, se le enseña en un cuadro (27-11-2026: sin
+    consola, en Mac, era lo único que no se veía).
 
-    - ('cerrada', None): la persona ha cerrado la ventana (y con ella, el servidor).
-    - ('sin_ventana', hijo o None): no se puede abrir la ventana; si el servidor ya
+    Devuelve (estado, proceso del servidor, si la ventana se ocupó de buscar, puerto):
+
+    - ('cerrada', None, …): la persona ha cerrado la ventana (y con ella, el servidor).
+    - ('sin_ventana', hijo o None, …): no se puede abrir la ventana; si el servidor ya
       está en marcha, se devuelve para seguir con él en el navegador.
-    - con probar: ('ok' | 'no_arranca' | 'no_se_ve', None)."""
+    - con probar: ('ok' | 'no_arranca' | 'no_se_ve', None, …).
+    El puerto es el del servidor: el elegido al principio puede haberlo cogido otro
+    programa mientras se buscaba la versión nueva."""
     if sys.platform == 'win32' and not hay_motor_de_edge():
         print('  (sin ventana propia: falta el motor de Edge, WebView2 Runtime; se puede '
               'instalar desde https://developer.microsoft.com/microsoft-edge/webview2/)',
               flush=True)
-        return 'sin_ventana', None
+        return 'sin_ventana', None, False, port
     try:
         import webview
     except Exception as exc:                     # noqa: BLE001
         print(f'  (sin ventana propia: {type(exc).__name__}: {exc})', flush=True)
-        return 'sin_ventana', None
+        return 'sin_ventana', None, False, port
 
-    hijo = lanzar_servidor(port)
-    resultado = {'estado': 'cerrada'}
+    # Lo que comparten este hilo y el de la ventana (cargar), siempre con el cerrojo:
+    # 'cerrada' lo pone este hilo cuando la ventana se cierra; 'buscado' y 'hijo', cargar
+    # al empezar la búsqueda y al arrancar el servidor. Así, una ventana cerrada antes de
+    # tiempo no deja ni una búsqueda que nadie espera ni un servidor sin nadie.
+    resultado = {'estado': 'cerrada', 'hijo': None, 'cerrada': False, 'buscado': False,
+                 'r': None, 'puerto': port}
+    cerrojo = threading.Lock()
+    fin_busqueda = threading.Event()
+
+    def mostrar(ventana, texto):
+        if resultado['cerrada']:
+            return
+        with contextlib.suppress(Exception):
+            ventana.load_html(cargando(texto))
+
+    def busqueda(ventana):
+        try:
+            resultado['r'] = buscar(lambda texto: mostrar(ventana, texto))
+        except Exception as exc:                 # noqa: BLE001  (la app abre igual)
+            print(f'  (no se ha podido buscar la versión nueva: {exc})', flush=True)
+        finally:
+            fin_busqueda.set()
 
     def cargar(ventana):
-        if not esperar_servidor(port, hijo):
+        r = None
+        if buscar is not None:
+            with cerrojo:
+                if resultado['cerrada']:
+                    return
+                resultado['buscado'] = True
+            # La búsqueda (descargas, la comprobación de la versión nueva: hasta minutos)
+            # va en un hilo aparte que no retiene el programa: pywebview espera a este
+            # hilo al cerrarse, y si se cierra la ventana a medias tiene que terminar ya.
+            threading.Thread(target=busqueda, args=(ventana,), daemon=True).start()
+            while not fin_busqueda.wait(0.3):
+                if resultado['cerrada']:
+                    return
+            r = resultado['r']
+            if r and r.get('estado') == 'actualizado':
+                mostrar(ventana, f'App actualizada a la versión {r.get("version")}. '
+                                 'Abriendo la app…')
+            elif r is not None:
+                mostrar(ventana, 'Abriendo la app…')
+        with cerrojo:
+            if resultado['cerrada']:
+                return
+            puerto = resultado['puerto'] = free_port(port)
+            hijo = resultado['hijo'] = lanzar_servidor(puerto)
+        if not esperar_servidor(puerto, hijo):
+            if resultado['cerrada']:              # se cerró la ventana: no hay que avisar
+                return
             resultado['estado'] = 'no_arranca'
-            ventana.load_html(NO_ARRANCA)
+            ventana.load_html(no_arranca())
             if probar:
                 ventana.destroy()
             return
-        ventana.load_url(url)
+        ventana.load_url(f'http://localhost:{puerto}')
+        aviso = aviso_de_la_actualizacion(r)
+        if aviso:
+            print(f'  Aviso en la ventana: {aviso[0]}', flush=True)
         if not probar:
+            if aviso and not resultado['cerrada']:
+                # En otro hilo que no retiene el programa: en Mac y Linux el cuadro espera
+                # sin fin si la ventana se cierra antes de que salga.
+                threading.Thread(target=mostrar_aviso, args=(ventana, aviso),
+                                 daemon=True).start()
             return
         # Prueba: la app tiene que verse en la ventana (lo que escribe app.py, no solo
         # el servidor).
@@ -414,25 +556,39 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
                 break
         ventana.destroy()
 
+    def cerrar():
+        with cerrojo:
+            resultado['cerrada'] = True
+            return resultado['hijo'], resultado['buscado']
+
     webview.settings['ALLOW_DOWNLOADS'] = True               # botones de descarga
     webview.settings['OPEN_EXTERNAL_LINKS_IN_BROWSER'] = True  # GitHub, formulario…
-    ventana = webview.create_window(TITULO_VENTANA, html=CARGANDO, width=1400,
+    primera = 'Buscando una versión nueva de la app…' if buscar else 'Abriendo la app…'
+    ventana = webview.create_window(TITULO_VENTANA, html=cargando(primera), width=1400,
                                     height=900, min_size=(900, 600),
                                     background_color='#221F20',   # sin destello blanco
                                     maximized=not probar, text_select=True)
     try:
         # private_mode=False y una carpeta propia: la ventana recuerda lo que el
-        # navegador recordaría (preferencias de Streamlit) entre sesiones.
+        # navegador recordaría (preferencias de Streamlit) entre sesiones. Los botones
+        # de los cuadros, en español (en Mac y Linux los pone pywebview, en inglés).
         webview.start(cargar, (ventana,), private_mode=False,
-                      storage_path=str(out / '.ventana'))
+                      storage_path=str(out / '.ventana'),
+                      localization={'global.ok': 'Aceptar', 'global.cancel': 'Cancelar'})
     except KeyboardInterrupt:
         pass
     except Exception as exc:                     # noqa: BLE001
         print(f'  (no se ha podido abrir la ventana: {type(exc).__name__}: {exc})',
               flush=True)
-        return 'sin_ventana', hijo
+        hijo, buscado = cerrar()
+        if buscado:
+            # Se sigue en el navegador, que elige el código a usar: antes, que acabe la
+            # búsqueda que empezó la ventana (podría cambiarlo o quitarlo).
+            fin_busqueda.wait()
+        return 'sin_ventana', hijo, buscado, resultado['puerto']
+    hijo, buscado = cerrar()
     parar_servidor(hijo)
-    return resultado['estado'], None
+    return resultado['estado'], None, buscado, resultado['puerto']
 
 
 def arrancar_streamlit(app_path: Path, port: int):
@@ -463,6 +619,26 @@ def arrancar_streamlit(app_path: Path, port: int):
         print('\nCerrando…')
 
 
+def codigo_de_la_app(res, out):
+    """El app.py que hay que ejecutar: el del código que trae el instalador o, si se ha
+    descargado una versión más nueva y está completa, el de esa (en la carpeta del
+    usuario). Deja que sus módulos hermanos se importen de esa misma carpeta."""
+    codigo, descargada = actualizador.carpeta_a_usar(res, out)
+    app_path = codigo / 'app.py'
+    if not app_path.exists():
+        codigo, descargada = res, None
+        app_path = res / 'app.py'
+    if not app_path.exists():
+        sys.exit(f'ERROR: no se encuentra app.py en {res}')
+    if descargada:
+        actualizador.usar_codigo_de(codigo)
+        print(f'  Código de la versión {descargada["version"]} '
+              f'(commit {descargada["commit"][:7]}), descargada de GitHub.', flush=True)
+    else:
+        sys.path.insert(0, str(res))
+    return app_path
+
+
 def main():
     res = resource_dir()
 
@@ -478,25 +654,20 @@ def main():
         sys.exit(selftest(carpeta))
 
     out = data_dir()
+    servidor = '--servidor' in sys.argv
+    sin_navegador = os.environ.get('BORREGUIL_NO_BROWSER', '').lower() in ('1', 'true',
+                                                                              'yes')
+    probar = '--probar-ventana' in sys.argv
+    con_ventana = not servidor and (probar or not ('--navegador' in sys.argv
+                                                   or sin_navegador))
 
-    # El código: el que trae el instalador o, si se ha descargado una versión más
-    # nueva y está completa, esa (en la carpeta del usuario).
-    buscar_version_nueva(res, out)
-    codigo, descargada = actualizador.carpeta_a_usar(res, out)
-
-    # El script de la app y sus módulos hermanos viajan en la carpeta del código.
-    app_path = codigo / 'app.py'
-    if not app_path.exists():
-        codigo, descargada = res, None
-        app_path = res / 'app.py'
-    if not app_path.exists():
-        sys.exit(f'ERROR: no se encuentra app.py en {res}')
-    if descargada:
-        actualizador.usar_codigo_de(codigo)
-        print(f'  Código de la versión {descargada["version"]} '
-              f'(commit {descargada["commit"][:7]}), descargada de GitHub.', flush=True)
-    else:
-        sys.path.insert(0, str(res))
+    # Versiones nuevas del código: con la ventana, las busca ella, después de abrirse
+    # (así se ve qué pasa mientras tanto); sin ella, ahora, en la consola. El servidor
+    # (--servidor) no busca: lo ha hecho quien lo lanza.
+    buscado = False
+    if not servidor and not con_ventana:
+        buscar_version_nueva(res, out)
+        buscado = True
 
     # Carpeta escribible para lo que genere el usuario (modelos, descargas).
     os.environ['BORREGUIL_DATA_DIR'] = str(out)
@@ -507,7 +678,6 @@ def main():
 
     # Configuración de Streamlit por entorno (evita depender de .streamlit/config.toml
     # y del asistente de primer arranque que pide un email).
-    servidor = '--servidor' in sys.argv
     port = (int(os.environ['BORREGUIL_PUERTO'])
             if servidor and os.environ.get('BORREGUIL_PUERTO') else free_port())
     os.environ.setdefault('STREAMLIT_SERVER_HEADLESS', 'true')          # no abre él el navegador
@@ -521,13 +691,8 @@ def main():
 
     url = f'http://localhost:{port}'
     if servidor:                          # el proceso que lanza la ventana
-        arrancar_streamlit(app_path, port)
+        arrancar_streamlit(codigo_de_la_app(res, out), port)
         return
-
-    sin_navegador = os.environ.get('BORREGUIL_NO_BROWSER', '').lower() in ('1', 'true',
-                                                                              'yes')
-    probar = '--probar-ventana' in sys.argv
-    con_ventana = probar or not ('--navegador' in sys.argv or sin_navegador)
 
     print('=' * 64)
     print(f'  {APP_NAME} · Wet Meadow Finder — buscador y mapa de borreguiles')
@@ -546,7 +711,12 @@ def main():
     print('=' * 64, flush=True)
 
     if con_ventana:
-        estado, hijo = abrir_en_ventana(url, port, out, probar=probar)
+        sin_buscar = '--sin-actualizar' in sys.argv or not actualizador.url_manifiesto()
+        estado, hijo, buscado, port = abrir_en_ventana(
+            url, port, out, probar=probar,
+            buscar=None if sin_buscar else (
+                lambda mostrar: buscar_version_nueva(res, out, mostrar)))
+        url = f'http://localhost:{port}'
         if probar:
             print(f'  Prueba de la ventana: {estado}', flush=True)
             sys.exit(0 if estado == 'ok' else 1)
@@ -562,6 +732,9 @@ def main():
                 parar_servidor(hijo)
             return
 
+    if not buscado:                      # la ventana no llegó a buscar
+        buscar_version_nueva(res, out)
+    app_path = codigo_de_la_app(res, out)
     if not sin_navegador:
         open_browser_when_ready(url, port)
     arrancar_streamlit(app_path, port)

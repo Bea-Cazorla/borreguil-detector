@@ -56,48 +56,71 @@ validación espacial honesta
 
 ## 2. Instalación y arranque
 
-No hay instalación: se descomprime y se ejecuta. Todo va dentro (Python,
-librerías y modelos). Dónde descargarlo: [TUTORIAL, 2.1](TUTORIAL.md#21-descargar)
+En Windows y Linux no hay instalación: se descomprime y se ejecuta. Todo va dentro
+(Python, librerías y modelos). Dónde descargarlo: [TUTORIAL, 2.1](TUTORIAL.md#21-descargar)
 (en *Releases* cuando haya una versión publicada; mientras, en la última compilación,
-con cuenta de GitHub).
+con cuenta de GitHub). En Mac, un instalador (desde el 27-11-2026, como los de
+MonitorEO y eHabitat+).
 
 | Sistema | Fichero | Ejecutar |
 |---|---|---|
 | Windows 10/11 | `Borreguil-windows.zip` | `Borreguil.exe` |
-| macOS Apple Silicon (macOS 15 o posterior) | `Borreguil-macos-arm64.zip` | `Borreguil` |
-| macOS Intel (solo si se ha compilado aparte) | `Borreguil-macos-intel.zip` | `Borreguil` |
+| macOS (Apple Silicon e Intel) | ninguno: una línea en Terminal (abajo), o `Instalar Borreguil.command` de `Borreguil-macos.zip` | la app **Borreguil** del Escritorio |
 | Linux x86-64 | `Borreguil-linux.tar.gz` | `./Borreguil` |
+
+**El instalador de Mac.** En la app Terminal:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/monitoreo-obsnev/borreguil-detector/main/instalador/macos/instalar.command)"
+```
+
+Instala en la carpeta `Borreguil` de tu cuenta, sin permisos de administrador:
+micromamba (el instalador de paquetes de conda-forge) en `micromamba`, Python 3.12 y las
+librerías de `environment.yml` en `entorno` (unos 0,3 GB de descarga y 1,4 GB en disco,
+solo la primera vez) y el código publicado de la app (el mismo que descargan los
+programas instalados al abrirse) en `programa`. Pasa el autodiagnóstico del programa y
+deja en el Escritorio la app **Borreguil**, que abre la app en su ventana sin consola (lo
+que escribe va a `Borreguil/salida.log`). Como la crea el propio Mac, no está en
+cuarentena y macOS la abre sin avisos. Volver a pegar la línea pone al día el código y
+la app; el entorno solo se reinstala si falta alguna librería, si no pasa el
+autodiagnóstico o si `environment.yml` ha cambiado (para forzarlo:
+`BORREGUIL_REINSTALAR=1` delante, o borrar `Borreguil/entorno`). Otras variables:
+`BORREGUIL_HOME` (otra carpeta para la instalación y los datos), `BORREGUIL_ESCRITORIO`
+(dónde va la app) y `BORREGUIL_NO_ABRIR=1` (no abrirla al terminar).
 
 **Avisos de seguridad del sistema.** Los ejecutables no llevan firma comercial de
 pago, así que el sistema advierte la primera vez:
 
 - **Windows**: «Windows protegió su PC» → *Más información* → *Ejecutar de todas
   formas*.
-- **macOS**: lo bloquea, y desde macOS 15 ya no sirve «clic derecho → *Abrir*». En
-  Terminal: `xattr -dr com.apple.quarantine ` (con un espacio al final), arrastrar la
-  carpeta `Borreguil` a la ventana y pulsar Intro; desbloquea toda la carpeta de una vez.
-  O, sin Terminal: doble clic en `Borreguil` → *OK* → *Ajustes del Sistema →
-  Privacidad y seguridad* → *Abrir igualmente* (pide la contraseña).
+- **macOS**: la app del Escritorio no da avisos. Solo `Instalar Borreguil.command`,
+  descargado con el navegador, se bloquea la primera vez (desde macOS 15 ya no sirve
+  «clic derecho → *Abrir*»): *OK* → *Ajustes del Sistema → Privacidad y seguridad* →
+  *Abrir igualmente*. Con la línea de Terminal no pasa.
 
-Al arrancar se abre una **ventana de consola** (el motor: no cerrarla) y, a los pocos
-segundos, la **ventana de la app**. El primer arranque tarda 30–60 s.
+Al arrancar se abre una **ventana de consola** (el motor: no cerrarla; en Mac no hay:
+va a `salida.log`) y, a los pocos segundos, la **ventana de la app**. El primer arranque
+tarda 30–60 s.
 
 Si la ventana no se puede abrir (Windows sin el motor de Edge, WebView2; Linux sin GTK
 ni Qt), la app se abre en el navegador, en **http://localhost:8501** (si ese puerto
 está ocupado, 8502-8505: la dirección exacta sale en la ventana de consola). Para
-abrirla siempre en el navegador: `Borreguil --navegador`.
+abrirla siempre en el navegador: `Borreguil --navegador` (en Mac,
+`~/Borreguil/entorno/bin/python ~/Borreguil/programa/launcher.py --navegador`).
 
 **Para cerrar el programa**: cierra la ventana de la app (o la de consola, o pulsa
 `Ctrl+C` en ella). En el navegador, cerrar solo la pestaña no lo detiene.
 
 **El programa se actualiza solo.** Al abrirlo, mira en GitHub si hay una versión nueva
-de la app. Si la hay, descarga solo lo que ha cambiado y lo comprueba antes de usarlo; la
-consola dice «Actualizando la app a la versión…» y después «App actualizada». La
-primera vez puede tardar un minuto; las demás, unos segundos. Si la versión nueva no
+de la app. Si la hay, descarga solo lo que ha cambiado y lo comprueba antes de usarlo;
+la ventana de la app, mientras se abre, y la consola dicen «Actualizando la app a la
+versión…» y después «App actualizada». La primera vez puede tardar un minuto; las demás, unos segundos. Si la versión nueva no
 pasa la comprobación, o no hay internet, la app abre con la que ya tenía. Lo
 descargado va a la carpeta `Borreguil/codigo` de tu cuenta: no hace falta permiso de
 administrador. Hace falta un instalador nuevo solo cuando cambian Python o las
-librerías; entonces la consola lo dice y da el enlace de descarga. Para abrirlo una vez
+librerías; entonces la app lo dice al abrirse, en un cuadro con un botón que abre las
+instrucciones (también si una versión nueva no pasa la comprobación). En Windows y Linux
+hay que descargar el programa nuevo; en Mac, volver a pegar la línea del instalador. Para abrirlo una vez
 sin buscar versiones nuevas: `Borreguil --sin-actualizar`. Para que no las busque nunca
 (un aula sin internet), define la variable de entorno `BORREGUIL_CODIGO_URL` vacía.
 Cómo se publica una versión: `PUBLICAR.md`.
@@ -124,9 +147,12 @@ es del propio ordenador: no sale a internet.
 
 Ahí van los **modelos que entrenes** y las salidas. Se conserva entre sesiones y
 sobrevive a las actualizaciones del programa (la carpeta interna del ejecutable es
-temporal y se borra al salir).
+temporal y se borra al salir). En Mac, ahí está también lo que instala el instalador
+(`entorno`, `micromamba`, `programa` y `salida.log`): no lo borres si quieres seguir
+usando la app.
 
-Para usar otra ubicación, define la variable de entorno `BORREGUIL_DATA_DIR`.
+Para usar otra ubicación, define la variable de entorno `BORREGUIL_DATA_DIR` (en Mac,
+`BORREGUIL_HOME` al ejecutar el instalador: la app del Escritorio usa esa carpeta).
 
 ---
 
@@ -1809,7 +1835,8 @@ de puntos y acota los años de Sentinel-2.
 |---|---|---|
 | **Detecta muy pocos puntos** (1 de 500) | Umbral en **Manual** | Cambiar a **Otsu**. |
 | Windows bloquea el ejecutable | Sin firma comercial | *Más información* → *Ejecutar de todas formas*. |
-| macOS no deja abrirlo («no se puede comprobar», «no se puede abrir») | Sin firma de Apple (cuarentena de Gatekeeper) | `xattr -dr com.apple.quarantine` + la carpeta `Borreguil` en Terminal, o *Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente*. «Clic derecho → Abrir» ya no sirve desde macOS 15. |
+| macOS no deja abrir `Instalar Borreguil.command` («no se puede comprobar», «no se puede abrir») | Sin firma de Apple (cuarentena de Gatekeeper de lo descargado con el navegador) | La línea del instalador en Terminal (sección 2), que no queda en cuarentena, o *Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente*. «Clic derecho → Abrir» ya no sirve desde macOS 15. |
+| Mac: la app **Borreguil** del Escritorio no se abre | Algo falta o se ha roto en `~/Borreguil` | El motivo, al final de `~/Borreguil/salida.log`. Volver a pegar la línea del instalador repara lo que falte. |
 | La ventana de la app no se abre o sale en blanco | Falta el motor de Edge (WebView2) o, en Linux, GTK o Qt | El programa abre entonces el navegador; si tampoco, ir a la dirección que da la ventana de consola, normalmente **http://localhost:8501**. Para tener la ventana en Windows, instalar *WebView2 Runtime* (developer.microsoft.com/microsoft-edge/webview2). O abrir siempre en el navegador: `Borreguil --navegador`. |
 | Muy lento | Backend MPC | Cambiar a GEE y/o **⚡ Modo rápido**. |
 | Error de autenticación GEE | Proyecto mal escrito o alta pendiente | Revisar `ee-tunombre` y volver a autenticar. O dejar el campo vacío para usar la cuenta compartida. |
