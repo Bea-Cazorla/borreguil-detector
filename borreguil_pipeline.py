@@ -123,8 +123,27 @@ def _imports():
 # ============================================================
 NS = {'kml': 'http://www.opengis.net/kml/2.2'}
 
+# Las columnas de la plantilla de datos de puntos (plantilla/point_data_template.xlsx).
+COLUMNAS_PLANTILLA = ('presence', 'doubtful', 'environment', 'moisture', 'purity', 'method',
+                      'date', 'observer', 'expertise', 'certainty', 'notes')
+
+
 def read_points(path):
-    """Leer puntos de KML, Shapefile o GeoJSON. Devuelve lista de dicts."""
+    """Leer puntos de KML, Shapefile, GeoJSON o CSV. Devuelve lista de dicts.
+
+    Las columnas de la plantilla se leen igual en mayúsculas que en minúsculas (la
+    plantilla las trae en MAYÚSCULAS desde el 27-11-2026; antes, en minúsculas): se
+    dejan con su nombre en minúsculas, que es el que usa el resto del código."""
+    rows = _read_points(path)
+    for r in rows:
+        for k in [k for k in r if isinstance(k, str) and k != k.lower()
+                  and k.lower() in COLUMNAS_PLANTILLA and k.lower() not in r]:
+            r[k.lower()] = r.pop(k)
+    return rows
+
+
+def _read_points(path):
+    """Leer puntos de KML, Shapefile, GeoJSON o CSV, con las columnas como vienen."""
     path = str(path)
     p = Path(path)
     if not p.exists():
@@ -191,12 +210,67 @@ def read_points(path):
 FORMATOS_PUNTOS = ('kml', 'geojson', 'json', 'csv', 'zip', 'shp', 'shx', 'dbf', 'prj', 'cpg')
 
 
+def falta_sistema_de_referencia(ruta):
+    """True si una capa no dice en qué sistema de referencia (datum) están sus
+    coordenadas: un Shapefile sin su .prj (suelto o dentro del .zip) o un GeoPackage sin
+    sistema de referencia. KML, GeoJSON y CSV van siempre en grados WGS84, así que valen.
+    (27-11-2026, la autora: «que cuando alguien suba su capa, compruebe que tiene un
+    datum asignado y que no le deje subirla si no lo tiene»; hasta entonces una capa sin
+    él se tomaba por WGS84 sin avisar, y si estaba en UTM caía en otro sitio.)"""
+    import zipfile
+    ruta = str(ruta)
+    carpeta, nombre = os.path.split(ruta)
+    base, ext = os.path.splitext(nombre)
+    ext = ext.lower()
+    if ext == '.shp':
+        prj = [p for p in os.listdir(carpeta or '.')
+               if os.path.splitext(p)[0].lower() == base.lower()
+               and p.lower().endswith('.prj')]
+        return not any(os.path.getsize(os.path.join(carpeta, p)) > 0 for p in prj)
+    if ext == '.zip':
+        try:
+            with zipfile.ZipFile(ruta) as z:
+                info = [i for i in z.infolist() if not i.is_dir()]
+        except zipfile.BadZipFile:
+            return False                    # al leerlo ya se dirá que no se entiende
+        con_prj = {os.path.splitext(i.filename)[0].lower() for i in info
+                   if i.filename.lower().endswith('.prj') and i.file_size > 0}
+        return any(os.path.splitext(i.filename)[0].lower() not in con_prj for i in info
+                   if i.filename.lower().endswith('.shp'))
+    if ext == '.gpkg':
+        try:
+            import pyogrio
+            return not pyogrio.read_info(ruta).get('crs')
+        except Exception:                               # noqa: BLE001  (sin GDAL)
+            try:
+                import random_points
+                return random_points._leer_gpkg(ruta)[2] is None
+            except Exception:                           # noqa: BLE001
+                return False
+    return False
+
+
+def aviso_sin_sistema_de_referencia(nombre, en=False):
+    """Qué le pasa a la capa sin sistema de referencia y cómo arreglarlo."""
+    if en:
+        return (f'"{nombre}" has no coordinate reference system (datum), so it is not '
+                'known where its coordinates fall. If it is a Shapefile, upload its .prj '
+                'too; if it has none, assign one in QGIS (Layer → Assign Projection, for '
+                'instance ETRS89 / UTM zone 30N, EPSG:25830, or WGS84, EPSG:4326), save it '
+                'again and upload it.')
+    return (f'«{nombre}» no tiene sistema de referencia (datum), así que no se sabe dónde '
+            'caen sus coordenadas. Si es un Shapefile, sube también su .prj; si no lo '
+            'tiene, asígnaselo en QGIS (Capa → Asignar SRC, por ejemplo ETRS89 / UTM huso '
+            '30N, EPSG:25830, o WGS84, EPSG:4326), vuelve a guardarla y súbela.')
+
+
 def guardar_subida(ficheros, en=False):
     """Guarda en una carpeta temporal, con sus nombres, lo subido en un recuadro de
     puntos (objetos con .name y .getvalue(), como los de Streamlit) y devuelve la ruta
     que hay que pasar a read_points: el .shp, el .zip o el único fichero de puntos
     (KML, GeoJSON, CSV); None si no hay nada. ValueError, con lo que hay que hacer (en
-    inglés si `en`), si a un .shp le faltan partes o si hay varios ficheros de puntos.
+    inglés si `en`), si a un .shp le faltan partes, si hay varios ficheros de puntos o
+    si la capa no tiene sistema de referencia (falta_sistema_de_referencia).
     (Hasta el 24-11-2026 la app guardaba un solo fichero y con otra extensión: un
     Shapefile no se podía leer nunca.)"""
     import shutil
@@ -213,7 +287,10 @@ def guardar_subida(ficheros, en=False):
             h.write(f.getvalue())
         rutas.append(ruta)
     try:
-        return _ruta_de_lectura(rutas, en)
+        ruta = _ruta_de_lectura(rutas, en)
+        if falta_sistema_de_referencia(ruta):
+            raise ValueError(aviso_sin_sistema_de_referencia(os.path.basename(ruta), en))
+        return ruta
     except ValueError:
         shutil.rmtree(d, ignore_errors=True)
         raise
@@ -569,7 +646,7 @@ def leer_etiquetas(rows):
     return info
 
 
-# Tipo de borreguil en un fichero de puntos (plantilla de datos de campo, en inglés,
+# Tipo de borreguil en un fichero de puntos (plantilla de datos de puntos, en inglés,
 # o con los nombres de la app): una columna por nivel, y cada una puede faltar o venir
 # vacía en parte de los puntos. Lo que trae un punto cuenta como revisado en ESE
 # nivel (lo ha visto una persona). Valores en inglés o en español.
@@ -674,7 +751,7 @@ def leer_tipos(rows, es_ausencia=None):
 # ------------------------------------------------------------
 # Cada vez que una persona dice si un punto es borreguil (en «Revisar puntos», al
 # pinchar en el mapa o en su fichero de campo) se guarda quién lo dice, su perfil y lo
-# segura que está, con las columnas de la plantilla de datos de campo: `observer`,
+# segura que está, con las columnas de la plantilla de datos de puntos: `observer`,
 # `expertise` y `certainty`. Así se sabe de dónde sale cada etiqueta y se puede medir
 # cuánto acierta el modelo según la certidumbre o el perfil. «Dudoso» es otra cosa:
 # quien no sabe decir si es borreguil marca el punto como dudoso y no cuenta; la
@@ -805,7 +882,7 @@ def resumen_etiquetas(info):
             cuenta += f" · {info['n_sin']} sin etiqueta"
         if info['duda']:
             cuenta += f" · {info['n_duda']} dudosos (columna `{info['duda']}`)"
-        # la columna de la app o la de la plantilla de datos de campo
+        # la columna de la app o la de la plantilla de datos de puntos
         if k in ('Borreguil', 'presence') and info['duda'] in (None, 'Duda', 'doubtful'):
             out.append(('ok', f'Etiquetas de la columna `{k}`: {cuenta}.'))
         else:
@@ -3438,7 +3515,7 @@ def save_points_geojson(rows, out):
     """Puntos con sus etiquetas en GeoJSON (EPSG:4326), para volver a cargarlos en
     otra sesión sin perder lo hecho a mano (verdad-terreno y tipo revisado).
 
-    Las etiquetas van con las columnas de la plantilla de datos de campo, las mismas
+    Las etiquetas van con las columnas de la plantilla de datos de puntos, las mismas
     que se piden a quien sube sus puntos:
       presence      1 borreguil · 0 no borreguil · vacío sin etiqueta
       doubtful      1 si es dudoso

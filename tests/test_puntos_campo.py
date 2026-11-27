@@ -99,6 +99,75 @@ def test_el_ejemplo_de_la_plantilla():
         ('presence', 12, 8, 0)
 
 
+def test_la_plantilla_en_mayusculas():
+    """Desde el 27-11-2026 la plantilla trae los nombres en MAYÚSCULAS: quién, cómo y
+    cuándo pasan al candidato igual que con los nombres en minúsculas."""
+    import openpyxl
+    cab = [c.value for c in openpyxl.load_workbook(
+        APP / 'plantilla' / 'point_data_template.xlsx')['points'][1]]
+    assert cab == [c.upper() for c in cab] and 'PRESENCE' in cab and 'DATE' in cab
+    ruta = TMP / 'mayusculas.csv'
+    ruta.write_text('ID,LON,LAT,PRESENCE,MOISTURE,METHOD,DATE,OBSERVER,EXPERTISE,CERTAINTY\n'
+                    'p1,-3.300001,37.050001,1,wet,field,2026-07-15,BPC,researcher,high\n',
+                    encoding='utf-8')
+    tr = bp.read_points(str(ruta))
+    assert not any(k in tr[0] for k in ('PRESENCE', 'DATE', 'OBSERVER'))
+    rows = candidato()
+    assert bp.merge_truth_points(rows, tr) == (1, 0, 1, 0)
+    assert (rows[0]['Borreguil'], rows[0]['method'], rows[0]['date']) == \
+        ('si', 'field', '2026-07-15')
+
+
+class _Subido:
+    def __init__(self, name, datos=b'x'):
+        self.name, self._d = name, datos
+
+    def getvalue(self):
+        return self._d
+
+
+def test_sin_sistema_de_referencia_no_se_deja_subir():
+    """27-11-2026: una capa sin sistema de referencia (un Shapefile sin .prj, suelto o en
+    un .zip) no se deja usar; KML, GeoJSON y CSV van siempre en WGS84 y valen."""
+    import zipfile
+    partes = [_Subido(n) for n in ('pts.shp', 'pts.dbf', 'pts.shx')]
+    try:
+        bp.guardar_subida(partes)
+        assert False, 'sin .prj tenía que fallar'
+    except ValueError as e:
+        assert 'sistema de referencia' in str(e) and 'QGIS' in str(e), str(e)
+    try:
+        bp.guardar_subida(partes, en=True)
+        assert False
+    except ValueError as e:
+        assert 'coordinate reference system' in str(e), str(e)
+    ruta = bp.guardar_subida(partes + [_Subido('pts.prj', b'GEOGCS["WGS 84"]')])
+    assert ruta.endswith('pts.shp') and not bp.falta_sistema_de_referencia(ruta)
+    # vacío, el .prj no cuenta
+    assert bp.falta_sistema_de_referencia(_shp_con_prj_vacio())
+    # en un .zip
+    z = TMP / 'capa.zip'
+    with zipfile.ZipFile(z, 'w') as f:
+        for n in ('zona.shp', 'zona.dbf', 'zona.shx'):
+            f.writestr(n, b'x')
+    assert bp.falta_sistema_de_referencia(z)
+    with zipfile.ZipFile(z, 'a') as f:
+        f.writestr('zona.prj', b'PROJCS["ETRS89 / UTM zone 30N"]')
+    assert not bp.falta_sistema_de_referencia(z)
+    # los formatos que siempre van en grados
+    for n in ('p.kml', 'p.geojson', 'p.csv'):
+        assert not bp.falta_sistema_de_referencia(TMP / n)
+
+
+def _shp_con_prj_vacio():
+    d = TMP / 'prj_vacio'
+    d.mkdir(exist_ok=True)
+    for n in ('a.shp', 'a.dbf', 'a.shx'):
+        (d / n).write_bytes(b'x')
+    (d / 'a.prj').write_bytes(b'')
+    return d / 'a.shp'
+
+
 if __name__ == '__main__':
     pruebas = [(n, f) for n, f in sorted(globals().items())
                if n.startswith('test_') and callable(f)]

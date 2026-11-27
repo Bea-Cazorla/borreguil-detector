@@ -5,10 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you. Please do not paste the coordinates of borreguiles: they are a sensitive
-        habitat.
+        Thank you.
 
-        Gracias. Por favor, no pegues coordenadas de borreguiles: son un hábitat sensible.
+        Gracias.
   - type: input
     id: version
     attributes:

@@ -11,8 +11,10 @@ than guessing.
 ## The point
 
 - `id`: any name or code for the point (optional; if missing, the app creates one).
-- **One row per point**, at the place you observed. Coordinates in decimal degrees,
-  WGS84 (`lon`, `lat`).
+- **One row per point**, at the place you observed. In a CSV, coordinates in decimal
+  degrees (`lon`, `lat`). A layer (Shapefile, GeoPackage, GeoJSON, KML) can be in any
+  projection as long as it has one (a Shapefile, with its .prj): the app converts it to
+  WGS84 on its own.
 - The app works with 10 × 10 m Sentinel-2 pixels: describe what is in the **10 m
   pixel around the point**, not the whole meadow.
 

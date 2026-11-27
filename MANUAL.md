@@ -36,8 +36,8 @@ El proceso, para cada punto:
 
 ```
 Punto (lat, lon)
-   ├─ Sentinel-2  → NDVI, NDWI, NDMI, EVI, albedo… (inicio y fin de verano, 2017-2025)
-   ├─ Sentinel-1  → retrodispersión radar VV/VH (humedad del suelo)
+   ├─ Óptico Sentinel-2 → NDVI, NDWI, NDMI, EVI, albedo… (inicio y fin de verano, 2017-2025)
+   ├─ Radar Sentinel-1  → retrodispersión VV/VH (humedad del suelo)
    ├─ DEM         → altitud, pendiente y curvatura
    ├─ Ortofoto    → textura, contraste, fracción verde, roca alrededor
    └─ OSM         → distancia a ríos y arroyos (para el tipo, no para el modelo)
@@ -219,7 +219,7 @@ punto es de laguna solo si se ve agua cerca (ver la sección 10).
 | Modo | Uso |
 |---|---|
 | 🗺 **Vector** | Sube tu polígono (KML/GeoJSON/GeoPackage/shapefile). |
-| 🆔 **WDPA ID** | Identificador de protectedplanet.net. Ej.: `555512151` Sierra Nevada, `4514` Picos de Europa, `11` Yellowstone. |
+| 🆔 **WDPA ID** | Identificador de protectedplanet.net; la app lo busca en Earth Engine con la cuenta compartida de MonitorEO, sin clave. Ej.: `389011` Parque Nacional de Sierra Nevada, `71213` Picos de Europa, `893` Ordesa y Monte Perdido. |
 | 🔤 **Nombre** | Búsqueda por nombre (Nominatim/OSM). Cuanto más específico, mejor. |
 | ⨯ **Sin área** | Usa el rectángulo que engloba tus puntos. |
 
@@ -252,9 +252,9 @@ que las herramientas de MonitorEO: sin iniciar sesión ni tener cuenta propia.
   lo avisa: los cálculos van lentos y alguno puede fallar.
 
 Los dos dan **los mismos números** en Sentinel-2 y el relieve: con Earth Engine, las
-variables de Sentinel-2 se calculan imitando lo que hace Planetary Computer, que es
+variables de Óptico Sentinel-2 se calculan imitando lo que hace Planetary Computer, que es
 con lo que se entrenó el modelo de Sierra Nevada (ver la sección 8). La diferencia es
-el **radar (Sentinel-1)**: solo se lee con Earth Engine, en segundos. Con Planetary
+el **Radar Sentinel-1**: solo se lee con Earth Engine, en segundos. Con Planetary
 Computer la app usa una versión del modelo entrenada sin radar, que acierta algo menos
 (AUC 0,833 en lugar de 0,847 con el modelo base; ver la sección 6).
 
@@ -302,7 +302,7 @@ Formatos aceptados para los puntos: **KML**, **GeoJSON**, **CSV** (columnas `lon
 solo vale para el área de estudio, la máscara y la capa de cauces.
 
 ### Puntos de campo: presencias y ausencias (recomendado)
-Usa la [plantilla de datos de campo](#plantilla-de-datos-de-campo): una fila por
+Usa la [plantilla de datos de puntos](#plantilla-de-datos-de-puntos): una fila por
 punto, con `presence` = `1` (borreguil) o `0` (no borreguil); el resto de columnas
 son opcionales. **Incluye ausencias**: los sitios donde has comprobado que no hay
 borreguil valen tanto como los borreguiles. Sin ellos no se mide bien cuánto acierta
@@ -347,7 +347,7 @@ etiqueta: cada punto se toma como borreguil. Sirve para ver cuántos borreguiles
 acierta el modelo, pero no aporta ausencias. En *Tus puntos*, en cambio, un punto
 sin etiqueta es solo un sitio donde la app mira si hay borreguil.
 
-> Las coordenadas deben ser **geográficas (WGS84, EPSG:4326)**.
+> **Proyección.** Las capas (Shapefile, GeoPackage, GeoJSON, KML) pueden venir en cualquier proyección, por ejemplo ETRS89 / UTM 30N, pero tienen que tenerla: un Shapefile, con su `.prj`; un GeoPackage, con su sistema de referencia. La app las pasa sola a WGS84 al leerlas; si una capa no tiene proyección, no deja usarla. En un CSV, `lon` y `lat` van en grados decimales.
 
 ### Etiquetas en tus puntos
 Lo anterior es para los **puntos de campo**. **Tus puntos** también
@@ -799,7 +799,7 @@ dudosos no se dibujan, y debajo del selector se dice cuántos son.
 - `classification.csv` y `Clasificacion_puntos.xlsx` — la tabla completa, con
   todas las variables.
 - `puntos.geojson` — los puntos con sus **etiquetas** (decisión, verdad-terreno y
-  tipo revisado, con las columnas de la plantilla de datos de campo), sin las
+  tipo revisado, con las columnas de la plantilla de datos de puntos), sin las
   variables. Es el fichero para **volver a cargar tu trabajo** en otra sesión o
   abrirlo en QGIS.
 - `mapa.html` — mapa autónomo que se abre en cualquier navegador.
@@ -937,7 +937,7 @@ ninguno, la app lo avisa: un tipo aceptado sin mirar sigue siendo la regla de la
 
 **Conservar la revisión entre sesiones** — descarga `puntos.geojson` y, la próxima
 vez, cárgalo en *Tus puntos* o en *puntos de campo para comprobar el modelo*. Va con las columnas de
-la [plantilla de datos de campo](#plantilla-de-datos-de-campo): `presence`,
+la [plantilla de datos de puntos](#plantilla-de-datos-de-puntos): `presence`,
 `doubtful` y, de cada nivel **revisado**, `environment`, `moisture` y `purity` (la
 propuesta de la app no se guarda: se recalcula), más `method`, `date` y, si se
 indicaron, `observer`, `expertise` y `certainty`. Al volver a
@@ -946,11 +946,11 @@ anteriores de la app (con `Borreguil` y `tipo_revisado`) se siguen leyendo igual
 un punto llega marcado como revisado pero con una categoría que no existe (por
 ejemplo, editada a mano), la app lo avisa y ese nivel no cuenta como revisado.
 
-### Plantilla de datos de campo
+### Plantilla de datos de puntos
 
 Para que los datos de distintos equipos se puedan juntar, la app propone una
 plantilla común. En la pantalla de inicio, **⬇ Descargar la plantilla de datos de
-campo (Excel)** la descarga (`field_points_template.xlsx`, con la explicación de cada
+puntos (Excel)** la descarga (`point_data_template.xlsx`, con la explicación de cada
 columna en la segunda hoja), y **▶ Probar con 20 puntos de ejemplo de Sierra Nevada**
 analiza sus 20 puntos (12 borreguiles y 8 sin borreguil) sin subir nada. En la carpeta
 `plantilla` del código van además `example_sierra_nevada.csv` y `.geojson` y
@@ -961,7 +961,7 @@ si se sabe:
 
 | Columna | Valores | ¿Obligatoria? |
 |---|---|---|
-| `lon`, `lat` | grados decimales, WGS84 | sí |
+| `lon`, `lat` | grados decimales (en un CSV; una capa, en su proyección) | sí |
 | `presence` | `1` borreguil · `0` no borreguil | sí |
 | `id` | cualquiera (si falta, la app pone uno) | no |
 | `doubtful` | `1` si es dudoso | no |
@@ -974,6 +974,8 @@ si se sabe:
 | `expertise` | `student` · `manager` · `researcher` | no |
 | `certainty` | `high` · `medium` · `low`: lo segura que es la respuesta de `presence` | no |
 | `notes` | texto | no |
+
+> **Proyección.** Las capas (Shapefile, GeoPackage, GeoJSON, KML) pueden venir en cualquier proyección, por ejemplo ETRS89 / UTM 30N, pero tienen que tenerla: un Shapefile, con su `.prj`; un GeoPackage, con su sistema de referencia. La app las pasa sola a WGS84 al leerlas; si una capa no tiene proyección, no deja usarla. En un CSV, `lon` y `lat` van en grados decimales.
 
 - Los valores del tipo valen también en español (`arroyo`, `laguna`, `ladera`,
   `húmedo`, `seco`, `puro`, `mixto-agua`, `mixto-roca`) y la columna puede llamarse
@@ -1122,8 +1124,8 @@ en `claude-borreguiles/curva_puntos/` (fuera de la app).
 
 **¿Qué variables se pueden usar?** Solo las que existen como **mapa continuo**, que
 son las que luego permiten predecir sobre el territorio: 34, calculadas en Earth
-Engine a partir de Sentinel-2 (29) y del modelo de elevaciones (5). Vienen todas
-marcadas y se pueden quitar. Las texturas de la imagen aérea y el radar Sentinel-1,
+Engine a partir de Óptico Sentinel-2 (29) y del modelo de elevaciones (5). Vienen todas
+marcadas y se pueden quitar. Las texturas de la imagen aérea y el Radar Sentinel-1,
 que el detector sí usa, no están porque hoy solo se calculan punto a punto.
 
 **Fechas y calidad de las imágenes del mapa.** Inicio de verano: del 15 de junio al 24
@@ -1762,7 +1764,7 @@ pestañas, dice:
 
 ### Procedimiento
 1. Marca borreguiles confirmados y, si puedes, ausencias (campo o
-   fotointerpretación). Usa la [plantilla de datos de campo](#plantilla-de-datos-de-campo).
+   fotointerpretación). Usa la [plantilla de datos de puntos](#plantilla-de-datos-de-puntos).
 2. Súbelos en **Opcional: puntos de campo para comprobar el modelo** (o en **Tus
    puntos**, con etiqueta),
    verifícalos en «Revisar puntos» o añádelos pinchando en el mapa.
@@ -1795,8 +1797,8 @@ Tiempos orientativos para **150 puntos**:
 | Planetary Computer completo | 20-45 min |
 
 **Qué es lento y por qué**: las imágenes (ESRI/PNOA) y CIR/Planet se descargan
-**punto a punto en tu ordenador**, aunque uses GEE. Sentinel-2, el radar
-(Sentinel-1) y la topografía se calculan en los servidores de Google.
+**punto a punto en tu ordenador**, aunque uses GEE. Óptico Sentinel-2, Radar
+Sentinel-1 y la topografía se calculan en los servidores de Google.
 
 **Para acelerar**: usa GEE, marca **⚡ Modo rápido** para iterar, reduce el número
 de puntos y acota los años de Sentinel-2.
@@ -1858,8 +1860,7 @@ enlaza con la wiki y abre una *issue* en GitHub con la versión ya puesta (públ
 con cuenta de GitHub; puedes pegar pantallazos y seguir la respuesta). Sin cuenta, el
 **formulario anónimo** de la app: qué quieres hacer, en qué parte de la app, la versión
 (ya puesta), el ordenador, la descripción y, si quieres, un enlace a pantallazos y el
-texto de la consola. No pide nombre ni correo, así que no te podrán contestar. No
-pegues coordenadas de borreguiles: son un hábitat sensible.
+texto de la consola. No pide nombre ni correo, así que no te podrán contestar.
 
 **Enviar los registros.** La app apunta lo que hace y los errores que tiene en
 `registro.log`, en la carpeta **Borreguil** de tu usuario (guarda solo lo más

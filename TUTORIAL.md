@@ -34,7 +34,7 @@ El programa los busca automáticamente:
 
 1. Toma **puntos** sobre el terreno (los tuyos, o generados al azar).
 2. Para cada punto descarga **datos de satélite y de terreno**: índices de
-   vegetación y humedad (Sentinel-2), radar (Sentinel-1), altitud, pendiente,
+   vegetación y humedad (Óptico Sentinel-2), Radar Sentinel-1, altitud, pendiente,
    curvatura del terreno y textura de la imagen aérea.
 3. Un modelo de **inteligencia artificial** (Random Forest), entrenado con 769
    puntos revisados en campo en Sierra Nevada, estima para cada punto la
@@ -222,7 +222,7 @@ Elige **🎲 Generar aleatoriamente en el área** y configura:
 ### Paso 3 · Área de estudio
 
 - **Modo**: **🆔 WDPA ID**
-- **WDPA ID**: `555512151`  *(Sierra Nevada)*
+- **WDPA ID**: `389011`  *(Parque Nacional de Sierra Nevada)*
 
 > Otros: `4514` Picos de Europa · `11` Yellowstone. También puedes buscar por
 > **🔤 Nombre** o subir un **🗺 Vector** con tu polígono.
@@ -380,7 +380,7 @@ nuevos de GitHub y el proyecto de Earth Engine:
 
 El modelo aprendió en Sierra Nevada; mejora si le enseñas ejemplos locales:
 
-1. Descarga la **plantilla de datos de campo** (pantalla de inicio). Una fila por
+1. Descarga la **plantilla de datos de puntos** (pantalla de inicio). Una fila por
    punto: `lon`, `lat` (grados) y `presence` (**1** borreguil, **0** no; `doubtful`
    = 1 si no lo sabes). **Incluye ausencias**: la app no se las inventa.
 2. Guárdala como CSV y súbela en **Tus puntos** o en **Opcional: puntos de campo
@@ -424,8 +424,8 @@ en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 | «Sin conexión con GitHub» o red con cortafuegos (aula) | Todo va por HTTPS, puerto 443: hay que dejarlo salir hacia Earth Engine y `raw.githubusercontent.com`. |
 
 ¿Sigue sin funcionar? **💬 Sugerir un cambio o informar de un error** (abajo en el
-panel lateral) abre una *issue* o, sin cuenta de GitHub, un formulario anónimo; no pegues
-coordenadas de borreguiles. Para que el equipo vea qué pasó, pulsa ahí **→ Enviar los
+panel lateral) abre una *issue* o, sin cuenta de GitHub, un formulario anónimo. Para que
+el equipo vea qué pasó, pulsa ahí **→ Enviar los
 registros de este ordenador** (o **Enviar los registros**, debajo del error): enseña las
 últimas líneas de lo que hizo la app, sin tu nombre, correo ni carpetas, y las envía con
 el formulario anónimo. Manual en la

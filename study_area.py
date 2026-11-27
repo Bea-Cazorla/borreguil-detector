@@ -28,6 +28,14 @@ HEADERS = {'User-Agent': 'borreguil-pipeline/1.0'}
 
 # Areas conocidas (cache local nombre↔WDPA ID). Se puede ampliar libremente.
 WDPA_KNOWN = {
+    # Códigos de WDPA comprobados en Earth Engine (WCMC/WDPA/current, 27-11-2026)
+    '389011':    'Parque Nacional de Sierra Nevada, Granada',
+    '349467':    'Parque Natural de Sierra Nevada, Granada',
+    '71213':     'Parque Nacional de Picos de Europa',
+    '893':       'Parque Nacional de Ordesa y Monte Perdido',
+    '196014':    "Parc Nacional d'Aigüestortes i Estany de Sant Maurici",
+    '555546231': 'Parque Nacional de la Sierra de Guadarrama',
+    # Los que ponía la app antes (no son códigos de WDPA): se siguen entendiendo
     '555512151': 'Parque Nacional de Sierra Nevada, Granada',
     '555512152': 'Parque Natural de Sierra Nevada, Granada',
     '4514':      'Parque Nacional de Picos de Europa',

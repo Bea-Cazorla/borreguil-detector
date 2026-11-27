@@ -15,7 +15,7 @@ App (Streamlit) para identificar **borreguiles** (mountain wet meadows /
 cervunales higroturbosos) en cualquier zona de alta montaña y hacer su mapa.
 
 Combina ortofoto (ESRI World Imagery o, en España, PNOA), modelo digital del terreno
-(Copernicus DEM 30 m), Sentinel-2 multitemporal y radar Sentinel-1, con dos fuentes
+(Copernicus DEM 30 m), Óptico Sentinel-2 multitemporal y Radar Sentinel-1, con dos fuentes
 de datos posibles:
 
 - **Google Earth Engine (GEE)** — la que viene elegida: el cálculo se hace en la nube
@@ -76,8 +76,7 @@ Al abrirlo, el programa se actualiza solo con la última versión de la app (ver
 de la app, con la versión ya puesta. Si algo falla, **«→ Enviar los registros de este
 ordenador»** (o «Enviar los registros», debajo del error) enseña las últimas líneas de lo
 que hizo la app, sin tu nombre, correo ni carpetas, y las envía con ese formulario, como
-en el asistente de MonitorEO. No pegues coordenadas de borreguiles: son
-localizaciones de un hábitat sensible.
+en el asistente de MonitorEO.
 
 > La primera vez, Windows y macOS avisan de que el programa no está firmado (es
 > habitual en software científico). El tutorial explica cómo continuar.
@@ -119,8 +118,8 @@ Se abre en `http://localhost:8501`.
 4. **Puntos de campo** (opcional, fichero aparte): sitios donde ya sabes si hay
    borreguil, con `presence` (1 = borreguil, 0 = no) y, si quieres, `doubtful`, el
    tipo, `observer`, `expertise` y `certainty`. Plantilla:
-   `plantilla/field_points_template.xlsx` (botón «⬇ Descargar la plantilla de datos
-   de campo (Excel)» en la pantalla de inicio). **Incluye ausencias**: la app no se
+   `plantilla/point_data_template.xlsx` (botón «⬇ Descargar la plantilla de datos
+   de puntos (Excel)» en la pantalla de inicio). **Incluye ausencias**: la app no se
    las inventa. Un fichero sin ninguna columna se toma como todo borreguil: sirve para
    medir cuántos acierta el modelo, pero no aporta ausencias.
 5. **▶ Ejecutar pipeline** → cinco pestañas: Mapa de los puntos, Revisar puntos,
@@ -199,7 +198,7 @@ Sierra Nevada»** (12 borreguiles y 8 no).
 
 O genera puntos aleatorios y usa el modelo de Sierra Nevada:
 - Origen: 🎲 Generar aleatoriamente
-- Área: 🆔 WDPA ID `555512151` (Sierra Nevada) o el de tu zona
+- Área: 🆔 WDPA ID `389011` (Parque Nacional de Sierra Nevada) o el de tu zona
 - Nº puntos: 200, altitud mín 2000 m → Ejecutar
 
 ## Google Earth Engine
@@ -224,7 +223,7 @@ Para volver a la cuenta compartida, deja el campo vacío.
 | Archivo | Función |
 |---|---|
 | `app.py` | Interfaz Streamlit |
-| `borreguil_pipeline.py` | Pipeline (ortofoto, ríos y arroyos de OSM, DEM, Sentinel-2, radar Sentinel-1, Random Forest) |
+| `borreguil_pipeline.py` | Pipeline (ortofoto, ríos y arroyos de OSM, DEM, Óptico Sentinel-2, Radar Sentinel-1, Random Forest) |
 | `gee_backend.py` | Google Earth Engine |
 | `mapeo_rf.py`, `mapeo_raster.py`, `mapeo_tif.py`, `mapeo_ambiente.py` | Pestaña «🌿 Mapa Modelo RF» |
 | `point_profile.py`, `i18n.py` | Gráficas por punto e idioma |

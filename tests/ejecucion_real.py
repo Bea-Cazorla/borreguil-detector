@@ -157,7 +157,7 @@ for nombre in ('classification.csv', 'puntos.geojson', 'Clasificacion_puntos.xls
     comprobar((work / nombre).exists(), f'se ha guardado {nombre}')
 gj = json.loads((work / 'puntos.geojson').read_text(encoding='utf-8'))
 props = {f['properties']['ID']: f['properties'] for f in gj['features']}
-# Con las columnas de la plantilla de datos de campo; de cada tipo, solo los niveles
+# Con las columnas de la plantilla de datos de puntos; de cada tipo, solo los niveles
 # que ha revisado una persona
 p0, p3 = props['campo_0'], props['campo_3']
 comprobar(p0.get('presence') == 1

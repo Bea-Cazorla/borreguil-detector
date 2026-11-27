@@ -3,7 +3,7 @@
 Cada vez que una persona dice si un punto es borreguil (en «Revisar puntos», al pinchar
 en el mapa o en su fichero de campo) se guarda quién lo dice (`observer`), su perfil
 (`expertise`: student · manager · researcher) y lo segura que está (`certainty`: high ·
-medium · low), con las columnas de la plantilla de datos de campo. Con eso, el acierto
+medium · low), con las columnas de la plantilla de datos de puntos. Con eso, el acierto
 del modelo se puede separar según la certidumbre y el perfil. Se ejecutan con
 `python tests/test_revisor.py` (o con pytest); no necesitan red y tardan unos segundos.
 """

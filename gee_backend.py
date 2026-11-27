@@ -75,8 +75,11 @@ def wdpa_geometry(wdpa_id):
     except Exception:
         return None, None
     try:
+        # El código se llamaba WDPAID; desde 2026 la colección «current» lo trae en
+        # SITE_ID (comprobado el 27-11-2026). Se busca en los dos.
         fc = (ee.FeatureCollection('WCMC/WDPA/current/polygons')
-              .filter(ee.Filter.eq('WDPAID', wid)))
+              .filter(ee.Filter.Or(ee.Filter.eq('SITE_ID', wid),
+                                   ee.Filter.eq('WDPAID', wid))))
         if not fc.size().getInfo():
             return None, None
         name = ''

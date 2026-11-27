@@ -30,6 +30,11 @@ Diseño:
     ventana no se puede abrir (Windows sin el motor de Edge, Linux sin GTK ni Qt…), se
     abre el navegador como antes.
 
+  · ZOOM DE LA VENTANA (27-11-2026, la autora: «dale más zoom a la app para que la
+    vean en una videollamada»): Ctrl + rueda del ratón y Ctrl + / Ctrl − / Ctrl 0
+    agrandan, achican o devuelven al 100 %, y la ventana recuerda el zoom para la
+    próxima vez (carpeta del usuario, .ventana/zoom.txt). pywebview lo traía apagado.
+
 Ejecutar en desarrollo (sin compilar):  python launcher.py
 Opciones:
   --navegador              abrir la app en el navegador, como la versión normal.
@@ -366,6 +371,122 @@ def hay_motor_de_edge() -> bool:
     return False
 
 
+# Zoom de la ventana: los mismos pasos que un navegador.
+ZOOM_PASOS = (0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
+
+# pywebview apaga las teclas propias del navegador (bien: Ctrl+R o F5 recargarían la app
+# y se perdería el análisis), y con ellas Ctrl + / Ctrl − / Ctrl 0. Las atiende la
+# página y le pide el zoom a Python (zoom_ventana). Sin AltGr (Ctrl+Alt en Windows).
+TECLAS_ZOOM_JS = """
+if (!window.__zoomBorreguil) {
+  window.__zoomBorreguil = true;
+  window.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    var paso = null;
+    if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') paso = 1;
+    else if (e.key === '-' || e.code === 'NumpadSubtract') paso = -1;
+    else if (e.key === '0' || e.code === 'Numpad0') paso = 0;
+    if (paso === null || !window.pywebview || !window.pywebview.api) return;
+    e.preventDefault();
+    window.pywebview.api.zoom_ventana(paso);
+  }, true);
+}
+"""
+
+
+def siguiente_zoom(actual: float, paso: int) -> float:
+    """El zoom tras Ctrl + (paso 1), Ctrl − (-1) o Ctrl 0 (0, el 100 %)."""
+    if paso == 0:
+        return 1.0
+    if paso > 0:
+        return next((z for z in ZOOM_PASOS if z > actual + 1e-3), ZOOM_PASOS[-1])
+    return next((z for z in reversed(ZOOM_PASOS) if z < actual - 1e-3), ZOOM_PASOS[0])
+
+
+def leer_zoom(fichero: Path) -> float:
+    try:
+        z = float(fichero.read_text(encoding='utf-8').strip())
+    except Exception:                            # noqa: BLE001
+        return 1.0
+    return min(max(z, ZOOM_PASOS[0]), ZOOM_PASOS[-1])
+
+
+def preparar_zoom(ventana, fichero: Path):
+    """Zoom de la ventana con Ctrl + rueda y Ctrl + / − / 0, recordado en `fichero`.
+
+    Solo Windows (Edge WebView2): el zoom se fija en el control con ZoomFactor, que es
+    un zoom de navegador de verdad (los mapas y gráficos siguen respondiendo bien al
+    ratón, al contrario que un zoom por CSS). En Mac queda el gesto del trackpad."""
+    if sys.platform != 'win32':
+        return
+    estado = {'factor': leer_zoom(fichero), 'enganchado': False}
+
+    def guardar(factor):
+        estado['factor'] = factor
+        try:
+            fichero.parent.mkdir(parents=True, exist_ok=True)
+            fichero.write_text(f'{factor:.3f}', encoding='utf-8')
+        except Exception:                        # noqa: BLE001
+            pass
+
+    def en_la_ventana(funcion):
+        """Ejecuta `funcion(control WebView2)` en el hilo de la ventana."""
+        from System import Func, Type            # pythonnet, lo carga pywebview
+        form = ventana.native
+        if form is None or getattr(form, 'browser', None) is None:
+            return
+        form.Invoke(Func[Type](lambda: funcion(form.browser.webview)))
+
+    def fijar(factor):
+        def _fijar(control):
+            control.ZoomFactor = factor
+        try:
+            en_la_ventana(_fijar)
+        except Exception as exc:                 # noqa: BLE001
+            print(f'  (zoom: {type(exc).__name__}: {exc})', flush=True)
+            return
+        # Cuando lo cambia el programa, WebView2 no avisa (ZoomFactorChanged solo salta
+        # con la rueda): se guarda aquí.
+        guardar(factor)
+
+    def actual():
+        leido = {}
+
+        def _leer(control):
+            leido['z'] = float(control.ZoomFactor)
+        try:
+            en_la_ventana(_leer)
+        except Exception:                        # noqa: BLE001
+            pass
+        return leido.get('z', estado['factor'])
+
+    def zoom_ventana(paso):
+        """Lo llama la página con Ctrl + / Ctrl − / Ctrl 0."""
+        fijar(siguiente_zoom(actual(), int(paso)))
+
+    def al_cargar():
+        if not estado['enganchado']:
+            estado['enganchado'] = True
+
+            def _enganchar(control):
+                # Ctrl + rueda: guardar el zoom para la próxima vez.
+                control.ZoomFactorChanged += (
+                    lambda _sender, _args: guardar(float(control.ZoomFactor)))
+            try:
+                en_la_ventana(_enganchar)
+            except Exception as exc:             # noqa: BLE001
+                print(f'  (zoom: {type(exc).__name__}: {exc})', flush=True)
+            if abs(estado['factor'] - 1.0) > 1e-3:
+                fijar(estado['factor'])
+        try:
+            ventana.evaluate_js(TECLAS_ZOOM_JS)
+        except Exception:                        # noqa: BLE001
+            pass
+
+    ventana.expose(zoom_ventana)
+    ventana.events.loaded += al_cargar
+
+
 def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
     """La app en su propia ventana (pywebview). Devuelve (estado, proceso del servidor):
 
@@ -419,7 +540,9 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
     ventana = webview.create_window(TITULO_VENTANA, html=CARGANDO, width=1400,
                                     height=900, min_size=(900, 600),
                                     background_color='#221F20',   # sin destello blanco
-                                    maximized=not probar, text_select=True)
+                                    maximized=not probar, text_select=True,
+                                    zoomable=True)   # Ctrl + rueda (pywebview lo apaga)
+    preparar_zoom(ventana, out / '.ventana' / 'zoom.txt')
     try:
         # private_mode=False y una carpeta propia: la ventana recuerda lo que el
         # navegador recordaría (preferencias de Streamlit) entre sesiones.

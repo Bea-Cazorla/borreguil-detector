@@ -5,11 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you. You can paste or drag screenshots in the boxes below. Please do not paste the
-        coordinates of borreguiles: they are a sensitive habitat.
+        Thank you. You can paste or drag screenshots in the boxes below.
 
-        Gracias. Puedes pegar o arrastrar pantallazos en los cuadros de abajo. Por favor, no
-        pegues coordenadas de borreguiles: son un hábitat sensible.
+        Gracias. Puedes pegar o arrastrar pantallazos en los cuadros de abajo.
   - type: input
     id: version
     attributes:

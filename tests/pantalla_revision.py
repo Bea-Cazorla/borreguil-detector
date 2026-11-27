@@ -3464,15 +3464,19 @@ def guion_sin_puntos(lang):
     t0 = at.tabs[0]                    # la pantalla de inicio (sin el panel lateral)
     inicio = ' '.join(str(x.value) for x in
                       list(t0.markdown) + list(t0.info) + list(t0.caption))
-    comprobar(T('Encuentra los borreguiles de tu zona', 'Find the borreguiles in your area') in inicio
-              and 'obsnev.es/ecosistemas-borreguiles' in inicio
-              and all(T(a, b) in inicio for a, b in (('1 · Analizar', '1 · Analyse'),
-                                                      ('2 · Revisar', '2 · Review'),
-                                                      ('3 · Hacer el mapa', '3 · Make the map')))
-              and T('El modelo mira cada sitio', 'The model looks at each place') in inicio
-              and T('Tú confirmas o corriges', 'You confirm or correct') in inicio
+    comprobar(T('Encuentra los borreguiles de tu zona',
+                'Find the alpine wet meadows in your area') in inicio
+              and T('obsnev.es/ecosistemas-borreguiles/',
+                    'obsnev.es/en/ecosistemas-borreguiles/') in inicio
+              and all(T(a, b) in inicio for a, b in (
+                  ('1 · Prepara tu análisis', '1 · Set your analysis'),
+                  ('2 · Revisa los puntos de entrenamiento', '2 · Review the training points'),
+                  ('3 · Haz el mapa', '3 · Create the map')))
+              and T('Zonas o puntos, modelo y datos', 'Areas/points, model and data') in inicio
+              and T('Confirma o corrige a la vista', 'Visually confirm or correct') in inicio
               and T('no estoy seguro/a', 'not sure') in inicio
-              and T('clasifica cada píxel de 10 m', 'classifies every 10 m pixel') in inicio
+              and T('En cada píxel de 10 m de tu zona',
+                    'For each 10-metre pixel in your area') in inicio
               and not any(x in inicio for x in ('presence-only', 'GroupKFold', 'Backend',
                                                 'inputs', 'MPC', 'rásters', 'rasters'))
               and not any('Placemark' in str(c.value) for c in t0.code),
@@ -3481,15 +3485,17 @@ def guion_sin_puntos(lang):
               'con lo que acierta con y sin radar, y sin el recuadro del KML', inicio[:200])
     b_ej = boton(at, 'probar_ejemplo')
     comprobar(b_ej is not None
-              and b_ej.label == T('**Probar con el ejemplo**\n\n20 puntos de Sierra '
+              and b_ej.label == T('**Probar un ejemplo**\n\n20 puntos de Sierra '
                                   'Nevada · un minuto',
-                                  '**Try the example**\n\n20 points from Sierra Nevada · '
+                                  '**Try an example**\n\n20 points from Sierra Nevada · '
                                   'one minute'),
               'y un botón para probar con los 20 puntos de ejemplo')
-    bajar = [d for d in at.get('download_button') if getattr(d, 'key', None) == 'bajar_plantilla'
-             or 'bajar_plantilla' in str(getattr(d, 'proto', ''))]
-    comprobar(len(bajar) == 1, 'y otro para descargar la plantilla de datos de campo',
-              str(len(at.get('download_button'))))
+    for clave, que in (('bajar_ejemplo', 'la hoja de datos de puntos del ejemplo, rellena'),
+                       ('bajar_plantilla', 'la plantilla de datos de puntos, vacía')):
+        bajar = [d for d in at.get('download_button') if getattr(d, 'key', None) == clave
+                 or clave in str(getattr(d, 'proto', ''))]
+        comprobar(len(bajar) == 1, f'y otro para descargar {que}',
+                  str(len(at.get('download_button'))))
 
     print('  Z1b · el botón de ejemplo analiza los 20 puntos de la plantilla')
     fuente = max((base[i] for i in BORR), key=lambda r: r['rf_proba'])
@@ -3588,16 +3594,21 @@ def guion_sin_puntos(lang):
 
     print('  Z3 · lanzar los puntos por cuartiles de una capa')
     est = at.selectbox(key='estrategia')
-    comprobar(T('Por cuartiles de una capa', 'By quartiles of a layer') in est.options,
-              'la estrategia «por cuartiles de una capa» está en el menú', str(est.options))
+    comprobar(list(est.options) == [
+        T('Puntos al azar', 'Random points'),
+        T('Al azar, separados una distancia mínima', 'Random but separated by a minimum distance'),
+        T('Al azar, estratificados por altitud', 'Random but stratified by altitude'),
+        T('Al azar por clase de probabilidad', 'Random by probability class')],
+              'las formas de repartir, en su orden (la de la capa: «por clase de '
+              'probabilidad»)', str(est.options))
     est.set_value('cuartiles')
     at.run()
     sin_error(at, 'Z3')
     comprobar(hay(at, T('Sube la capa para elegir la columna y el reparto',
                         'Upload the layer to choose the column and the split'))
-              and [t_ for t_ in at.text_input
-                   if t_.label == T('Altitud mínima (m)', 'Minimum elevation (m)')][0].value == '',
-              'pide la capa y la altitud mínima va vacía de entrada')
+              and not [t_ for t_ in at.text_input
+                       if t_.label == T('Altitud mínima (m)', 'Minimum elevation (m)')],
+              'pide la capa y no pide altitud (solo en «estratificados por altitud»)')
     # AppTest no sabe subir ficheros: el selector de la capa devuelve un GeoPackage de
     # prueba (8 cuadrados, con su columna «cuartil» y otra numérica, «valor»).
     import streamlit as _st

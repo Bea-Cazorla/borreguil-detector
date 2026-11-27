@@ -136,6 +136,34 @@ def modelo_segun_radar(ruta, hay_radar):
     return str(q) if q is not None else ruta
 
 
+FUENTES_VARIABLES = ('img', 'topo', 's2', 's1', 'cir')
+_TOPO_VARIABLES = ('elev_dem_m', 'slope_deg', 'curvature', 'twi', 'aspect_north',
+                   'aspect_east')
+
+
+def fuente_de_variable(f):
+    """De qué fuente sale una variable del modelo: imagen aérea, relieve, Óptico
+    Sentinel-2, Radar Sentinel-1 o infrarrojo (CIR)."""
+    if f in bp.S1_FEATS:
+        return 's1'
+    if f in bp.CIR_FEATS:
+        return 'cir'
+    if f in _TOPO_VARIABLES:
+        return 'topo'
+    if f in bp.FEATURES_RF[:12]:
+        return 'img'
+    return 's2'
+
+
+@st.cache_data(show_spinner=False)
+def _variables_modelo(ruta, mtime):
+    """Las variables de un modelo, en su orden; `mtime` renueva la caché."""
+    try:
+        return list(bp.load_model_bundle(ruta).get('features', []))
+    except Exception:                                   # noqa: BLE001
+        return []
+
+
 @st.cache_data(show_spinner=False)
 def _auc_modelo(ruta, mtime):
     """AUC (validación por cuencas) guardado en un modelo; `mtime` renueva la caché."""
@@ -380,8 +408,11 @@ def bloque_probabilidad(r, umbral, pie=''):
 # Pantalla de inicio: el Observatorio, la foto del borreguil y los logos del pie (en la
 # carpeta imagenes/, que llega con la actualización; si falta, no se dibujan).
 OBSNEV_URL = 'https://obsnev.es/ecosistemas-borreguiles/'
+OBSNEV_URL_EN = 'https://obsnev.es/en/ecosistemas-borreguiles/'   # la misma página en inglés
 OBSNEV_TITULO = ('Ecosistemas Borreguiles · Observatorio de Cambio Global de Sierra Nevada '
                  '(obsnev.es)')
+OBSNEV_TITULO_EN = ('Borreguiles ecosystems · Sierra Nevada Global Change Observatory '
+                    '(obsnev.es)')
 IMAGENES = APP_DIR / 'imagenes'
 
 
@@ -399,21 +430,26 @@ def _imagen_datos(nombre):
 
 
 def foto_inicio():
-    """La foto del borreguil del Cerro del Caballo, con su autoría (CC BY-SA 4.0)."""
-    src = _imagen_datos('borreguil_cerro_del_caballo.jpg')
+    """La foto de los borreguiles de la ladera del Veleta, con su autoría (CC BY 4.0).
+
+    Elegida por la autora el 27-11-2026 entre las de Wikimedia Commons («Borreguiles -
+    Sierra Nevada - Spain 2.tif», de Bouke ten Cate), guardada a 1600 px de ancho. Antes,
+    la del Cerro del Caballo (Granadaruralsur, CC BY-SA 4.0)."""
+    src = _imagen_datos('borreguil_veleta.jpg')
     if not src:
         return ''
-    alt = i18n.pick('Borreguil verde atravesado por un arroyo en el Cerro del Caballo, '
-                    'Sierra Nevada',
-                    'Green borreguil crossed by a stream on the Cerro del Caballo, '
-                    'Sierra Nevada')
-    pie = i18n.pick('Borreguil en el Cerro del Caballo, Sierra Nevada · Foto: '
-                    'Granadaruralsur, CC BY-SA 4.0, Wikimedia Commons',
-                    'Borreguil on the Cerro del Caballo, Sierra Nevada · Photo: '
-                    'Granadaruralsur, CC BY-SA 4.0, Wikimedia Commons')
+    alt = i18n.pick('Borreguil verde con pozas de agua y un arroyo en la ladera del Veleta, '
+                    'Sierra Nevada, con niebla',
+                    'Green alpine wet meadow with pools and a stream on the slopes of the '
+                    'Veleta, Sierra Nevada, in the mist')
+    pie = i18n.pick('Borreguiles en la ladera del Veleta, Sierra Nevada · Foto: Bouke ten '
+                    'Cate, CC BY 4.0, Wikimedia Commons',
+                    'Alpine wet meadows on the slopes of the Veleta, Sierra Nevada · Photo: '
+                    'Bouke ten Cate, CC BY 4.0, Wikimedia Commons')
     return ('<style>.foto-inicio{position:relative;height:340px;border-radius:18px;'
             'overflow:hidden;border:1px solid #403A3C;margin:0}'
-            '.foto-inicio img{width:100%;height:100%;object-fit:cover;display:block}'
+            '.foto-inicio img{width:100%;height:100%;object-fit:cover;display:block;'
+            'object-position:center 60%}'
             '.foto-inicio figcaption{position:absolute;left:0;right:0;bottom:0;'
             'padding:28px 14px 10px;font-size:11px;color:#CDD3D9;'
             'background:linear-gradient(transparent,rgba(0,0,0,.72))}</style>'
@@ -426,21 +462,8 @@ def pie_inicio(backend, gee_project):
     la app (Observatorio, UGR) y quién la financia (Biodiversa+ por PRESINMED;
     Ministerio, UE y AEI por EVEREST), todos sobre el mismo blanco."""
     import html as _html
-    if backend != 'gee':
-        estado = i18n.pick('Microsoft Planetary Computer, sin cuenta',
-                           'Microsoft Planetary Computer, no account')
-    elif gee_project:
-        estado = i18n.pick(f'Earth Engine con tu proyecto {gee_project}',
-                           f'Earth Engine with your project {gee_project}')
-    else:
-        estado = i18n.pick('Earth Engine con la cuenta compartida de MonitorEO',
-                           'Earth Engine with the MonitorEO shared account')
-        _uso = _uso_cuenta_compartida()
-        if _uso and _uso.get('left_hours') is not None:
-            estado += i18n.pick(f" · te quedan {_num(_uso['left_hours'])} h de cálculo "
-                                'este mes',
-                                f" · {_num(_uso['left_hours'])} h of compute left this "
-                                'month')
+    # Sin la línea de con qué calcula la app («Earth Engine con la cuenta compartida de
+    # MonitorEO · te quedan … h»; la autora, 27-11-2026: «esto quítalo»): solo la versión.
     v, f = version_app(), fecha_app()
     version = ' · '.join(x for x in (i18n.pick(f'Versión {v}', f'Version {v}') if v else '',
                                      f) if x)
@@ -473,7 +496,7 @@ def pie_inicio(backend, gee_project):
                          'Who makes the app and who funds it')
              + f'"><div class="grupo">{izq}</div><div class="grupo">{der}</div></div>')
     return ('<style>.pie-inicio{margin-top:40px;border-top:1px solid #403A3C}'
-            '.pie-estado{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;'
+            '.pie-estado{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;'
             'background:#282526;padding:14px 32px;font-size:13px;color:#AEB6BE}'
             '.pie-estado .punto{display:inline-block;width:8px;height:8px;border-radius:50%;'
             'background:#7CC496;margin-right:8px;vertical-align:middle}'
@@ -483,7 +506,6 @@ def pie_inicio(backend, gee_project):
             '.pie-logos .grupo{display:flex;align-items:center;flex-wrap:wrap;gap:20px 40px}'
             '.pie-logos span{font-size:11px;line-height:1.35;color:#61585B}</style>'
             '<div class="pie-inicio"><div class="pie-estado">'
-            f'<span><span class="punto"></span>{_html.escape(estado)}</span>'
             f'<span class="version">{_html.escape(version)}</span></div>{logos}</div>')
 
 
@@ -613,7 +635,8 @@ def mostrar_sugerencias(donde='lateral'):
     if e['form']:       # los registros de este ordenador, con el formulario anónimo
         st.button('→ ' + _textos_registros()['menu'], key=f'registros_{donde}',
                   type='tertiary', on_click=_abrir_registros)
-    # «No pegues coordenadas…» va solo en la Ayuda (la autora, 27-11-2026: «está repetido»).
+    # Sin el aviso «No pegues coordenadas…» (la autora, 27-11-2026: «quita siempre que
+    # aparezca»).
 
 
 def render_docs(con_sugerencias=True):
@@ -629,7 +652,7 @@ def render_docs(con_sugerencias=True):
     st.markdown('### 🧭 ¿Qué modelo elegir?')
     st.markdown(
         'Todos los modelos parten de las **mismas variables base** (imagen aérea + '
-        'topografía + Sentinel-2 + Sentinel-1); de cada grupo de variables que dicen '
+        'topografía + Óptico Sentinel-2 + Radar Sentinel-1); de cada grupo de variables que dicen '
         'lo mismo usan una sola (27 en el modelo «General»). Las variantes añaden una '
         'fuente de **muy alta resolución** que sube el AUC. **La app extrae '
         'automáticamente la fuente extra** que el modelo elegido necesite — tú solo '
@@ -698,40 +721,79 @@ def render_docs(con_sugerencias=True):
         'con verdad-terreno local.')
 
     # ---- 4. Fuentes de datos y variables ------------------------------------
-    st.markdown('### 🛰️ Fuentes de datos y variables del modelo')
-    st.table(i18n.pick({
-        'Fuente': ['Imagen aérea (ESRI / PNOA)', 'Copernicus DEM 30 m',
-                   'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
-                   'PNOA Falso Color IR 0,25 m'],
-        'Variables': ['8', '3', '11', '5', '5 (solo «Con infrarrojo»)'],
-        'Qué aporta': [
-            'Textura, color, patrón y contexto alpino (% roca)',
-            'Altitud, pendiente y curvatura',
-            'NDVI/NDWI/NDMI… de inicio y fin de verano y estadísticos de verano',
-            'Humedad y estructura del suelo por radar, con el relieve corregido',
-            'Pseudo-NDVI a 25 cm: nitidez del borde de la mancha'],
-    }, {
-        'Source': ['Aerial image (ESRI / PNOA)', 'Copernicus DEM 30 m',
-                   'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
-                   'PNOA False Colour IR 0.25 m'],
-        'Variables': ['8', '3', '11', '5', '5 ("With infrared" only)'],
-        'What it adds': [
-            'Texture, colour, pattern and alpine context (% rock)',
-            'Elevation, slope and curvature',
-            'NDVI/NDWI/NDMI… of early and late summer and summer statistics',
-            'Soil moisture and structure from radar, with the relief corrected',
-            'Pseudo-NDVI at 25 cm: sharpness of the patch edge'],
-    }))
+    # Qué variables usa cada modelo, con radar y sin él, leídas de los propios modelos
+    # (la autora, 27-11-2026: «poner en data source los detalles de modelos y variables»).
+    st.markdown(i18n.pick('### 🛰️ Fuentes de datos y variables de cada modelo',
+                          '### 🛰️ Data sources and variables of each model'))
+    _nombre_f = {
+        'img': i18n.pick('Imagen aérea (ESRI / PNOA)', 'Aerial image (ESRI / PNOA)'),
+        'topo': i18n.pick('Relieve (Copernicus DEM 30 m)', 'Terrain (Copernicus DEM 30 m)'),
+        's2': i18n.pick('Óptico Sentinel-2 (2017-2025)', 'Optical Sentinel-2 (2017-2025)'),
+        's1': 'Radar Sentinel-1 (2019-2024)',
+        'cir': i18n.pick('Infrarrojo PNOA Falso Color 0,25 m',
+                         'PNOA False Colour infrared 0.25 m')}
+    _aporta = {
+        'img': i18n.pick('Textura, color, patrón y contexto alpino (% de roca)',
+                         'Texture, colour, pattern and alpine context (% rock)'),
+        'topo': i18n.pick('Altitud, pendiente y curvatura', 'Elevation, slope and curvature'),
+        's2': i18n.pick('Verdor, humedad de la vegetación y agua (NDVI, NDMI, NDWI…) de '
+                        'inicio y fin de verano, y cómo varían en el verano',
+                        'Greenness, vegetation moisture and water (NDVI, NDMI, NDWI…) of '
+                        'early and late summer, and how they vary over the summer'),
+        's1': i18n.pick('Humedad y estructura del suelo, con el relieve corregido; atraviesa '
+                        'las nubes', 'Soil moisture and structure, with the relief '
+                        'corrected; it goes through clouds'),
+        'cir': i18n.pick('Verdor a 25 cm: lo nítido que es el borde de la mancha',
+                         'Greenness at 25 cm: how sharp the edge of the patch is')}
+    _cols_m = []
+    for _nm, _rot in (('rf_sierra_nevada.joblib', i18n.pick('General', 'General')),
+                      ('rf_sierra_nevada_cir.joblib',
+                       i18n.pick('Con infrarrojo', 'With infrared'))):
+        _rc = model_path(_nm)
+        _rs = modelo_sin_radar(str(_rc)) if _rc.exists() else None
+        for _r, _suf in ((_rc, i18n.pick('con radar', 'with radar')),
+                         (_rs, i18n.pick('sin radar', 'without radar'))):
+            if _r is not None and Path(_r).exists():
+                _cols_m.append((f'{_rot} · {_suf}',
+                                _variables_modelo(str(_r), Path(_r).stat().st_mtime)))
+    _por_fuente = {c: [[f for f in v if fuente_de_variable(f) == c] for _, v in _cols_m]
+                   for c in FUENTES_VARIABLES}
+    _k_f = i18n.pick('Fuente', 'Source')
+    _k_a = i18n.pick('Qué aporta', 'What it adds')
+    _tabla_f = [{_k_f: _nombre_f[c],
+                 **{t: (str(len(n)) if n else '—') for (t, _), n in zip(_cols_m,
+                                                                       _por_fuente[c])},
+                 _k_a: _aporta[c]} for c in FUENTES_VARIABLES]
+    _tabla_f.append({_k_f: '**' + i18n.pick('Total', 'Total') + '**',
+                     **{t: f'**{len(v)}**' for t, v in _cols_m}, _k_a: ''})
+    st.table(pd.DataFrame(_tabla_f).set_index(_k_f))
     st.caption(i18n.pick(
-        'Las variables que usa el modelo: 27 en el «General» y 32 en el «Con infrarrojo» (una por grupo '
-        'de las que dicen lo mismo). La última fila es la que añade el «Con infrarrojo»: su variable '
-        'más informativa es el **contraste del NDVI a 25 cm**, justo el borde nítido del '
-        'borreguil contra el sustrato pétreo, que Sentinel-2 (10 m) promedia y pierde.',
-        'The variables the model uses: 27 in "General" and 32 in "With infrared" (one '
-        'per group of those that say the same). The last row is what "With infrared" adds: its '
-        'most informative variable is the **NDVI contrast at 25 cm**, precisely the sharp '
-        'edge of the borreguil against the rocky substrate, which Sentinel-2 (10 m) '
-        'averages out and loses.'))
+        'Cada modelo usa una variable por grupo de las que dicen lo mismo. Sin Earth Engine '
+        '(Planetary Computer) no se lee el Radar Sentinel-1 y la app usa sola la versión «sin '
+        'radar». El «Con infrarrojo» añade la ortofoto infrarroja: su variable más '
+        'informativa es el **contraste del verdor a 25 cm**, justo el borde nítido del '
+        'borreguil contra la roca, que el Óptico Sentinel-2 (10 m) promedia y pierde.',
+        'Each model uses one variable per group of those that say the same. Without Earth '
+        'Engine (Planetary Computer) the Radar Sentinel-1 is not read and the app uses the '
+        '"without radar" version on its own. "With infrared" adds the infrared orthophoto: '
+        'its most informative variable is the **greenness contrast at 25 cm**, precisely the '
+        'sharp edge of the alpine wet meadow against the rock, which the Optical Sentinel-2 '
+        '(10 m) averages out and loses.'))
+    if _cols_m:
+        with st.expander(i18n.pick('Ver las variables de cada fuente',
+                                   'See the variables of each source')):
+            _todas = []
+            for _, _v in _cols_m:
+                _todas += [f for f in _v if f not in _todas]
+            _solo = {'s1': i18n.pick(' · no están en las versiones sin radar',
+                                     ' · not in the versions without radar'),
+                     'cir': i18n.pick(' · solo en «Con infrarrojo»',
+                                      ' · only in "With infrared"')}
+            st.markdown('\n'.join(
+                f'- **{_nombre_f[c]}** ({len(_vs)}{_solo.get(c, "")}): '
+                + ', '.join(pp.etiqueta(f) for f in _vs)
+                for c in FUENTES_VARIABLES
+                for _vs in [[f for f in _todas if fuente_de_variable(f) == c]] if _vs))
 
     # ---- 4b. Importancia de variables y lectura jerárquica ------------------
     st.markdown('### 🔑 Qué variables pesan más y cómo leer las gráficas')
@@ -1484,8 +1546,8 @@ def render_extraction_report(rows, skip_s2=False, skip_imgs=False, skip_s1=False
     # (etiqueta, features, id, ¿omitida a propósito?)
     groups = [('🖼️ Imagen aérea (textura/patrón)', img_feats, 'img', skip_imgs),
               ('⛰️ Topografía (DEM)', topo_feats, 'topo', False),
-              ('🛰️ Sentinel-2 (NDVI, Clre…)', s2_feats, 's2', skip_s2),
-              ('📡 Sentinel-1 (radar)', s1_feats, 's1', skip_s2 or skip_s1)]
+              ('🛰️ Óptico Sentinel-2 (NDVI, Clre…)', s2_feats, 's2', skip_s2),
+              ('📡 Radar Sentinel-1', s1_feats, 's1', skip_s2 or skip_s1)]
     sel_feats = st.session_state.get('sel_model_feats', [])
     if any(f.startswith('cir_') for f in sel_feats):
         groups.append(('🇪🇸 PNOA Falso Color IR (CIR)', list(bp.CIR_FEATS), 'cir', False))
@@ -1653,6 +1715,26 @@ def _etiquetas_de_partes(partes, campo=False, idioma='es'):
 
 
 @st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False)
+def _sin_crs_subida(partes, idioma='es'):
+    """El aviso si la capa subida (`partes`: sus ficheros, (nombre, bytes)) no tiene
+    sistema de referencia (datum); '' si lo tiene o no hace falta (KML, GeoJSON, CSV)."""
+    carpeta = Path(tempfile.mkdtemp(prefix='capa_'))
+    try:
+        rutas = []
+        for n, d in partes:
+            r = carpeta / Path(n).name
+            r.write_bytes(d)
+            rutas.append(r)
+        principal = next((r for e in ('.shp', '.zip', '.gpkg') for r in rutas
+                          if r.suffix.lower() == e), None)
+        if principal is not None and bp.falta_sistema_de_referencia(principal):
+            return bp.aviso_sin_sistema_de_referencia(principal.name, idioma == 'en')
+        return ''
+    finally:
+        shutil.rmtree(carpeta, ignore_errors=True)
+
+
 def _leer_capa_cuartiles(datos, nombre):
     """La capa de polígonos para lanzar puntos por cuartiles (random_points.leer_capa),
     leída una sola vez por fichero. Devuelve (capa, error)."""
@@ -1661,6 +1743,9 @@ def _leer_capa_cuartiles(datos, nombre):
     try:
         ruta = carpeta / Path(nombre).name
         ruta.write_bytes(datos)
+        if bp.falta_sistema_de_referencia(ruta):
+            return None, bp.aviso_sin_sistema_de_referencia(ruta.name,
+                                                            i18n.get_lang() == 'en')
         return random_points.leer_capa(ruta), None
     except ValueError as e:
         return None, str(e)
@@ -1982,7 +2067,10 @@ label[data-baseweb="checkbox"]:has(input:checked)>span{background-color:#7CC496;
   border-radius:16px;padding:18px 20px}
 [class*="st-key-tarjeta_"] h4{color:#7CC496;font-size:15px}
 /* Las tres tarjetas del Inicio, con la letra y el espacio de la demo. */
-[class*="st-key-tarjeta_inicio_"]{padding:20px !important;gap:8px !important}
+[class*="st-key-tarjeta_inicio_"]{padding:20px !important;gap:8px !important;height:100%;
+  box-sizing:border-box}
+/* las tres, igual de altas aunque una tenga más texto */
+[data-testid="stLayoutWrapper"]:has(>[class*="st-key-tarjeta_inicio_"]){flex:1 1 auto}
 [class*="st-key-tarjeta_inicio_"] h4{font-weight:700 !important;padding:0 !important;
   line-height:1.3 !important}
 [class*="st-key-tarjeta_inicio_"] p{margin:0 !important}
@@ -2040,7 +2128,24 @@ div.inicio a.obsnev:hover{color:#A3D9B5}
 .ayuda-caja .t,.ayuda-sug .t,.ayuda-inst .t{font-weight:700;font-size:16px;color:#ECEFF1}
 .ayuda-caja table{border-collapse:collapse;font-size:13px;min-width:560px}
 .ayuda-caja th{color:#AEB6BE;text-align:left;font-weight:500;padding:6px 16px 6px 0}
-.ayuda-caja td{border-top:1px solid #403A3C;padding:6px 16px 6px 0}
+.ayuda-caja td{border-top:1px solid #403A3C;padding:6px 16px 6px 0;vertical-align:top}
+/* la tabla de modelos: con radar y sin radar, cada uno en su línea */
+.tabla-modelos{overflow-x:auto}
+@media (min-width:760px){.tabla-modelos{overflow:visible}}
+.ayuda-caja td.r{color:#AEB6BE;white-space:nowrap}
+.ayuda-caja tr.sin td{border-top:0;padding-top:0}
+.ayuda-caja td strong{color:#ECEFF1;font-weight:600}
+/* una «?» como las de ayuda_q, dentro de un texto: el globo sale al pasar o al pinchar */
+.q-html{position:relative;display:inline-flex;width:22px;height:22px;border-radius:50%;
+  border:1px solid #60575A;background:#393335;color:#CDD3D9;font-size:12px;font-weight:700;
+  align-items:center;justify-content:center;cursor:pointer;vertical-align:middle;
+  margin-left:4px;outline:none}
+.q-html:hover,.q-html:focus{border-color:#7CC496;color:#7CC496}
+.q-html .globo{display:none;position:absolute;top:28px;left:-10px;z-index:50;width:30em;
+  max-width:80vw;background:#282526;border:1px solid #3E6B4F;border-radius:8px;
+  padding:10px 12px;font-size:13px;font-weight:400;line-height:1.5;color:#ECEFF1;
+  text-align:left;white-space:normal;cursor:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.q-html:hover .globo,.q-html:focus .globo,.q-html:focus-within .globo{display:block}
 .ayuda-inst{gap:8px}
 .ayuda-inst .nota{font-size:13px;color:#AEB6BE}
 .ayuda-sug .enlace{display:block;border:1px solid #60575A;background:#393335;
@@ -2070,15 +2175,19 @@ div.inicio a.obsnev:hover{color:#A3D9B5}
   background:#282526;border:1px solid #3E6B4F}
 /* Los dos botones grandes del Inicio, de dos líneas y con el texto a la izquierda. */
 .st-key-botones_inicio{flex-wrap:wrap;gap:12px}
+/* la «?» del ejemplo, siempre al lado del botón (aunque la columna sea estrecha) */
+.st-key-fila_ejemplo{flex-wrap:nowrap}
+.st-key-fila_ejemplo>div:first-child{min-width:0;flex:0 1 auto}
 .st-key-probar_ejemplo button,.st-key-analizar_mis_puntos button{min-height:64px;
   padding:14px 22px;border-radius:12px;justify-content:flex-start}
 .st-key-probar_ejemplo button p,.st-key-analizar_mis_puntos button p{margin:0;
   font-size:16px;line-height:1.35;text-align:left}
 .st-key-probar_ejemplo [data-testid="stMarkdownContainer"],
 .st-key-analizar_mis_puntos [data-testid="stMarkdownContainer"]{text-align:left}
-.st-key-bajar_plantilla button{padding:0;min-height:0}
-.st-key-bajar_plantilla button p{font-size:14px;color:#7CC496;text-decoration:underline;
-  text-underline-offset:3px}
+.st-key-bajar_plantilla button,.st-key-bajar_ejemplo button{padding:0;min-height:0}
+.st-key-bajar_plantilla button p,.st-key-bajar_ejemplo button p{font-size:14px;
+  color:#7CC496;text-decoration:underline;text-underline-offset:3px}
+.st-key-bajar_ejemplo{margin-bottom:10px}
 .st-key-probar_ejemplo button p+p{font-size:13px;font-weight:400;color:#E2F0E6}
 .st-key-analizar_mis_puntos button{background:#2E2A2B;border:1.5px solid #60575A}
 .st-key-analizar_mis_puntos button p+p{font-size:13px;font-weight:400;color:#98A2AB}
@@ -2133,6 +2242,20 @@ if st.session_state.get('_ir_a') in PANTALLAS:
 if st.session_state.get('pantalla') not in PANTALLAS:
     st.session_state['pantalla'] = 'inicio'
 PANTALLA = st.session_state['pantalla']
+
+# Un análisis que no llegó al final. Un clic mientras se analiza vuelve a ejecutar la app
+# desde arriba y el análisis se pierde sin avisar (27-11-2026, la autora: «si le doy al
+# ejemplo del principio no se me abre revisar»: pulsaba «2 · Revisar» mientras se
+# analizaba y la pantalla salía vacía). Por eso, mientras se analiza, la cabecera no
+# responde (_CSS_BLOQUEO). Si aun así se corta (se cambia algo en el panel, «Stop», un
+# fallo), al empezar la pasada siguiente sigue apuntado y se avisa.
+if st.session_state.pop('_analisis_en_marcha', False):
+    st.session_state['_aviso_cortado'] = True
+_AVISO_CORTADO = None     # dónde está el aviso, para quitarlo si se vuelve a analizar
+_BLOQUEO = None           # el estilo que bloquea la cabecera durante el análisis
+_CSS_BLOQUEO = ('.st-key-cabecera button,.st-key-cabecera [data-testid="stButtonGroup"] *,'
+                '.st-key-analizar button{pointer-events:none;cursor:default}'
+                '.st-key-pasos,.st-key-cab_der,.st-key-analizar{opacity:.45}')
 
 
 def ir_a(pantalla):
@@ -2226,12 +2349,109 @@ header[data-testid="stHeader"] [role="button"],[data-testid="stMainMenu"],
 .st-key-ui_lang button[kind$="Active"] p{color:#FFFFFF;font-weight:700}
 .st-key-pantalla>div>div>[data-baseweb="tab-list"],
 .st-key-pantalla>div>div>[data-baseweb="tab-border"]{display:none}
+.st-key-aviso_cortado{max-width:1180px;width:100%;margin:12px auto 0;padding:0 32px;
+  box-sizing:border-box}
 ''' + ''.join(f'.st-key-paso_{k} button,.st-key-paso_{k} button p{{{_CSS_PASOS[e]}}}'
               for k, e in _ESTADO_PASOS.items())
         + ('.st-key-ir_ayuda button{background:#2A7048;border-radius:999px;'
            'padding:6px 12px}.st-key-ir_ayuda button p{color:#FFFFFF;font-weight:700}'
            if PANTALLA == 'ayuda' else '')
         + '</style>')
+
+# Mientras la app trabaja (la autora, 27-11-2026: «que cuando esté cargando algo, en vez de
+# un icono pequeño arriba se ponga en medio de la página, en grande, y a poder ser una barra
+# que cargue el % del progreso o el tiempo que le queda»). Streamlit pone su icono
+# (stStatusWidget, arriba a la derecha) solo mientras ejecuta la app: con él, en el centro
+# sale «Trabajando…» si tarda más de un instante, o, si lo que se hace tiene barra
+# (barra_progreso), la barra grande con el % y lo que falta. No bloquea la página.
+_N_BARRA = [0]          # para la clave de cada barra en esta pasada
+
+
+def _tiempo_que_falta(segundos):
+    """«quedan unos 3 min»: lo que falta, redondeado hacia arriba (mejor acabar antes de
+    lo anunciado que después)."""
+    import math
+    if segundos < 45:
+        return i18n.pick('queda menos de 1 min', 'less than 1 min left')
+    minutos = math.ceil(segundos / 60)
+    if minutos < 90:
+        return i18n.pick(f'quedan unos {minutos} min', f'about {minutos} min left')
+    return i18n.pick(f'quedan unas {minutos // 60} h {minutos % 60} min',
+                     f'about {minutos // 60} h {minutos % 60} min left')
+
+
+class barra_progreso:
+    """Una barra de progreso grande, en medio de la pantalla mientras la app trabaja, con
+    lo que se está haciendo, el % hecho y el tiempo que falta (calculado con lo que se ha
+    tardado hasta ahora). Se usa como st.progress: .progress(fracción, text=…) y .empty().
+    Al acabar no se ve (solo sale mientras la app trabaja)."""
+
+    def __init__(self, texto=''):
+        _N_BARRA[0] += 1
+        self._hueco = st.container(key=f'barra_grande_{_N_BARRA[0]}')
+        self._texto = texto
+        self._t0 = time.time()
+        self._barra = self._hueco.progress(0.0, text=texto or None)
+
+    def progress(self, fraccion, text=None):
+        f = max(0.0, min(1.0, float(fraccion)))
+        if text is not None:
+            self._texto = text
+        partes = [self._texto] if self._texto else []
+        if f < 1:
+            partes.append(f'{round(f * 100)} %')
+            pasado = time.time() - self._t0
+            if f >= 0.02 and pasado >= 3:
+                partes.append(_tiempo_que_falta(pasado * (1 - f) / f))
+        try:
+            self._barra.progress(f, text=' · '.join(partes) or None)
+        except Exception:                               # noqa: BLE001
+            pass
+
+    def empty(self):
+        self._hueco.empty()
+
+
+st.html('<style>' + '''
+[data-testid="stStatusWidget"]{visibility:hidden}
+.st-key-cargando{position:fixed;inset:0;z-index:999980;display:flex;align-items:center;
+  justify-content:center;pointer-events:none;background:rgba(18,16,17,.35);opacity:0;
+  visibility:hidden}
+body:has([data-testid="stStatusWidget"]) .st-key-cargando{visibility:visible;
+  animation:cargando-aparece .25s ease .7s forwards}
+@keyframes cargando-aparece{to{opacity:1}}
+.st-key-cargando>div{width:auto !important;flex:0 0 auto}
+.st-key-cargando .caja{background:#2E2A2B;border:1px solid #494245;border-radius:16px;
+  padding:26px 34px;display:flex;align-items:center;gap:18px;width:max-content;
+  max-width:90vw;margin:0 auto;
+  box-shadow:0 12px 40px rgba(0,0,0,.45)}
+.st-key-cargando .rueda{width:46px;height:46px;border-radius:50%;border:5px solid #403A3C;
+  border-top-color:#7CC496;animation:cargando-gira .9s linear infinite;flex-shrink:0}
+@keyframes cargando-gira{to{transform:rotate(360deg)}}
+.st-key-cargando .t1{font:700 20px Montserrat,Inter,sans-serif;color:#ECEFF1}
+.st-key-cargando .t2{font-size:14px;color:#AEB6BE;margin-top:4px}
+[class*="st-key-barra_grande_"]{position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);z-index:999990;width:min(560px,90vw);background:#2E2A2B;
+  border:1px solid #494245;border-radius:16px;padding:24px 30px !important;
+  box-sizing:border-box;
+  box-shadow:0 0 0 100vmax rgba(18,16,17,.45),0 12px 40px rgba(0,0,0,.45) !important}
+[class*="st-key-barra_grande_"] [data-testid="stProgress"] p,
+[class*="st-key-barra_grande_"] [data-testid="stProgress"] [data-testid="stMarkdownContainer"]{
+  font-size:16px !important;color:#ECEFF1;line-height:1.45}
+/* la barra entera en gris (lo que falta) y lo hecho en verde */
+[class*="st-key-barra_grande_"] [data-testid="stProgressBarTrack"]{height:14px !important;
+  background:#403A3C !important;border-radius:7px !important;overflow:hidden;margin-top:6px}
+[class*="st-key-barra_grande_"] [data-testid="stProgressBarTrack"]>div{height:100% !important;
+  background:#7CC496 !important;border-radius:7px !important}
+body:not(:has([data-testid="stStatusWidget"])) [class*="st-key-barra_grande_"]{display:none}
+body:has([class*="st-key-barra_grande_"]:not([data-stale="true"])) .st-key-cargando{
+  display:none}
+''' + '</style>')
+with st.container(key='cargando'):
+    st.html('<div class="caja"><div class="rueda"></div><div><div class="t1">'
+            + i18n.pick('Trabajando…', 'Working…') + '</div><div class="t2">'
+            + i18n.pick('Un momento, por favor.', 'One moment, please.')
+            + '</div></div></div>')
 
 with st.container(key='cabecera', horizontal=True, vertical_alignment='center'):
     with st.container(key='marca', horizontal=True, vertical_alignment='center',
@@ -2262,6 +2482,17 @@ with st.container(key='cabecera', horizontal=True, vertical_alignment='center'):
         st.segmented_control('Idioma / Language', ['Español', 'English'],
                              format_func={'Español': 'ES', 'English': 'EN'}.get,
                              key='ui_lang', required=True, label_visibility='collapsed')
+
+if st.session_state.get('_aviso_cortado') and PANTALLA in ('analizar', 'resultados',
+                                                             'revisar', 'mapa'):
+    _AVISO_CORTADO = st.container(key='aviso_cortado').empty()
+    _AVISO_CORTADO.warning(i18n.pick(
+        '**El último análisis no ha terminado.** Se paró antes de acabar (por ejemplo, al '
+        'cambiar algo en el panel mientras se hacía). Vuelve a pulsar «Analizar» o «Probar '
+        'un ejemplo».',
+        '**The last analysis did not finish.** It stopped before the end (for instance, '
+        'because something in the panel was changed while it was running). Press "Analyse" '
+        'or "Try an example" again.'))
 
 pant_inicio, pant_analizar, pant_resultados, pant_revisar, pant_mapa, pant_ayuda = st.tabs(
     list(PANTALLAS), key='pantalla', on_change='rerun')
@@ -2331,7 +2562,7 @@ def texto_puntos_campo():
     """Cómo preparar los puntos de campo. Antes era un desplegable del panel de Analizar;
     como en la demo, el panel enlaza a la Ayuda, donde está este texto."""
     return i18n.pick(
-                'Usa la **plantilla de datos de campo** (se descarga en la pantalla de '
+                'Usa la **plantilla de datos de puntos** (se descarga en la pantalla de '
                 'inicio). Una fila por punto; solo son obligatorios el punto y `presence`:\n'
                 '- `presence`: `1` borreguil · `0` no borreguil. `doubtful`: `1` si no sabes '
                 'decirlo (no cuenta).\n'
@@ -2343,8 +2574,10 @@ def texto_puntos_campo():
                 '- Recomendado: `method` (`field` · `orthophoto`) y `date` (AAAA-MM-DD). '
                 'Opcional: `observer`, `expertise` (`student` · `manager` · `researcher`), '
                 '`certainty` (`high` · `medium` · `low`) y `notes`.\n'
-                '- CSV con columnas `lon` y `lat` (grados, WGS84), o GeoJSON, Shapefile o KML '
-                'con esos nombres.\n\n'
+                '- CSV con columnas `lon` y `lat` en grados, o una capa (GeoJSON, GeoPackage, '
+                'Shapefile o KML) con esos nombres. La capa puede estar en cualquier '
+                'proyección, pero tiene que tenerla (un Shapefile, con su .prj): la app la '
+                'pasa sola a WGS84.\n\n'
                 '**Incluye ausencias.** Los sitios donde has comprobado que no hay borreguil '
                 '(`presence` = 0) valen tanto como los borreguiles. Sin ellos no se mide bien '
                 'cuánto acierta el modelo ni se puede hacer el mapa de borreguil sí o no: la '
@@ -2355,7 +2588,7 @@ def texto_puntos_campo():
                 '**Sin ninguna columna** (solo en «puntos de campo»): cada punto se toma como '
                 'borreguil. Sirve para ver cuántos borreguiles acierta el modelo, pero no '
                 'aporta ausencias.',
-                'Use the **field data template** (downloadable on the start screen). One row '
+                'Use the **point data template** (downloadable on the start screen). One row '
                 'per point; only the point and `presence` are required:\n'
                 '- `presence`: `1` borreguil · `0` not a borreguil. `doubtful`: `1` if you '
                 'cannot tell (it does not count).\n'
@@ -2366,8 +2599,10 @@ def texto_puntos_campo():
                 '- Recommended: `method` (`field` · `orthophoto`) and `date` (YYYY-MM-DD). '
                 'Optional: `observer`, `expertise` (`student` · `manager` · `researcher`), '
                 '`certainty` (`high` · `medium` · `low`) and `notes`.\n'
-                '- CSV with `lon` and `lat` columns (degrees, WGS84), or GeoJSON, Shapefile or '
-                'KML with those names.\n\n'
+                '- CSV with `lon` and `lat` columns in degrees, or a layer (GeoJSON, '
+                'GeoPackage, Shapefile or KML) with those names. The layer can be in any '
+                'projection, but it must have one (a Shapefile, with its .prj): the app '
+                'converts it to WGS84 on its own.\n\n'
                 '**Include absences.** The places where you have checked there is no '
                 'borreguil (`presence` = 0) are worth as much as the borreguiles. Without '
                 'them, how well the model does cannot be measured properly and the borreguil '
@@ -2406,13 +2641,85 @@ with col_panel, st.container(key='panel_analizar'):
                               i18n.pick('GeoPackage o GeoJSON; KML, KMZ o un Shapefile en .zip',
                                         'GeoPackage or GeoJSON; KML, KMZ or a zipped Shapefile'))
             + (_CSS_ANALIZAR_ANCHO if PANTALLA == 'analizar' else '') + '</style>')
+    # «Tu zona» lo primero (la autora, 27-11-2026: «que lo primero que aparezca sea
+    # Your area»).
+    with st.container(key='seccion_zona'):
+        st.subheader(i18n.pick('Tu zona', 'Your area'))
+
+        _modos_zona = {
+            '🔤  Nombre del área protegida': i18n.pick('Un espacio protegido',
+                                                      'A protected area'),
+            '🆔  WDPA ID (protectedplanet.net)': i18n.pick('Código WDPA', 'WDPA code'),
+            '🗺  Vector (subir KML/Shp/GeoJSON)': i18n.pick('Subir un polígono',
+                                                           'Upload a polygon'),
+            '⨯  Sin área (bbox de los puntos)': i18n.pick('Alrededor de los puntos',
+                                                         'Around the points')}
+        area_mode = st.radio('Modo', list(_modos_zona), index=3, horizontal=True,
+                             key='zona_modo', format_func=_modos_zona.get,
+                             label_visibility='collapsed')
+
+        f_area = None; wdpa_id = ''; pa_name = ''
+        _zona_sin_crs = False
+        if area_mode.startswith('🗺'):
+            # Con su «?»: tiene que tener proyección (la autora, 27-11-2026).
+            f_area = st.file_uploader(
+                i18n.pick('Tu polígono', 'Your polygon'),
+                type=['kml','geojson','json','gpkg', 'shp','shx','dbf','prj','cpg','zip'],
+                accept_multiple_files=True, key='area_file',
+                help=i18n.pick(
+                    'Tiene que tener proyección (sistema de referencia). Vale cualquiera, por '
+                    'ejemplo ETRS89 / UTM 30N o WGS84: la app la pasa sola a grados. Si es un '
+                    'Shapefile, sube también su .prj (o todo en un .zip); sin él no se deja '
+                    'usar. KML y GeoJSON van siempre en grados (WGS84).',
+                    'It must have a projection (coordinate reference system). Any projection '
+                    'is fine, for instance ETRS89 / UTM 30N or WGS84: the app converts it to '
+                    'degrees on its own. If it is a Shapefile, upload its .prj too (or '
+                    'everything in a .zip); without it, it cannot be used. KML and GeoJSON are '
+                    'always in degrees (WGS84).'))
+            # Sin sistema de referencia (datum) no se deja usar (bp.falta_sistema_de_referencia)
+            if f_area:
+                _aviso_crs = _sin_crs_subida(tuple((f.name, f.getvalue()) for f in f_area),
+                                             i18n.get_lang())
+                if _aviso_crs:
+                    st.error(_aviso_crs)
+                    _zona_sin_crs = True
+        elif area_mode.startswith('🆔'):
+            # Se consulta la base mundial de espacios protegidos (WDPA) en Earth Engine con
+            # la cuenta compartida de MonitorEO, sin clave de Protected Planet (la autora,
+            # 27-11-2026: «que el campo WDPA ID haga la consulta por monitoreo»).
+            wdpa_id = st.text_input(
+                i18n.pick('Código WDPA', 'WDPA code'), placeholder='389011',
+                help=i18n.pick('Código numérico del espacio protegido en la base mundial de '
+                               'espacios protegidos (WDPA, protectedplanet.net). La app lo '
+                               'busca en Earth Engine con la cuenta compartida de MonitorEO: '
+                               'no hace falta clave ni cuenta. Ejemplos: 389011 Parque '
+                               'Nacional de Sierra Nevada, 71213 Picos de Europa, 893 Ordesa y '
+                               'Monte Perdido.',
+                               'Numeric code of the protected area in the World Database on '
+                               'Protected Areas (WDPA, protectedplanet.net). The app looks it '
+                               'up in Earth Engine with the MonitorEO shared account: no key '
+                               'or account is needed. Examples: 389011 Sierra Nevada National '
+                               'Park, 71213 Picos de Europa, 893 Ordesa y Monte Perdido.'))
+        elif area_mode.startswith('🔤'):
+            pa_name = st.text_input(
+                i18n.pick('Nombre del espacio protegido', 'Name of the protected area'),
+                placeholder='Parque Nacional de Sierra Nevada', key='nombre_zona',
+                help=i18n.pick('Búsqueda en Nominatim (OpenStreetMap). Cuanto más específico, '
+                               'mejor: incluir «Parque Nacional» o «Parque Natural» suele ayudar.',
+                               'Search in Nominatim (OpenStreetMap). The more specific, the '
+                               'better: including "National Park" or "Natural Park" usually '
+                               'helps.'))
+        else:
+            st.caption(i18n.pick('La zona será el rectángulo que rodea a tus puntos.',
+                                 'The area will be the rectangle around your points.'))
+
     with st.container(key='seccion_puntos'):
-        _plantilla_xlsx = APP_DIR / 'plantilla' / 'field_points_template.xlsx'
+        _plantilla_xlsx = APP_DIR / 'plantilla' / 'point_data_template.xlsx'
         with st.container(horizontal=True, vertical_alignment='center', key='cab_puntos'):
             st.subheader(i18n.pick('Tus puntos', 'Your points'))
             if _plantilla_xlsx.exists():
                 st.download_button(
-                    i18n.pick('Plantilla de datos de campo', 'Field data template'),
+                    i18n.pick('Plantilla de datos de puntos', 'Point data template'),
                     _plantilla_xlsx.read_bytes(), file_name=_plantilla_xlsx.name,
                     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                     key='plantilla_panel', type='tertiary')
@@ -2423,7 +2730,8 @@ with col_panel, st.container(key='panel_analizar'):
         ], index=0, label_visibility='collapsed', horizontal=True, key='origen_puntos',
             format_func=lambda o: (i18n.pick('Subir un fichero', 'Upload a file')
                                    if o.startswith('📁') else
-                                   i18n.pick('Generarlos al azar', 'Generate at random')))
+                                   i18n.pick('Generar puntos al azar',
+                                             'Generate random points')))
 
         f_input = None; gen_n = 0; gen_mode = 'stratified_elev'
         gen_min_elev = None; gen_max_elev = None; gen_seed = 42; gen_min_dist = 50
@@ -2432,7 +2740,8 @@ with col_panel, st.container(key='panel_analizar'):
         if input_mode.startswith('📁'):
             # Varios ficheros a la vez: un Shapefile son varios (.shp, .dbf, .shx, .prj)
             f_input = st.file_uploader(
-                i18n.pick('Tu fichero de puntos', 'Your points file'), type=FORMATOS_PUNTOS,
+                i18n.pick('Puntos por verificar', 'Points to be verified'),
+                type=FORMATOS_PUNTOS,
                 accept_multiple_files=True, key='subir_puntos',
                 help=i18n.pick(
                     'KML, GeoJSON o CSV (con columnas lon y lat). Si es un Shapefile, '
@@ -2444,38 +2753,44 @@ with col_panel, st.container(key='panel_analizar'):
             if f_input is not None:
                 for _niv_et, _txt_et in (_etiquetas_de_subida(f_input) or []):
                     {'ok': _linea_ok, 'info': st.info, 'aviso': st.warning,
-                     'falta': st.warning}[_niv_et](_txt_et)
+                     'falta': st.error}[_niv_et](_txt_et)
         else:
             gen_n = st.slider(i18n.pick('Cuántos puntos', 'How many points'), 30, 1000,
                               200, 10, key='cuantos_puntos')
-            # Los valores internos no cambian (van a random_points); solo cómo se leen
+            # Los valores internos no cambian (van a random_points); solo cómo se leen.
+            # En este orden y con estos nombres (la autora, 27-11-2026).
             _nombre_estrategia = {
-                'stratified_elev': i18n.pick('Repartidos por altitud', 'Spread across elevation'),
-                'uniform': i18n.pick('Al azar', 'At random'),
+                'uniform': i18n.pick('Puntos al azar', 'Random points'),
                 'poisson_disc': i18n.pick('Al azar, separados una distancia mínima',
-                                          'At random, a minimum distance apart'),
-                'cuartiles': i18n.pick('Por cuartiles de una capa', 'By quartiles of a layer'),
+                                          'Random but separated by a minimum distance'),
+                'stratified_elev': i18n.pick('Al azar, estratificados por altitud',
+                                             'Random but stratified by altitude'),
+                'cuartiles': i18n.pick('Al azar por clase de probabilidad',
+                                       'Random by probability class'),
             }
             gen_mode = st.selectbox(
                 i18n.pick('Cómo se reparten', 'How they are spread'), list(_nombre_estrategia),
                 index=0, format_func=_nombre_estrategia.get, key='estrategia',
                 help=i18n.pick(
-                    'Repartidos por altitud: el rango de altitud del área se divide en 5 '
-                    'franjas iguales y se toma el mismo número de puntos en cada una, para '
-                    'cubrir todo el gradiente.\n\nAl azar: sin ninguna regla.\n\nAl azar, '
-                    'separados una distancia mínima: ningún par de puntos queda más cerca '
-                    'de la distancia que elijas, para que no salgan puntos pegados.\n\n'
-                    'Por cuartiles de una capa: subes una capa de polígonos (por ejemplo, '
-                    'las áreas probables de borreguil) y la mayoría de los puntos caen en los '
-                    'polígonos del cuartil 1 y el resto en los demás.',
-                    '**Spread across elevation**: the elevation range of the area is split '
+                    '**Puntos al azar**: sin ninguna regla.\n\n**Al azar, separados una '
+                    'distancia mínima**: ningún par de puntos queda más cerca de la distancia '
+                    'que elijas, para que no salgan puntos pegados.\n\n**Al azar, '
+                    'estratificados por altitud**: el rango de altitud del área (o el que '
+                    'pongas) se divide en 5 franjas iguales y se toma el mismo número de puntos '
+                    'en cada una, para cubrir todo el gradiente.\n\n**Al azar por clase de '
+                    'probabilidad**: subes una capa de polígonos con clases de probabilidad '
+                    '(por ejemplo, los cuartiles de las áreas probables de borreguil) y la '
+                    'mayoría de los puntos caen en los polígonos de la clase 1 y el resto en las '
+                    'demás.',
+                    '**Random points**: no rule.\n\n**Random but separated by a minimum '
+                    'distance**: no pair of points is closer than the distance you choose, so '
+                    'that no points end up side by side.\n\n**Random but stratified by '
+                    'altitude**: the elevation range of the area (or the one you set) is split '
                     'into 5 equal bands and the same number of points is taken in each, to '
-                    'cover the whole gradient. **At random**: no rule. **At random, a '
-                    'minimum distance apart**: no pair of points is closer than the distance '
-                    'you choose, so that no points end up side by side. **By quartiles of a '
-                    'layer**: you upload a polygon layer (for instance, the probable borreguil '
-                    'areas) and most points fall in the polygons of quartile 1 and the rest in '
-                    'the others.'))
+                    'cover the whole gradient.\n\n**Random by probability class**: you upload '
+                    'a polygon layer with probability classes (for instance, the quartiles of '
+                    'the probable alpine wet meadow areas) and most points fall in the polygons '
+                    'of class 1 and the rest in the others.'))
             if gen_mode == 'cuartiles':
                 # 26-11-2026, la autora: «quiero lanzar por cuartiles de una capa (que la
                 # subirán los usuarios): el 75 % de los puntos en el primer cuartil y el 25 %
@@ -2607,51 +2922,64 @@ with col_panel, st.container(key='panel_analizar'):
                         'also snapped to the centre of the Sentinel-2 pixel (10 m).'))
             # Como en la demo: una sola etiqueta con su «?» y dos cajas (mínima y máxima);
             # después «Lejos de tus puntos de campo» y la semilla.
-            with st.container(key='tit_altitud'):
-                st.markdown(i18n.pick('Altitud mínima y máxima (m)',
-                                      'Minimum and maximum elevation (m)'),
-                            help=i18n.pick('Opcional: filtra los puntos por la altitud del '
-                                           'modelo de elevación SRTM de 30 m. Vacío, sin límite.',
-                                           'Optional: filters the points by the elevation of '
-                                           'the 30 m SRTM elevation model. Empty, no limit.'))
-            col1, col2 = st.columns(2)
-            with col1:
-                # Por cuartiles, vacía de entrada: la capa ya dice dónde, y en parques más
-                # bajos que 2000 m no saldría ningún punto.
-                gen_min_elev_str = st.text_input(
-                    i18n.pick('Altitud mínima (m)', 'Minimum elevation (m)'),
-                    value='' if gen_mode == 'cuartiles' else '2000',
-                    placeholder=i18n.pick('mínima: sin límite', 'minimum: no limit'),
-                    label_visibility='collapsed')
-            with col2:
-                gen_max_elev_str = st.text_input(
-                    i18n.pick('Altitud máxima (m)', 'Maximum elevation (m)'), value='',
-                    placeholder=i18n.pick('máxima: sin límite', 'maximum: no limit'),
-                    label_visibility='collapsed')
-            gen_min_elev = float(gen_min_elev_str) if gen_min_elev_str.strip() else None
-            gen_max_elev = float(gen_max_elev_str) if gen_max_elev_str.strip() else None
+            # La altitud mínima y máxima, solo en «estratificados por altitud» (la autora,
+            # 27-11-2026: «quita la elevación de todas las opciones menos la de altitude»);
+            # en las demás, sin límite de altitud.
+            gen_min_elev = gen_max_elev = None
+            if gen_mode == 'stratified_elev':
+                with st.container(key='tit_altitud'):
+                    st.markdown(i18n.pick('Altitud mínima y máxima (m)',
+                                          'Minimum and maximum elevation (m)'),
+                                help=i18n.pick(
+                                    'Opcional: el rango de altitud que se reparte en franjas, '
+                                    'con el modelo de elevación SRTM de 30 m. Vacío, sin límite.',
+                                    'Optional: the elevation range split into bands, with the '
+                                    '30 m SRTM elevation model. Empty, no limit.'))
+                col1, col2 = st.columns(2)
+                with col1:
+                    gen_min_elev_str = st.text_input(
+                        i18n.pick('Altitud mínima (m)', 'Minimum elevation (m)'), value='2000',
+                        placeholder=i18n.pick('mínima: sin límite', 'minimum: no limit'),
+                        label_visibility='collapsed')
+                with col2:
+                    gen_max_elev_str = st.text_input(
+                        i18n.pick('Altitud máxima (m)', 'Maximum elevation (m)'), value='',
+                        placeholder=i18n.pick('máxima: sin límite', 'maximum: no limit'),
+                        label_visibility='collapsed')
+                gen_min_elev = float(gen_min_elev_str) if gen_min_elev_str.strip() else None
+                gen_max_elev = float(gen_max_elev_str) if gen_max_elev_str.strip() else None
             gen_lejos = st.number_input(
-                i18n.pick('Lejos de tus puntos de campo (m)', 'Away from your field points (m)'),
+                i18n.pick('Lejos de tus puntos ya verificados (m)',
+                          'Away from your already verified points (m)'),
                 min_value=0, max_value=5000, value=0, step=50,
                 help=i18n.pick(
-                    'Si subes tus puntos de campo (debajo), los puntos al azar quedan al menos a '
+                    'Si subes tus puntos ya verificados (debajo), los puntos al azar quedan al menos a '
                     'esta distancia de ellos: caen en sitios que todavía no has muestreado, para '
                     'buscar allí ausencias (o algún borreguil nuevo) que revisas tú en la tabla. '
                     '0 = sin límite.\n\nRecomendado: 0 para probar el modelo por toda el área; '
                     '300 m para buscar ausencias fuera de tus puntos.',
-                    'If you upload your field points (below), the random points stay at least '
+                    'If you upload your already verified points (below), the random points stay at least '
                     'this far from them: they fall in places you have not sampled yet, to look '
                     'there for absences (or some new borreguil) that you review in the table. '
                     '0 = no limit.\n\nRecommended: 0 to test the model over the whole area; '
                     '300 m to look for absences away from your points.'))
-            gen_seed = st.number_input(i18n.pick('Semilla (para repetirlo igual)',
-                                                 'Seed (to repeat it exactly)'),
-                                       0, 99999, 42)
+            gen_seed = st.number_input(
+                i18n.pick('Semilla (para repetirlo igual)', 'Seed (to repeat it exactly)'),
+                0, 99999, 42,
+                help=i18n.pick(
+                    'La semilla es el número con el que empieza el sorteo de los puntos al '
+                    'azar. Con la misma semilla, la misma zona y las mismas opciones, la app '
+                    'saca exactamente los mismos puntos, así que el análisis se puede repetir o '
+                    'lo puede comprobar otra persona. Cámbiala para sacar otros puntos.',
+                    'The seed is the number the random draw of the points starts from. With '
+                    'the same seed, the same area and the same options, the app draws exactly '
+                    'the same points again, so the analysis can be repeated or checked by '
+                    'someone else. Change it to get a different set of points.'))
 
         st.html('<hr class="separador">')
         f_truth = st.file_uploader(
-            i18n.pick('Puntos de campo para comprobar el modelo :gray[(opcional)]',
-                      'Field points to check the model :gray[(optional)]'),
+            i18n.pick('Puntos ya verificados para la validación externa :gray[(opcional)]',
+                      'Points already verified for external validation :gray[(optional)]'),
             type=FORMATOS_PUNTOS, accept_multiple_files=True, key='subir_campo',
             help=i18n.pick(
                 'Sitios donde ya sabes si hay borreguil, en un fichero aparte. Sirven para '
@@ -2669,7 +2997,7 @@ with col_panel, st.container(key='panel_analizar'):
             # Qué columna ha leído y cuántos sí y no (24-11), o lo que falta (un .shp sin .dbf…)
             for _niv_et, _txt_et in (_etiquetas_de_subida(f_truth, campo=True) or []):
                 {'ok': _linea_ok, 'info': st.info, 'aviso': st.warning,
-                 'falta': st.warning}[_niv_et](_txt_et)
+                 'falta': st.error}[_niv_et](_txt_et)
         truth_train_only = st.checkbox(
             i18n.pick('Usarlos solo para medir y entrenar (no en el mapa)',
                       'Use them only to measure and train (not on the map)'),
@@ -2692,59 +3020,6 @@ with col_panel, st.container(key='panel_analizar'):
         st.button(i18n.pick('Cómo preparar tus puntos de campo',
                             'How to prepare your field points'),
                   key='ir_puntos_campo', type='tertiary', on_click=ir_a, args=('ayuda',))
-
-    with st.container(key='seccion_zona'):
-        st.subheader(i18n.pick('Tu zona', 'Your area'))
-
-        _modos_zona = {
-            '🔤  Nombre del área protegida': i18n.pick('Un espacio protegido',
-                                                      'A protected area'),
-            '🆔  WDPA ID (protectedplanet.net)': i18n.pick('Código WDPA', 'WDPA code'),
-            '🗺  Vector (subir KML/Shp/GeoJSON)': i18n.pick('Subir un polígono',
-                                                           'Upload a polygon'),
-            '⨯  Sin área (bbox de los puntos)': i18n.pick('Alrededor de los puntos',
-                                                         'Around the points')}
-        area_mode = st.radio('Modo', list(_modos_zona), index=3, horizontal=True,
-                             key='zona_modo', format_func=_modos_zona.get,
-                             label_visibility='collapsed')
-
-        f_area = None; wdpa_id = ''; pa_name = ''; wdpa_token = ''
-        if area_mode.startswith('🗺'):
-            f_area = st.file_uploader(i18n.pick('Tu polígono', 'Your polygon'),
-                                         type=['kml','geojson','json','gpkg',
-                                               'shp','shx','dbf','prj','cpg','zip'],
-                                         accept_multiple_files=True, key='area_file',
-                                         label_visibility='collapsed')
-        elif area_mode.startswith('🆔'):
-            wdpa_id = st.text_input(
-                i18n.pick('Código WDPA', 'WDPA code'), placeholder='555512151',
-                help=i18n.pick('Código numérico del espacio protegido en protectedplanet.net. '
-                               'Ejemplos: 555512151 Sierra Nevada, 4514 Picos de Europa.',
-                               'Numeric code of the protected area at protectedplanet.net. '
-                               'Examples: 555512151 Sierra Nevada, 4514 Picos de Europa.'))
-            wdpa_token = st.text_input(
-                i18n.pick('Clave de Protected Planet (opcional)', 'Protected Planet key (optional)'),
-                type='password',
-                placeholder=i18n.pick('solo para códigos que la app no conoce',
-                                      'only for codes the app does not know'),
-                help=i18n.pick('Gratuita en protectedplanet.net/api. Hace falta para los '
-                               'códigos que la app no tiene guardados, salvo que uses Earth '
-                               'Engine, que los resuelve sin clave.',
-                               'Free at protectedplanet.net/api. It is needed for the codes '
-                               'the app has not stored, unless you use Earth Engine, which '
-                               'resolves them without a key.'))
-        elif area_mode.startswith('🔤'):
-            pa_name = st.text_input(
-                i18n.pick('Nombre del espacio protegido', 'Name of the protected area'),
-                placeholder='Parque Nacional de Sierra Nevada', key='nombre_zona',
-                help=i18n.pick('Búsqueda en Nominatim (OpenStreetMap). Cuanto más específico, '
-                               'mejor: incluir «Parque Nacional» o «Parque Natural» suele ayudar.',
-                               'Search in Nominatim (OpenStreetMap). The more specific, the '
-                               'better: including "National Park" or "Natural Park" usually '
-                               'helps.'))
-        else:
-            st.caption(i18n.pick('La zona será el rectángulo que rodea a tus puntos.',
-                                 'The area will be the rectangle around your points.'))
 
     with st.container(key='seccion_satelite'):
         st.subheader(i18n.pick('Datos de satélite', 'Satellite data'), help=i18n.pick('Cuenta compartida: la app calcula en Earth Engine con la cuenta compartida de MonitorEO (cuenta UGR), sin iniciar sesión ni tener cuenta propia. Es para uso no comercial.\n\nMi cuenta: con tu proyecto de Google Cloud registrado en Earth Engine (por ejemplo ee-tunombre), calcula con tu cuenta de Google y gasta la cuota de ese proyecto. Se recuerda para la próxima vez. «Entrar con Google» abre el navegador; solo hace falta una vez en cada ordenador. «Probar conexión» comprueba que funciona; no es obligatorio.\n\nSin Earth Engine: Planetary Computer, sin cuenta, más lento y sin radar.', 'Shared account: the app computes in Earth Engine with the MonitorEO shared account (UGR account), with no sign-in and no account of your own. It is for non-commercial use.\n\nMy account: with your Google Cloud project registered in Earth Engine (for instance ee-yourname), it computes with your Google account and uses the quota of that project. It is remembered for the next time. "Sign in with Google" opens the browser; it is only needed once on each computer. "Test connection" checks that it works; it is not required.\n\nWithout Earth Engine: Planetary Computer, no account, slower and without radar.'))
@@ -2910,7 +3185,7 @@ with col_panel, st.container(key='panel_analizar'):
                 st.markdown(i18n.pick('Años de las imágenes de satélite',
                                       'Years of the satellite images'),
                             help=i18n.pick(
-                    'Para qué: las imágenes de Sentinel-2 de los veranos de estos años son con las '
+                    'Para qué: las imágenes de Óptico Sentinel-2 de los veranos de estos años son con las '
                     'que se calculan las variables de satélite de cada punto: el verdor, la humedad '
                     'de la vegetación, el agua. Cada variable junta todos los veranos (por ejemplo, '
                     'la mediana de las imágenes del inicio de verano (15 jun – 25 jul) y del fin de '
@@ -2918,7 +3193,7 @@ with col_panel, st.container(key='panel_analizar'):
                     'Con más años los valores son más estables (pesan menos las nubes, la nieve o '
                     'un verano raro), pero un cambio reciente del borreguil se diluye. Los mismos '
                     'años se usan para leer las variables del mapa, en «3 · Hacer el mapa». El '
-                    'radar (Sentinel-1) usa siempre los veranos de 2019 a 2024.\n\n'
+                    'Radar Sentinel-1 usa siempre los veranos de 2019 a 2024.\n\n'
                     'Calidad de las imágenes: solo entran escenas de Sentinel-2 con menos del 30 % '
                     'de nubes, y en cada píxel se quitan las nubes, las sombras de nube, los cirros '
                     'y los píxeles oscuros o saturados (con la clasificación SCL de Sentinel-2, '
@@ -2928,15 +3203,15 @@ with col_panel, st.container(key='panel_analizar'):
                     'lo necesita: atraviesa las nubes.\n\n'
                     'Recomendado: 2017-2025, los años con los que se entrenó el modelo de Sierra '
                     'Nevada; con otros, sus valores pueden no ser comparables.',
-                    'What for: the Sentinel-2 images of the summers of these years are the ones '
+                    'What for: the Optical Sentinel-2 images of the summers of these years are the ones '
                     'used to compute the satellite variables of each point: greenness, vegetation '
                     'moisture, water. Each variable pools all the summers (for instance, the median '
                     'of the images of early summer (15 Jun – 25 Jul) and late summer (1 Aug – '
                     '30 Sep) of all the years).\n\n'
                     'With more years the values are more stable (clouds, snow or an odd summer '
                     'weigh less), but a recent change of the borreguil gets diluted. The same years '
-                    'are used to read the map variables, in "3 · Make the map". The radar '
-                    '(Sentinel-1) always uses the summers of 2019 to 2024.\n\n'
+                    'are used to read the map variables, in "3 · Make the map". The Radar '
+                    'Sentinel-1 always uses the summers of 2019 to 2024.\n\n'
                     'Image quality: only Sentinel-2 scenes with less than 30 % clouds are used, '
                     'and in each pixel clouds, cloud shadows, cirrus and dark or saturated pixels '
                     'are removed (with the Sentinel-2 SCL classification, also looking at the '
@@ -2947,14 +3222,14 @@ with col_panel, st.container(key='panel_analizar'):
                     'Recommended: 2017-2025, the years the Sierra Nevada model was trained with; '
                     'with others, its values may not be comparable.'))
             st.caption(i18n.pick(
-                'De qué veranos se toman las imágenes de Sentinel-2 con las que se calculan las '
+                'De qué veranos se toman las imágenes de Óptico Sentinel-2 con las que se calculan las '
                 'variables de satélite de cada punto (el verdor, la humedad, el agua). Antes se '
                 'quitan las nubes, sus sombras y, en algunas variables, la nieve. Son también los '
-                'del mapa; el radar usa siempre 2019-2024.',
-                'Which summers the Sentinel-2 images come from, used to compute the satellite '
+                'del mapa; el Radar Sentinel-1 usa siempre 2019-2024.',
+                'Which summers the Optical Sentinel-2 images come from, used to compute the satellite '
                 'variables of each point (greenness, moisture, water). Clouds, their shadows and, '
                 'in some variables, snow are removed first. They are also the map years; the '
-                'radar always uses 2019-2024.'))
+                'Radar Sentinel-1 always uses 2019-2024.'))
             years_str = st.text_input(
                 i18n.pick('Años (admite rangos, p. ej. 2017-2025)',
                           'Years (ranges allowed, e.g. 2017-2025)'),
@@ -3311,6 +3586,11 @@ with col_principal:
     # Se puede analizar con puntos subidos, o generándolos si hay zona
     can_run = (f_input is not None) or (input_mode.startswith('🎲') and gen_n > 0
                                           and (f_area or wdpa_id or pa_name))
+    # Una capa sin sistema de referencia (datum) no se deja usar: ni la zona ni los puntos
+    if _zona_sin_crs or any(
+            _sin_crs_subida(tuple((f.name, f.getvalue()) for f in _fs), i18n.get_lang())
+            for _fs in (f_input, f_truth) if _fs):
+        can_run = False
     c_tit, c_boton = st.columns([3, 2], vertical_alignment='center')
     with c_tit, st.container(key='tit_principal'):
         st.subheader(i18n.pick('Tus puntos y tu zona', 'Your points and your area'))
@@ -3391,6 +3671,11 @@ def parar_ejecucion():
             '«1 · Analizar».',
             'The last analysis stopped before finishing. See the message in '
             '"1 · Analyse".'))
+    # Parada con su propio aviso: no es un análisis cortado, y la cabecera vuelve a
+    # responder.
+    st.session_state.pop('_analisis_en_marcha', None)
+    if _BLOQUEO is not None:
+        _BLOQUEO.empty()
     st.stop()
 
 
@@ -3419,38 +3704,67 @@ def render_ayuda():
         '</a>' for ti, tx, u in _tarjetas) + '</div>')
 
     # Qué modelo elegir según tu zona: el resumen; el detalle, en la documentación de abajo.
-    _filas = [(i18n.pick('General', 'General'), '27',
-               i18n.pick('0,847 (0,833 sin radar)', '0.847 (0.833 without radar)'),
-               i18n.pick('En cualquier zona', 'Anywhere')),
-              (i18n.pick('Con infrarrojo', 'With infrared'), '32',
-               i18n.pick('0,945 (0,937 sin radar)', '0.945 (0.937 without radar)'),
-               i18n.pick('Andalucía, Cataluña y Canarias',
-                         'Andalusia, Catalonia and the Canary Islands'))]
-    _cab = [i18n.pick('Modelo', 'Model'), i18n.pick('Variables', 'Variables'),
-            i18n.pick('AUC (por cuencas)', 'AUC (by catchment)'),
-            i18n.pick('Dónde', 'Where')]
+    # Columnas (la autora, 27-11-2026, en inglés): Model · Variables · AUC (performance),
+    # con su «?» · Trained in · Usable in. Cada modelo, en dos líneas: con radar y sin radar
+    # (la versión sin radar tiene 5 variables menos, las del radar; la autora: «el número
+    # de variables cambiará con o sin radar»). Comprobado en los modelos el 27-11-2026.
+    _entrenado = i18n.pick('Sierra Nevada (España)', 'Sierra Nevada (Spain)')
+    _modelos_tabla = [
+        (i18n.pick('General', 'General'), (27, 0.847), (22, 0.833),
+         i18n.pick('En cualquier sitio', 'Anywhere')),
+        (i18n.pick('Con infrarrojo', 'With infrared'), (32, 0.945), (27, 0.937),
+         i18n.pick('Andalucía, Cataluña y Canarias',
+                   'Andalusia, Catalonia and the Canary Islands'))]
+    _con_r, _sin_r = i18n.pick('Con radar', 'With radar'), i18n.pick('Sin radar', 'Without radar')
+    _cuerpo = ''.join(
+        f'<tr><td rowspan="2"><strong>{_html.escape(m)}</strong></td>'
+        f'<td class="r">{_con_r}</td><td>{con[0]}</td><td>{_num(con[1])}</td>'
+        f'<td rowspan="2">{_html.escape(_entrenado)}</td><td rowspan="2">{_html.escape(u)}</td>'
+        f'</tr><tr class="sin"><td class="r">{_sin_r}</td><td>{sin[0]}</td>'
+        f'<td>{_num(sin[1])}</td></tr>'
+        for m, con, sin, u in _modelos_tabla)
+    _q_auc = (
+        '<span class="q-html" tabindex="0">?<span class="globo">'
+        + i18n.pick(
+            'El AUC dice lo bien que el modelo distingue un borreguil de lo que no lo es: '
+            '0,5 es como echarlo a cara o cruz y 1 es acertar siempre. Se ha medido en '
+            'zonas que el modelo no había visto al entrenar. «Sin radar» es lo que acierta '
+            'cuando no se puede leer el radar (Sentinel-1), por ejemplo con Planetary '
+            'Computer: entonces la app usa sola una versión del modelo sin él.',
+            'The AUC tells how well the model separates an alpine wet meadow from what is '
+            'not one: '
+            '0.5 is like tossing a coin and 1 is always right. It was measured on areas '
+            'the model had not seen while training. "Without radar" is how well it does '
+            'when the radar (Sentinel-1) cannot be read, for instance with Planetary '
+            'Computer: the app then uses a version of the model without it on its own.')
+        + '</span></span>')
+    _cab = [_html.escape(i18n.pick('Modelo', 'Model')), '',
+            _html.escape(i18n.pick('Variables', 'Variables')),
+            _html.escape(i18n.pick('AUC (acierto)', 'AUC (performance)')) + ' ' + _q_auc,
+            _html.escape(i18n.pick('Entrenado en', 'Trained in')),
+            _html.escape(i18n.pick('Se puede usar en', 'Usable in'))]
     st.html(
         '<section class="ayuda-caja"><span class="t">'
         + i18n.pick('Qué modelo elegir según tu zona', 'Which model to choose for your area')
         + '</span><span>'
-        + i18n.pick('La guía de los modelos, cuánto acierta cada uno (validación por '
-                    'cuencas), las recomendaciones por parque y cuántos puntos hacen falta '
-                    'para el mapa están más abajo, en «Documentación y recomendaciones».',
-                    'The guide to the models, how accurate each one is (validation by '
-                    'catchment), the recommendations per park and how many points the map '
-                    'needs are further down, under "Documentation and recommendations".')
-        + '</span><div style="overflow-x:auto"><table><tr>'
-        + ''.join(f'<th>{_html.escape(c)}</th>' for c in _cab) + '</tr>'
-        + ''.join('<tr>' + ''.join(f'<td>{_html.escape(c)}</td>' for c in f) + '</tr>'
-                  for f in _filas)
+        + i18n.pick('La guía de los modelos, cuánto acierta cada uno, las recomendaciones '
+                    'por parque y cuántos puntos hacen falta para el mapa están más abajo, '
+                    'en «Documentación y recomendaciones».',
+                    'The guide to the models, how accurate each one is, the recommendations '
+                    'per park and how many points the map needs are further down, under '
+                    '"Documentation and recommendations".')
+        + '</span><div class="tabla-modelos"><table><tr>'
+        + ''.join(f'<th>{c}</th>' for c in _cab) + '</tr>' + _cuerpo
         + '</table></div></section>')
 
+    # El título, del mismo tamaño que «Ayuda» (la autora, 27-11-2026: «poner este título
+    # igual de grande que help»): encima de sus dos tarjetas, no dentro (no cabría).
+    st.title('💬 ' + i18n.pick('Sugerir un cambio o informar de un error',
+                               'Suggest a change or report an error'), anchor=False)
     c_sug, c_inst = st.columns(2, gap='small')
     with c_sug.container(key='tarjeta_ayuda_sugerir'):
         st.html(
-            '<div class="ayuda-sug"><span class="t">💬 '
-            + i18n.pick('Sugerir un cambio o informar de un error',
-                        'Suggest a change or report an error') + '</span>'
+            '<div class="ayuda-sug">'
             + f'<a class="enlace" href="{_html.escape(e["issue"])}" target="_blank">'
             + '<strong>' + i18n.pick('En GitHub', 'On GitHub') + '</strong><br><span>'
             + i18n.pick('Público, con una cuenta de GitHub; puedes pegar pantallazos y '
@@ -3474,10 +3788,6 @@ def render_ayuda():
                 'folders. It also appears under every error of the app.'),
                 key='registros_documentacion', type='tertiary', on_click=_abrir_registros,
                 width='stretch')
-        st.html('<span class="ayuda-aviso">' + i18n.pick(
-            'No pegues coordenadas de borreguiles: son un hábitat sensible.',
-            'Do not paste the coordinates of borreguiles: they are a sensitive habitat.')
-            + '</span>')
     with c_inst.container(key='tarjeta_ayuda_instalacion'):
         _v = version_app()
         _lineas = [' · '.join(x for x in (i18n.pick(f'Versión {_v}', f'Version {_v}')
@@ -3526,7 +3836,8 @@ with pant_ayuda:
 # pantalla de inicio y lanza el análisis como «Ejecutar pipeline», con los puntos de
 # la plantilla, sin área y con lo elegido en el panel lateral.
 EJEMPLO_PUNTOS = APP_DIR / 'plantilla' / 'example_sierra_nevada.csv'
-PLANTILLA_EXCEL = APP_DIR / 'plantilla' / 'field_points_template.xlsx'
+PLANTILLA_EXCEL = APP_DIR / 'plantilla' / 'point_data_template.xlsx'
+EJEMPLO_EXCEL = APP_DIR / 'plantilla' / 'example_point_data_sierra_nevada.xlsx'
 con_ejemplo = bool(st.session_state.pop('_pedir_ejemplo', False)) and EJEMPLO_PUNTOS.exists()
 
 
@@ -3540,93 +3851,113 @@ with pant_inicio:
         # Pantalla de inicio (la de la demo, aprobada por la autora el 26-11-2026): qué
         # hace la app, el enlace al Observatorio y la foto de un borreguil, el ejemplo que
         # se prueba con un clic, los tres pasos y el pie con quién la hace y la financia.
-        h_izq, h_der = st.columns([1.15, 1], gap='large')
-        with h_izq:
-            st.markdown(i18n.pick(
-                '<div class="inicio"><span class="ceja">Prados húmedos de alta montaña</span>'
-                '<h1>Encuentra los borreguiles de tu zona y haz su mapa</h1>'
-                '<p class="entrada">Sube los sitios que quieres mirar, revisa lo que propone '
-                'el modelo y, con lo revisado, haz el mapa de borreguil de tu zona.</p>',
-                '<div class="inicio"><span class="ceja">High-mountain wet meadows</span>'
-                '<h1>Find the borreguiles in your area and map them</h1>'
-                '<p class="entrada">Upload the places you want to check, review what the '
-                'model proposes and, with what you have reviewed, make the borreguil map '
-                'of your area.</p>')
-                + f'<a class="obsnev" href="{OBSNEV_URL}" target="_blank" '
-                  f'title="{OBSNEV_TITULO}">'
-                # La autora (27-11-2026): la frase de más información, debajo de la pregunta.
-                + i18n.pick('¿Qué es un borreguil?<br>Más información en el Observatorio de '
-                            'Cambio Global de Sierra Nevada',
-                            'What is a borreguil?<br>More information at the Sierra Nevada '
-                            'Global Change Observatory')
-                + ' ↗</a></div>', unsafe_allow_html=True)
-            with st.container(horizontal=True, vertical_alignment='center',
-                              key='botones_inicio'):
-                if EJEMPLO_PUNTOS.exists():
-                    st.button(
-                        i18n.pick('**Probar con el ejemplo**\n\n20 puntos de Sierra Nevada · '
-                                  'un minuto',
-                                  '**Try the example**\n\n20 points from Sierra Nevada · '
-                                  'one minute'),
-                        key='probar_ejemplo', on_click=_pedir_ejemplo, type='primary')
-                    ayuda_q('q_ejemplo',
-                            'Analiza los 20 puntos de la plantilla de datos de campo (12 '
-                            'borreguiles y 8 sitios sin borreguil) con la fuente de datos y '
-                            'el modelo elegidos en el panel de Analizar. No hace falta subir '
-                            'nada.',
-                            'Analyses the 20 points of the field data template (12 '
-                            'borreguiles and 8 places with no borreguil) with the data '
-                            'source and the model chosen in the Analyse panel. Nothing to '
-                            'upload.')
-                st.button(
-                    i18n.pick('**Analizar mis puntos**\n\nKML, GeoJSON, Shapefile o CSV',
-                              '**Analyse my points**\n\nKML, GeoJSON, Shapefile or CSV'),
-                    key='analizar_mis_puntos', on_click=ir_a, args=('analizar',))
-            if PLANTILLA_EXCEL.exists():
-                with st.container(horizontal=True, vertical_alignment='center',
-                                  gap='small'):
-                    st.download_button(
-                        i18n.pick('Descargar la plantilla de datos de campo',
-                                  'Download the field data template'),
-                        PLANTILLA_EXCEL.read_bytes(), file_name=PLANTILLA_EXCEL.name,
-                        mime='application/vnd.openxmlformats-officedocument.'
-                             'spreadsheetml.sheet',
-                        key='bajar_plantilla', type='tertiary')
-                    ayuda_q('q_plantilla',
-                            'Una fila por punto: sus coordenadas (lon y lat, en grados), '
-                            'presence (1 borreguil, 0 no) y, si quieres, el tipo. La segunda '
-                            'hoja explica cada columna. Rellénala y guárdala como CSV para '
-                            'subirla.',
-                            'One row per point: its coordinates (lon and lat, in degrees), '
-                            'presence (1 borreguil, 0 not) and, if you want, the type. The '
-                            'second sheet explains each column. Fill it in and save it as '
-                            'CSV to upload it.')
-        with h_der:
-            st.html(foto_inicio())
+        # La autora (27-11-2026, tarde): debajo del título, los tres pasos (con sus textos,
+        # que escribió en inglés); sin la frase de entrada; la foto, abajo. En inglés,
+        # «alpine wet meadows» en vez de «borreguil» y «area» en vez de «place». El título
+        # en español no cambia: el lanzador lo busca para saber que la app ya ha cargado.
+        st.markdown(i18n.pick(
+            '<div class="inicio"><span class="ceja">Prados húmedos de alta montaña</span>'
+            '<h1>Encuentra los borreguiles de tu zona y haz su mapa</h1></div>',
+            '<div class="inicio"><span class="ceja">Alpine wet meadows</span>'
+            '<h1>Find the alpine wet meadows in your area and map them</h1></div>'),
+            unsafe_allow_html=True)
         _pasos_inicio = [
-            (i18n.pick('1 · Analizar', '1 · Analyse'),
-             i18n.pick('El modelo mira cada sitio', 'The model looks at each place'),
-             i18n.pick('Con satélite, relieve e imagen aérea da la probabilidad de que haya '
-                       'borreguil, y de qué tipo.',
-                       'With satellite, terrain and aerial imagery it gives the probability '
-                       'that there is borreguil, and of what type.')),
-            (i18n.pick('2 · Revisar', '2 · Review'),
-             i18n.pick('Tú confirmas o corriges', 'You confirm or correct'),
-             i18n.pick('Punto a punto, sobre la ortofoto: sí, no o no estoy seguro/a, y su '
-                       'tipo.',
-                       'Point by point, on the orthophoto: yes, no or not sure, and its '
-                       'type.')),
-            (i18n.pick('3 · Hacer el mapa', '3 · Make the map'),
-             i18n.pick('El mapa de tu zona', 'The map of your area'),
-             i18n.pick('Con lo revisado, la app aprende tu zona y clasifica cada píxel de '
-                       '10 m.',
-                       'With what you have reviewed, the app learns your area and '
-                       'classifies every 10 m pixel.'))]
+            (i18n.pick('1 · Prepara tu análisis', '1 · Set your analysis'),
+             i18n.pick('Zonas o puntos, modelo y datos para obtener puntos candidatos de '
+                       'entrenamiento',
+                       'Areas/points, model and data to get candidate training points'),
+             i18n.pick('Con relieve, imágenes de satélite y aéreas, un modelo da la '
+                       'probabilidad de encontrar los distintos tipos de borreguil en muchos '
+                       'puntos.',
+                       'With terrain, satellite and aerial imagery a model gives the '
+                       'probability to find different types of alpine wet meadows in '
+                       'multiple points.')),
+            (i18n.pick('2 · Revisa los puntos de entrenamiento', '2 · Review the training points'),
+             i18n.pick('Confirma o corrige a la vista cada punto candidato de entrenamiento',
+                       'Visually confirm or correct each candidate training point'),
+             i18n.pick('Sobre las ortofotos, indica en cada punto si es borreguil (sí / no / '
+                       'no estoy seguro/a) y de qué tipo.',
+                       'On the orthophotos, indicate for each point whether (yes/no/not sure) '
+                       'it corresponds to alpine wet meadows and what type it is.')),
+            (i18n.pick('3 · Haz el mapa', '3 · Create the map'),
+             i18n.pick('El modelo usa los puntos verificados para hacer el mapa de tu zona.',
+                       'The model uses the verified points to create a map of your area.'),
+             i18n.pick('En cada píxel de 10 m de tu zona, el modelo da la probabilidad de '
+                       'que haya borreguil y su tipo.',
+                       'For each 10-metre pixel in your area, the model provides a '
+                       'probability of the presence of alpine wet meadows and its type.'))]
         for _k, (_col, (_paso, _tit, _txt)) in enumerate(zip(st.columns(3), _pasos_inicio)):
             with _col.container(key=f'tarjeta_inicio_{_k + 1}'):
                 st.markdown(f'#### {_paso}')
                 st.markdown(f'**{_tit}**')
                 st.caption(_txt)
+        st.write('')
+        # Los botones, debajo del bloque 1; la foto, centrada debajo de los bloques 2 y 3
+        # (la autora, 27-11-2026: «centraría la foto entre los dos bloques de arriba»).
+        h_izq, h_der = st.columns([1, 2])
+        with h_izq:
+            st.markdown(
+                f'<div class="inicio"><a class="obsnev" '
+                f'href="{i18n.pick(OBSNEV_URL, OBSNEV_URL_EN)}" target="_blank" '
+                f'title="{i18n.pick(OBSNEV_TITULO, OBSNEV_TITULO_EN)}">'
+                # La autora (27-11-2026): la frase de más información, debajo de la pregunta.
+                + i18n.pick('¿Qué es un borreguil?<br>Más información en el Observatorio de '
+                            'Cambio Global de Sierra Nevada',
+                            'What are alpine wet meadows?<br>More information at the Sierra '
+                            'Nevada Global Change Observatory')
+                + ' ↗</a></div>', unsafe_allow_html=True)
+            # La autora (27-11-2026, tarde; textos suyos en inglés): «Try an example» con
+            # la hoja del ejemplo rellena debajo, y «Analyse my points» con la plantilla
+            # debajo (con sus tres filas grises de ejemplo: le gustan, 27-11-2026).
+            _xlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            with st.container(key='botones_inicio'):
+                if EJEMPLO_PUNTOS.exists():
+                    with st.container(horizontal=True, vertical_alignment='center',
+                                      gap='small', key='fila_ejemplo'):
+                        st.button(
+                            i18n.pick('**Probar un ejemplo**\n\n20 puntos de Sierra Nevada · '
+                                      'un minuto',
+                                      '**Try an example**\n\n20 points from Sierra Nevada · '
+                                      'one minute'),
+                            key='probar_ejemplo', on_click=_pedir_ejemplo, type='primary')
+                        ayuda_q('q_ejemplo',
+                                'Usa un modelo y datos ambientales (por ejemplo, de satélite) '
+                                'para analizar 20 puntos con presencia (12 puntos) y ausencia '
+                                '(8 puntos) de borreguil y obtener un mapa continuo de tu '
+                                'zona.',
+                                'It uses a model and environmental (e.g. satellite) data to '
+                                'analyse 20 points with presence (12 points) and absence (8 '
+                                'points) of alpine wet meadows to produce a continuous map for '
+                                'your area.')
+                    if EJEMPLO_EXCEL.exists():
+                        st.download_button(
+                            i18n.pick('Descargar la hoja de datos de puntos del ejemplo',
+                                      'Download the point data sheet for the example'),
+                            EJEMPLO_EXCEL.read_bytes(), file_name=EJEMPLO_EXCEL.name,
+                            mime=_xlsx, key='bajar_ejemplo', type='tertiary')
+                st.button(
+                    i18n.pick('**Analizar mis puntos**\n\nKML, GeoJSON, Shapefile o CSV',
+                              '**Analyse my points**\n\nKML, GeoJSON, Shapefile or CSV'),
+                    key='analizar_mis_puntos', on_click=ir_a, args=('analizar',))
+                if PLANTILLA_EXCEL.exists():
+                    with st.container(horizontal=True, vertical_alignment='center',
+                                      gap='small'):
+                        st.download_button(
+                            i18n.pick('Descargar la plantilla de datos de puntos',
+                                      'Download the point data template'),
+                            PLANTILLA_EXCEL.read_bytes(), file_name=PLANTILLA_EXCEL.name,
+                            mime=_xlsx, key='bajar_plantilla', type='tertiary')
+                        ayuda_q('q_plantilla',
+                                'Una fila por punto: coordenadas (longitud y latitud en grados '
+                                'decimales), presencia (1 = sí, 0 = no) e información adicional '
+                                'opcional. Cuando la completes, súbela como archivo CSV (usa el '
+                                'punto como separador decimal).',
+                                'One row per point: Coordinates (longitude and latitude in '
+                                'decimal degrees), Presence (1=yes, 0=no), and optional '
+                                'additional information. Once completed, upload it as a CSV '
+                                'file (use point as decimal separator).')
+        with h_der:
+            st.html(foto_inicio())
         if PANTALLA == 'inicio':
             with pie_pantalla:
                 st.html(pie_inicio(backend, gee_project))
@@ -3667,6 +3998,17 @@ with col_principal:
         return saved[0]
 
     if (run_btn and can_run) or con_ejemplo:
+        # Mientras se analiza, la cabecera (pasos, Ayuda, ES|EN) y «Analizar» no
+        # responden: un clic cortaría el análisis (ver _CSS_BLOQUEO). Al terminar, la
+        # pasada siguiente los vuelve a dibujar como siempre. Se apunta que está en
+        # marcha: si no llega al final, la pasada siguiente lo avisa.
+        st.session_state['_analisis_en_marcha'] = True
+        st.session_state.pop('_aviso_cortado', None)
+        if _AVISO_CORTADO is not None:
+            _AVISO_CORTADO.empty()
+        _BLOQUEO = st.empty()
+        _BLOQUEO.markdown(f'<style>{_CSS_BLOQUEO}</style>', unsafe_allow_html=True)
+
         # Workspace
         work = Path(tempfile.mkdtemp(prefix='borreguil_'))
         st.session_state.work = work
@@ -3676,9 +4018,9 @@ with col_principal:
             # verdad-terreno aparte ni área, aunque el panel lateral tenga algo puesto.
             st.info(i18n.pick(
                 'Analizando los **20 puntos de ejemplo** de Sierra Nevada (12 borreguiles '
-                'y 8 sitios sin borreguil)…',
-                'Analysing the **20 example points** from Sierra Nevada (12 borreguiles '
-                'and 8 places with no borreguil)…'))
+                'y 8 zonas sin borreguil)…',
+                'Analysing the **20 example points** from Sierra Nevada (12 alpine wet '
+                'meadows and 8 areas without them)…'))
             input_path, truth_path, area_path = str(EJEMPLO_PUNTOS), None, None
         else:
             try:                       # con su nombre: un Shapefile son varios ficheros
@@ -3688,6 +4030,14 @@ with col_principal:
                 st.error(str(e))
                 parar_ejecucion()
             area_path  = save_uploaded_area(f_area) if f_area else None
+            if area_path and bp.falta_sistema_de_referencia(area_path):
+                st.error(bp.aviso_sin_sistema_de_referencia(os.path.basename(area_path),
+                                                            i18n.get_lang() == 'en'))
+                parar_ejecucion()
+        st.caption(i18n.pick('Cuando termine, se abre «Resultados». Hasta entonces, los '
+                             'botones de arriba no responden.',
+                             'When it finishes, "Results" opens. Until then, the buttons at '
+                             'the top do not respond.'))
 
         # Resolve study area FIRST (may be needed for generation)
         study_geom = None; study_info = None
@@ -3695,23 +4045,20 @@ with col_principal:
             with st.status('Resolviendo área de estudio…', expanded=True) as status:
                 try:
                     import study_area as sa
-                    # Token Protected Planet (campo, secret o env) y uso opcional de GEE
-                    _wtok = ((wdpa_token.strip() if wdpa_token else None)
-                             or get_secret('WDPA_TOKEN', None) or os.environ.get('WDPA_TOKEN'))
+                    # El código WDPA, en la capa WCMC/WDPA de Earth Engine con la cuenta
+                    # compartida de MonitorEO, elija quien usa la app lo que elija para
+                    # calcular (después, al leer los datos, se vuelve a su cuenta).
                     _use_gee = False
-                    if backend == 'gee' and wdpa_id and not _wtok:
-                        # Inicializar EE para resolver el WDPA ID vía la capa WCMC/WDPA
+                    if wdpa_id:
                         try:
                             import gee_backend as geb
-                            if not geb.is_initialized():
-                                geb.initialize(gee_project.strip() or get_secret('GEE_PROJECT', None))
-                            _use_gee = geb.is_initialized()
-                        except Exception:
+                            _use_gee = geb.initialize()[0]
+                        except Exception:                   # noqa: BLE001
                             _use_gee = False
                     study_geom, study_info = sa.resolve(area_path,
                                                         wdpa_id.strip() if wdpa_id else None,
                                                         pa_name.strip() if pa_name else None,
-                                                        wdpa_token=_wtok, use_gee=_use_gee)
+                                                        wdpa_token=None, use_gee=_use_gee)
                     if study_geom:
                         st.write(f"**Origen**: {study_info['source']}")
                         if study_info.get('name'):
@@ -3720,10 +4067,17 @@ with col_principal:
                         status.update(label='✓ Área de estudio resuelta', state='complete')
                     else:
                         if wdpa_id:
-                            st.warning('No se pudo resolver el WDPA ID. Para IDs fuera del '
-                                       'cache hace falta un **token de Protected Planet** o '
-                                       'el **backend GEE**. Alternativa: busca por nombre o '
-                                       'sube un vector. Se usará bbox de los puntos.')
+                            st.warning(i18n.pick(
+                                'No se ha encontrado ese código WDPA en la base mundial de '
+                                'espacios protegidos (o no se ha podido conectar con Earth '
+                                'Engine). Comprueba el número en protectedplanet.net, o busca '
+                                'el espacio por su nombre o sube su polígono. Se usará el '
+                                'rectángulo que rodea a tus puntos.',
+                                'That WDPA code was not found in the World Database on '
+                                'Protected Areas (or Earth Engine could not be reached). '
+                                'Check the number at protectedplanet.net, or search the area '
+                                'by name or upload its polygon. The rectangle around your '
+                                'points will be used.'))
                         elif pa_name:
                             st.warning('No se encontró un polígono para ese nombre. Prueba a '
                                        'ser más específico (incluye "Parque Nacional/Natural") '
@@ -3907,7 +4261,7 @@ with col_principal:
 
         # Barra de progreso global del pipeline (hitos por fase). La fase Sentinel-2,
         # la más larga, se actualiza en continuo vía callback.
-        pbar = st.progress(0.0, text='Iniciando extracción de variables…')
+        pbar = barra_progreso('Iniciando extracción de variables…')
         def set_prog(frac, text):
             try: pbar.progress(max(0.0, min(1.0, frac)), text=text)
             except Exception: pass
@@ -3977,8 +4331,8 @@ with col_principal:
         # Sentinel-2
         st.session_state.active_backend = active_backend
         if not skip_s2:
-            set_prog(0.28, 'Sentinel-2 (NDVI, Clre…)…')
-            with st.status(f'Sentinel-2 multi-temporal ({active_backend.upper()})…', expanded=True) as status:
+            set_prog(0.28, 'Óptico Sentinel-2 (NDVI, Clre…)…')
+            with st.status(f'Óptico Sentinel-2 multitemporal ({active_backend.upper()})…', expanded=True) as status:
                 try:
                     years = bp.parse_years(years_str)
                     # callback: mapea el progreso interno de S2 al tramo 0,28–0,68
@@ -3992,16 +4346,16 @@ with col_principal:
                             bp.fetch_s2(rows, bbox, years=years, progress=s2_prog)
                     cov = _coverage(rows, ['ndvi_early', 'ndvi_late'])
                     if cov == 0:
-                        status.update(label=f'🔴 Sentinel-2: 0/{len(rows)} puntos con NDVI '
+                        status.update(label=f'🔴 Óptico Sentinel-2: 0/{len(rows)} puntos con NDVI '
                                       '(ver Diagnóstico abajo)', state='error')
                     elif cov < len(rows):
-                        status.update(label=f'🟡 Sentinel-2: {cov}/{len(rows)} puntos con '
+                        status.update(label=f'🟡 Óptico Sentinel-2: {cov}/{len(rows)} puntos con '
                                       f'NDVI ({len(years)} años)', state='complete')
                     else:
-                        status.update(label=f'✓ Sentinel-2: {cov}/{len(rows)} puntos '
+                        status.update(label=f'✓ Óptico Sentinel-2: {cov}/{len(rows)} puntos '
                                       f'({len(years)} años)', state='complete')
                 except Exception as e:
-                    status.update(label=f'⚠ Sentinel-2 falló: {e}', state='error')
+                    status.update(label=f'⚠ Óptico Sentinel-2 falló: {e}', state='error')
                     st.error(f'**Sentinel-2 falló:** {e}')
 
         # La pureza de cada punto se propone como en el mapa: con el NDVI de inicio de
@@ -4032,17 +4386,17 @@ with col_principal:
         # versión del modelo sin radar (ver modelo_segun_radar). Si falla, igual.
         skip_s1 = skip_s2 or active_backend != 'gee'
         if not skip_s1:
-            set_prog(0.70, 'Sentinel-1 (radar)…')
-            with st.status('Sentinel-1 (radar, Earth Engine)…', expanded=False) as status:
+            set_prog(0.70, 'Radar Sentinel-1…')
+            with st.status('Radar Sentinel-1 (Earth Engine)…', expanded=False) as status:
                 try:
                     with live_logs(status):
                         import gee_backend as geb
                         geb.fetch_s1_gee(rows, bbox)
                     cov = _coverage(rows, bp.S1_FEATS)
-                    status.update(label=f'✓ Sentinel-1: {cov}/{len(rows)} puntos',
+                    status.update(label=f'✓ Radar Sentinel-1: {cov}/{len(rows)} puntos',
                                   state='complete')
                 except Exception as e:
-                    status.update(label=f'⚠ Sentinel-1 falló (se continúa sin radar): {e}',
+                    status.update(label=f'⚠ Radar Sentinel-1 falló (se continúa sin radar): {e}',
                                   state='error')
 
         # Detectar qué fuentes extra necesita el modelo de partida elegido
@@ -4272,6 +4626,7 @@ with col_principal:
             'n_lagunas': _g.get('_n_lag'),
             'cir': bool(model_needs_cir and not fast_mode),
             'ps': bool((use_planet or model_needs_ps) and _pl_key and not fast_mode)}
+        st.session_state.pop('_analisis_en_marcha', None)   # ha llegado al final
         ir_a_luego('resultados')      # el análisis ha terminado: a Resultados
 
 with pant_resultados:
@@ -4539,9 +4894,9 @@ with pant_resultados:
                  i18n.pick('imagen aérea', 'aerial image'), _img, _diag.get('skip_imgs')),
                 ('topo', i18n.pick('Relieve', 'Terrain'), i18n.pick('relieve', 'terrain'),
                  _topo, False),
-                ('s2', 'Sentinel-2', 'Sentinel-2', _s2, _diag.get('skip_s2')),
-                ('s1', i18n.pick('Radar (Sentinel-1)', 'Radar (Sentinel-1)'), 'radar', _s1,
-                 radar_no)]
+                ('s2', i18n.pick('Óptico Sentinel-2', 'Optical Sentinel-2'),
+                 'Sentinel-2', _s2, _diag.get('skip_s2')),
+                ('s1', 'Radar Sentinel-1', 'radar', _s1, radar_no)]
             if _diag.get('cir'):
                 fuentes.append(('cir', 'CIR (PNOA)', 'CIR', list(bp.CIR_FEATS), False))
             if _diag.get('ps'):
@@ -4606,15 +4961,15 @@ with pant_resultados:
             if not _diag.get('skip_s2'):
                 _grupos.append(_s2)
                 _an = _diag.get('anios')
-                _nom.append('Sentinel-2' + (i18n.pick(f' ({_an} años)', f' ({_an} years)')
-                                            if _an else ''))
+                _nom.append(i18n.pick('Óptico Sentinel-2', 'Optical Sentinel-2')
+                            + (i18n.pick(f' ({_an} años)', f' ({_an} years)') if _an else ''))
                 if _diag.get('backend') == 'gee' or (sin_diag and _coverage(
                         rows, ['ndvi_early_pixel'])):
                     _grupos.append(['ndvi_early_pixel'])
                     _nom.append(i18n.pick('pureza del píxel', 'pixel purity'))
             if not radar_no:
                 _grupos.append(_s1)
-                _nom.append('radar')
+                _nom.append('Radar Sentinel-1')
             _todos = sum(1 for r in rows if all(_coverage([r], g) for g in _grupos))
             pasos.append(_lista_y(_nom) + ': ' + i18n.pick(f'{_todos} de {_N}',
                                                               f'{_todos} of {_N}'))
@@ -8950,7 +9305,9 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                         st.error(_msg)
                     else:
                         guardar_ajuste('gee_project', _proy.strip())
-                        _barra = st.progress(0.0)
+                        _barra = barra_progreso(i18n.pick(
+                            'Leyendo las variables en Earth Engine…',
+                            'Reading the variables from Earth Engine…'))
                         try:
                             _vals, _fall, _inf = geb.leer_predictores(
                                 [(float(f['lon']), float(f['lat'])) for f in _pend],
@@ -9726,17 +10083,12 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                                                         'Compute the curve with my points'),
                                               key='mrf_curva', width='stretch')
                             if _calc:
-                                _barra = st.progress(0.0, text=i18n.pick(
+                                _barra = barra_progreso(i18n.pick(
                                     'Entrenando con menos puntos…',
                                     'Training with fewer points…'))
                                 try:
                                     _mod['_curva'] = mr.curva_propia(
-                                        _tab, _mod, al_avanzar=lambda f: _barra.progress(
-                                            min(1.0, f), text=i18n.pick(
-                                                f'Entrenando con menos puntos… '
-                                                f'{round(f * 100)} %',
-                                                f'Training with fewer points… '
-                                                f'{round(f * 100)} %')))
+                                        _tab, _mod, al_avanzar=lambda f: _barra.progress(f))
                                 except ValueError as _e:
                                     st.error(i18n.pick(f'No se ha podido calcular: {_e}',
                                                        f'It could not be computed: {_e}'))
@@ -10666,20 +11018,14 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                                 _carp = _dir_m / f"mapa_{_nivel}_{time.strftime('%Y%m%d_%H%M%S')}"
                                 while _carp.exists():
                                     _carp = _carp.with_name(_carp.name + 'b')
-                                _barra = st.progress(0.0, text=i18n.pick(
+                                _barra = barra_progreso(i18n.pick(
                                     'Preparando la lectura en Earth Engine…',
                                     'Preparing the Earth Engine reading…'))
-                                _t0 = time.time()
 
                                 def _avance(hechos, total):
-                                    _queda = (time.time() - _t0) / hechos * (total - hechos) / 60
                                     _barra.progress(hechos / total, text=i18n.pick(
-                                        f'Bloque {hechos} de {total}'
-                                        + (f' · falta alrededor de {_dura(_queda)}'
-                                           if hechos < total else ''),
-                                        f'Block {hechos} of {total}'
-                                        + (f' · about {_dura(_queda)} left'
-                                           if hechos < total else '')))
+                                        f'Haciendo el mapa: bloque {hechos} de {total}',
+                                        f'Making the map: block {hechos} of {total}'))
 
                                 try:
                                     _pila = geb.pila_para_mapa(
