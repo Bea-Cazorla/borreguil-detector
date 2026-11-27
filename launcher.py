@@ -274,12 +274,12 @@ TITULO_VENTANA = f'{APP_NAME} · Wet Meadow Finder'
 _PAGINA = """<!doctype html><html lang="es"><head><meta charset="utf-8">
 <title>{titulo}</title><style>
 html,body{{height:100%;margin:0}}
-body{{display:flex;align-items:center;justify-content:center;background:#131517;
+body{{display:flex;align-items:center;justify-content:center;background:#221F20;
 color:#ECEFF1;font-family:"Segoe UI",system-ui,-apple-system,sans-serif}}
 .caja{{max-width:34em;padding:2em;text-align:center}}
 h1{{color:#F5F7F8;font-size:1.6em;margin:0 0 .5em}} p{{line-height:1.5;margin:.4em 0;color:#AEB6BE}}
 .gira{{width:2.2em;height:2.2em;margin:1.4em auto 0;border-radius:50%;
-border:.3em solid #2C3237;border-top-color:#7CC496;animation:g 1s linear infinite}}
+border:.3em solid #403A3C;border-top-color:#7CC496;animation:g 1s linear infinite}}
 @keyframes g{{to{{transform:rotate(360deg)}}}}
 </style></head><body><div class="caja">{cuerpo}</div></body></html>"""
 
@@ -418,7 +418,7 @@ def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False):
     webview.settings['OPEN_EXTERNAL_LINKS_IN_BROWSER'] = True  # GitHub, formulario…
     ventana = webview.create_window(TITULO_VENTANA, html=CARGANDO, width=1400,
                                     height=900, min_size=(900, 600),
-                                    background_color='#131517',   # sin destello blanco
+                                    background_color='#221F20',   # sin destello blanco
                                     maximized=not probar, text_select=True)
     try:
         # private_mode=False y una carpeta propia: la ventana recuerda lo que el

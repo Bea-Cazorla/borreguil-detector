@@ -326,7 +326,7 @@ def _es_borreguil(r):
 def bloque_probabilidad(r, umbral, pie=''):
     """El resultado del punto y su probabilidad de borreguil, en grande, con la barra
     del corte (el umbral del análisis), como en la demo (Revisar.dc.html): el % en
-    Space Grotesk de 68 px y, debajo de la barra, `pie` (la línea del tipo), todo con
+    Montserrat de 68 px y, debajo de la barra, `pie` (la línea del tipo), todo con
     una raya debajo, que lo separa de las preguntas."""
     import html as _html
     si = _es_borreguil(r)
@@ -340,7 +340,7 @@ def bloque_probabilidad(r, umbral, pie=''):
 
     def caja(dentro):
         return ('<div style="display:flex;flex-direction:column;gap:8px;'
-                'border-bottom:1px solid #2C3237;padding-bottom:16px">' + dentro + pie
+                'border-bottom:1px solid #403A3C;padding-bottom:16px">' + dentro + pie
                 + '</div>')
     try:
         p = float(r.get('rf_proba'))
@@ -359,7 +359,7 @@ def bloque_probabilidad(r, umbral, pie=''):
             'height:18px;background:#ECEFF1"></span>'
             f'<span style="position:absolute;left:calc({p * 100:.1f}% - 9px);top:-3px;'
             f'width:18px;height:18px;border-radius:50%;background:{color};'
-            'border:3px solid #131517;box-sizing:border-box"></span></div>'
+            'border:3px solid #221F20;box-sizing:border-box"></span></div>'
             '<div style="display:flex;justify-content:space-between;font-size:11px;'
             'color:#98A2AB">'
             f'<span>{i18n.pick("0 · no borreguil", "0 · not borreguil")}</span>'
@@ -370,7 +370,7 @@ def bloque_probabilidad(r, umbral, pie=''):
         + '<span style="font-size:14px;font-weight:600;color:#CDD3D9;margin-top:4px">'
         + i18n.pick('Probabilidad de borreguil', 'Probability of borreguil') + '</span>'
         + '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px">'
-        + '<span style="font-family:\'Space Grotesk\',Inter,sans-serif;font-size:68px;'
+        + '<span style="font-family:\'Montserrat\',Inter,sans-serif;font-size:68px;'
         + 'font-weight:700;line-height:1;letter-spacing:-0.02em;'
         + f'color:{claro}">{p * 100:.0f} %</span>'
         + f'<span style="font-size:14px;color:#AEB6BE">{_num(p)} '
@@ -412,7 +412,7 @@ def foto_inicio():
                     'Borreguil on the Cerro del Caballo, Sierra Nevada · Photo: '
                     'Granadaruralsur, CC BY-SA 4.0, Wikimedia Commons')
     return ('<style>.foto-inicio{position:relative;height:340px;border-radius:18px;'
-            'overflow:hidden;border:1px solid #2C3237;margin:0}'
+            'overflow:hidden;border:1px solid #403A3C;margin:0}'
             '.foto-inicio img{width:100%;height:100%;object-fit:cover;display:block}'
             '.foto-inicio figcaption{position:absolute;left:0;right:0;bottom:0;'
             'padding:28px 14px 10px;font-size:11px;color:#CDD3D9;'
@@ -472,16 +472,16 @@ def pie_inicio(backend, gee_project):
              + i18n.pick('Quién hace la app y quién la financia',
                          'Who makes the app and who funds it')
              + f'"><div class="grupo">{izq}</div><div class="grupo">{der}</div></div>')
-    return ('<style>.pie-inicio{margin-top:40px;border-top:1px solid #2C3237}'
+    return ('<style>.pie-inicio{margin-top:40px;border-top:1px solid #403A3C}'
             '.pie-estado{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;'
-            'background:#181B1E;padding:14px 32px;font-size:13px;color:#AEB6BE}'
+            'background:#282526;padding:14px 32px;font-size:13px;color:#AEB6BE}'
             '.pie-estado .punto{display:inline-block;width:8px;height:8px;border-radius:50%;'
             'background:#7CC496;margin-right:8px;vertical-align:middle}'
             '.pie-estado .version{color:#CDD3D9}'
             '.pie-logos{display:flex;justify-content:space-between;align-items:center;'
             'flex-wrap:wrap;gap:20px 40px;background:#FFFFFF;padding:20px 32px}'
             '.pie-logos .grupo{display:flex;align-items:center;flex-wrap:wrap;gap:20px 40px}'
-            '.pie-logos span{font-size:11px;line-height:1.35;color:#4A5258}</style>'
+            '.pie-logos span{font-size:11px;line-height:1.35;color:#61585B}</style>'
             '<div class="pie-inicio"><div class="pie-estado">'
             f'<span><span class="punto"></span>{_html.escape(estado)}</span>'
             f'<span class="version">{_html.escape(version)}</span></div>{logos}</div>')
@@ -630,7 +630,7 @@ def render_docs(con_sugerencias=True):
     st.markdown(
         'Todos los modelos parten de las **mismas variables base** (imagen aérea + '
         'topografía + Sentinel-2 + Sentinel-1); de cada grupo de variables que dicen '
-        'lo mismo usan una sola (27 en el modelo base). Las variantes añaden una '
+        'lo mismo usan una sola (27 en el modelo «General»). Las variantes añaden una '
         'fuente de **muy alta resolución** que sube el AUC. **La app extrae '
         'automáticamente la fuente extra** que el modelo elegido necesite — tú solo '
         'eliges el modelo.')
@@ -638,40 +638,41 @@ def render_docs(con_sugerencias=True):
     st.table(i18n.pick({
         'Tu zona': ['🇪🇸 Andalucía · Cataluña · Canarias',
                     '🌍 Cualquier otra zona'],
-        'Modelo recomendado': ['rf_sierra_nevada_cir', 'rf_sierra_nevada'],
+        'Modelo recomendado': ['Con infrarrojo', 'General'],
         'Variables': ['32', '27'],
         'AUC honesto': ['0,945', '0,847'],
         'Requisitos': ['Gratis (PNOA IR 0,25 m)', 'Ninguno — universal'],
     }, {
         'Your area': ['🇪🇸 Andalusia · Catalonia · Canary Islands', '🌍 Any other area'],
-        'Recommended model': ['rf_sierra_nevada_cir', 'rf_sierra_nevada'],
+        'Recommended model': ['With infrared', 'General'],
         'Variables': ['32', '27'],
         'Honest AUC': ['0.945', '0.847'],
         'Requirements': ['Free (PNOA IR 0.25 m)', 'None — universal'],
     }))
     st.markdown(i18n.pick(
-        '- **El mejor resultado es el del modelo `_cir`, y es gratis** (AUC 0,945). '
+        '- **El mejor resultado es el del modelo «Con infrarrojo», y es gratis** (AUC 0,945). '
         'Úsalo siempre que trabajes en Andalucía, Cataluña o Canarias.\n'
-        '- **En el resto de España y fuera** usa el modelo base, `rf_sierra_nevada` '
+        '- **En el resto de España y fuera** usa el modelo «General» '
         '(AUC 0,847).\n'
         '- **Sin Earth Engine** (Planetary Computer) no se lee el radar y la app usa sola '
-        'la versión de cada modelo entrenada sin él: AUC 0,833 el base y 0,937 el '
-        '`_cir`.\n'
+        'la versión de cada modelo entrenada sin él: AUC 0,833 el «General» y 0,937 el '
+        '«Con infrarrojo».\n'
         '- Al abrirse, la app trae de GitHub los modelos nuevos o actualizados; la última '
         'línea de «Esta instalación», en la Ayuda, dice si están al día.',
-        '- **The best result is that of the `_cir` model, and it is free** (AUC '
+        '- **The best result is that of the "With infrared" model, and it is free** (AUC '
         '0.945). Use it whenever you work in Andalusia, Catalonia or the Canary '
         'Islands.\n'
-        '- **Elsewhere in Spain and abroad** use the base model, `rf_sierra_nevada` '
+        '- **Elsewhere in Spain and abroad** use the "General" model '
         '(AUC 0.847).\n'
         '- **Without Earth Engine** (Planetary Computer) the radar is not read and the '
         'app automatically uses the version of each model trained without it: AUC 0.833 '
-        'for the base one and 0.937 for the `_cir`.\n'
+        'for "General" and 0.937 for "With infrared".\n'
         '- When it opens, the app fetches new or updated models from GitHub; the last '
         'line of "This installation", in Help, says whether they are up to date.'))
 
     # ---- 2. Cobertura geográfica del CIR ------------------------------------
-    st.markdown('### 🗺️ Cobertura de la ortofoto infrarroja (modelo `_cir`, gratis)')
+    st.markdown(i18n.pick('### 🗺️ Cobertura de la ortofoto infrarroja (modelo «Con infrarrojo», gratis)',
+                           '### 🗺️ Coverage of the infrared orthophoto ("With infrared" model, free)'))
     c1, c2 = st.columns(2)
     with c1:
         st.success(
@@ -681,18 +682,18 @@ def render_docs(con_sugerencias=True):
             '- **Canarias** → Teide, Garajonay, Caldera de Taburiente')
     with c2:
         st.warning(i18n.pick(
-            '**❌ Sin WMS infrarrojo** (usa el modelo base)\n\n'
+            '**❌ Sin WMS infrarrojo** (usa el modelo «General»)\n\n'
             '- **Aragón** → Ordesa y Monte Perdido\n'
             '- **Cantabria / Castilla y León** → Picos de Europa\n'
             '- **Madrid / CyL** → Sierra de Guadarrama',
-            '**❌ Without infrared WMS** (use the base model)\n\n'
+            '**❌ Without infrared WMS** (use the "General" model)\n\n'
             '- **Aragón** → Ordesa y Monte Perdido\n'
             '- **Cantabria / Castile-León** → Picos de Europa\n'
             '- **Madrid / Castile-León** → Sierra de Guadarrama'))
     st.caption(
         'El IGN tiene PNOA Falso Color Infrarrojo a 0,25 m para **toda España**, pero solo '
         'como descarga COG por hojas MTN25 (sin WMS) → conectarlo cubriría también Ordesa, '
-        'Picos y Guadarrama. El modelo `_cir` se calibró con Andalucía; en otras CCAA las '
+        'Picos y Guadarrama. El modelo «Con infrarrojo» se calibró con Andalucía; en otras CCAA las '
         'variables IR son comparables pero no idénticas → para máxima precisión, entrena '
         'con verdad-terreno local.')
 
@@ -702,7 +703,7 @@ def render_docs(con_sugerencias=True):
         'Fuente': ['Imagen aérea (ESRI / PNOA)', 'Copernicus DEM 30 m',
                    'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
                    'PNOA Falso Color IR 0,25 m'],
-        'Variables': ['8', '3', '11', '5', '5 (solo `_cir`)'],
+        'Variables': ['8', '3', '11', '5', '5 (solo «Con infrarrojo»)'],
         'Qué aporta': [
             'Textura, color, patrón y contexto alpino (% roca)',
             'Altitud, pendiente y curvatura',
@@ -713,7 +714,7 @@ def render_docs(con_sugerencias=True):
         'Source': ['Aerial image (ESRI / PNOA)', 'Copernicus DEM 30 m',
                    'Sentinel-2 L2A (2017-2025)', 'Sentinel-1, radar (2019-2024)',
                    'PNOA False Colour IR 0.25 m'],
-        'Variables': ['8', '3', '11', '5', '5 (`_cir` only)'],
+        'Variables': ['8', '3', '11', '5', '5 ("With infrared" only)'],
         'What it adds': [
             'Texture, colour, pattern and alpine context (% rock)',
             'Elevation, slope and curvature',
@@ -722,12 +723,12 @@ def render_docs(con_sugerencias=True):
             'Pseudo-NDVI at 25 cm: sharpness of the patch edge'],
     }))
     st.caption(i18n.pick(
-        'Las variables que usa el modelo: 27 en el base y 32 en el `_cir` (una por grupo '
-        'de las que dicen lo mismo). La última fila es la que añade el `_cir`: su variable '
+        'Las variables que usa el modelo: 27 en el «General» y 32 en el «Con infrarrojo» (una por grupo '
+        'de las que dicen lo mismo). La última fila es la que añade el «Con infrarrojo»: su variable '
         'más informativa es el **contraste del NDVI a 25 cm**, justo el borde nítido del '
         'borreguil contra el sustrato pétreo, que Sentinel-2 (10 m) promedia y pierde.',
-        'The variables the model uses: 27 in the base one and 32 in the `_cir` one (one '
-        'per group of those that say the same). The last row is what the `_cir` adds: its '
+        'The variables the model uses: 27 in "General" and 32 in "With infrared" (one '
+        'per group of those that say the same). The last row is what "With infrared" adds: its '
         'most informative variable is the **NDVI contrast at 25 cm**, precisely the sharp '
         'edge of the borreguil against the rocky substrate, which Sentinel-2 (10 m) '
         'averages out and loses.'))
@@ -762,16 +763,18 @@ def render_docs(con_sugerencias=True):
     if _ic is not None:
         st.altair_chart(_ic, width='stretch')
         st.caption(i18n.pick(
-            f'Ranking del modelo seleccionado (`{Path(_mp).name}`), variable a variable. '
-            'Cambia según el modelo: en los `_cir` manda el **contraste del NDVI a 0,25 m**; '
-            'en el modelo base, la **altitud**, la **caída estacional del NDVI**, la '
+            f'Ranking del modelo seleccionado («{_rotulo_modelo(Path(_mp).name)}»), variable a '
+            'variable. '
+            'Cambia según el modelo: en el «Con infrarrojo» manda el **contraste del NDVI a 0,25 m**; '
+            'en el «General», la **altitud**, la **caída estacional del NDVI**, la '
             '**diferencia VV–VH del radar**, el **NDVI de inicio de verano** y la '
             '**variación del NDWI**. Cada modelo usa una '
             'sola variable de cada grupo de las que dicen lo mismo, así que el peso no se '
             'reparte entre variables correlacionadas.',
-            f'Ranking of the selected model (`{Path(_mp).name}`), variable by variable. It '
-            'changes with the model: in the `_cir` ones the **NDVI contrast at 0.25 m** '
-            'leads; in the base model, **elevation**, the **seasonal NDVI drop**, the '
+            f'Ranking of the selected model ("{_rotulo_modelo(Path(_mp).name)}"), variable by '
+            'variable. It '
+            'changes with the model: in "With infrared" the **NDVI contrast at 0.25 m** '
+            'leads; in "General", **elevation**, the **seasonal NDVI drop**, the '
             '**radar VV–VH difference**, **early-summer NDVI** and the **NDWI '
             'variability**. Each model uses a single '
             'variable from each group of those that say the same, so the weight is not '
@@ -854,9 +857,9 @@ def render_docs(con_sugerencias=True):
     st.caption(i18n.pick(
         'Línea: media de 10 repeticiones; franja: 8 de cada 10. Línea discontinua: con '
         'todos los puntos. Procedimiento de la app con «Quitar las variables correlacionadas: '
-        'Con el VIF» (umbral 10), Random Forest y validación por zonas.',
+        'Con VIF» (umbral 10), Random Forest y validación por zonas.',
         'Line: mean of 10 repetitions; band: 8 out of 10. Dashed line: with all the '
-        'points. Same procedure as the app with "Remove correlated variables: With the '
+        'points. Same procedure as the app with "Remove correlated variables: With '
         'VIF" (threshold 10), Random Forest and spatial validation.'))
 
     # ---- 5. Cómo usar la app ------------------------------------------------
@@ -913,6 +916,28 @@ def _zona_partida(info):
     return str(z).split(' (')[0]
 
 
+def nombre_modelo(zona_entrenamiento):
+    """Cómo se llama un modelo en la app (la autora, 27-11-2026: por lo que es, no por
+    dónde se entrenó). Los que trae la app (entrenados en Sierra Nevada), «General» o
+    «Con infrarrojo»; los que guardas tú, el nombre de su zona."""
+    z = str(zona_entrenamiento or '?')
+    if 'sierra nevada (andaluc' in z.lower():
+        return (i18n.pick('Con infrarrojo', 'With infrared') if 'CIR' in z
+                else i18n.pick('General', 'General'))
+    return z.split(' (')[0]
+
+
+def _nombre_partida(info):
+    """El nombre del modelo de partida de un análisis (ver nombre_modelo)."""
+    z = (info or {}).get('training_zone')
+    if not z or z == 'usuario':
+        z = (info or {}).get('zona_partida') or '?'
+    z = str(z)
+    if z.endswith(' + tus puntos'):
+        z = z[:-len(' + tus puntos')]
+    return nombre_modelo(z)
+
+
 def _titulo_modelo(info):
     """Una línea: qué modelo ha dado la probabilidad de los puntos."""
     if not info:
@@ -920,21 +945,21 @@ def _titulo_modelo(info):
     # Sin radar (Planetary Computer): se usa la versión del modelo entrenada sin él
     sr = _es_sin_radar(info)
     if info.get('sumado'):
-        z = _zona_partida(info)
+        z = _nombre_partida(info)
         return i18n.pick(
-            f'**Modelo usado: el de {z}' + (' (versión sin radar)' if sr else '')
+            f'**Modelo usado: «{z}»' + (' (versión sin radar)' if sr else '')
             + ' reentrenado sumando tus puntos**',
-            f'**Model used: the {z} model' + (' (version without radar)' if sr else '')
+            f'**Model used: "{z}"' + (' (version without radar)' if sr else '')
             + ' retrained adding your points**')
     if info.get('mode') == 'trained':
         return i18n.pick('**Modelo usado: el entrenado con tus puntos**',
                          '**Model used: the one trained with your points**')
-    z = _zona_partida(info)
+    z = _nombre_partida(info)
     return i18n.pick(
-        f'**Modelo usado: el de partida ({z}' + (', versión sin radar' if sr else '') + ')**'
-        + (', porque el radar no se ha leído' if sr else ''),
-        f'**Model used: the starting model ({z}' + (', version without radar' if sr else '')
-        + ')**' + (', because the radar was not read' if sr else ''))
+        f'**Modelo usado: el de partida, «{z}»' + (' (versión sin radar)' if sr else '')
+        + '**' + (', porque el radar no se ha leído' if sr else ''),
+        f'**Model used: the starting model, "{z}"' + (' (version without radar)' if sr else '')
+        + '**' + (', because the radar was not read' if sr else ''))
 
 
 def _de(ok, n):
@@ -1105,10 +1130,11 @@ def mostrar_modelo(info, threshold, casilla=None):
     if sumado:
         _n_t, _n_s = info.get('n_tabla', 0), info.get('n_pos', 0) + info.get('n_neg', 0)
         _q = info.get('n_tabla_quitados', 0)
+        _nm = _nombre_partida(info)
         st.markdown(pick(
-            f'El de {z}' + (' (versión sin radar)' if sr else '')
+            f'«{_nm}»' + (' (versión sin radar)' if sr else '')
             + ' reentrenado sumando tus puntos. ',
-            f'The {z} model' + (' (version without radar)' if sr else '')
+            f'"{_nm}"' + (' (version without radar)' if sr else '')
             + ' retrained adding your points. ') + pick(
             f'Un solo modelo con todos los puntos: {_n_t} de {z} '
             f'({info.get("n_tabla_si", 0)} borreguiles y {info.get("n_tabla_no", 0)} no) y '
@@ -1837,26 +1863,26 @@ st.set_page_config(page_title='Borreguil · Wet Meadow Finder',
                     initial_sidebar_state='collapsed')
 
 # --- Tema oscuro («C · Sobria», elegido por la autora el 26-11-2026) -----------------
-# Gris pizarra y verde bosque, con Inter y Space Grotesk. El ejecutable no aplica ningún
+# Gris pizarra y verde bosque, con Inter y Montserrat. El ejecutable no aplica ningún
 # tema (las STREAMLIT_THEME_* del lanzador no llegan a Streamlit y .streamlit/config.toml
 # no viaja con él), así que lo pone la app: llega también con la actualización automática,
 # sin instalador nuevo. Streamlit manda el tema al navegador al empezar cada pasada, así
 # que la primera vez que se pone hay que repetir la pasada (una sola vez por sesión).
 _FUENTE = ('Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700'
            '&display=swap, system-ui, sans-serif')
-_FUENTE_TITULOS = ('Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grotesk:'
+_FUENTE_TITULOS = ('Montserrat:https://fonts.googleapis.com/css2?family=Montserrat:'
                    'wght@500;600;700&display=swap, Inter, system-ui, sans-serif')
 TEMA = {
     'theme.base': 'dark',
     'theme.primaryColor': '#7CC496',             # casillas, deslizadores, barras (demo)
-    'theme.backgroundColor': '#131517',          # fondo
-    'theme.secondaryBackgroundColor': '#1D2124',  # tarjetas y cajas
+    'theme.backgroundColor': '#221F20',          # fondo
+    'theme.secondaryBackgroundColor': '#2E2A2B',  # tarjetas y cajas
     'theme.textColor': '#ECEFF1',
     'theme.linkColor': '#7CC496',
-    'theme.borderColor': '#343B41',
-    'theme.dataframeBorderColor': '#2C3237',
-    'theme.dataframeHeaderBackgroundColor': '#181B1E',
-    'theme.codeBackgroundColor': '#181B1E',
+    'theme.borderColor': '#494245',
+    'theme.dataframeBorderColor': '#403A3C',
+    'theme.dataframeHeaderBackgroundColor': '#282526',
+    'theme.codeBackgroundColor': '#282526',
     'theme.greenColor': '#43A047',               # borreguil
     'theme.redColor': '#E53935',                 # no borreguil
     'theme.font': _FUENTE,
@@ -1864,9 +1890,9 @@ TEMA = {
     'theme.baseRadius': '10px',
     'theme.buttonRadius': '12px',
     'theme.showSidebarBorder': True,
-    'theme.sidebar.backgroundColor': '#22272B',  # el panel, más claro que el fondo
-    'theme.sidebar.secondaryBackgroundColor': '#2A3034',
-    'theme.sidebar.borderColor': '#3E464D',
+    'theme.sidebar.backgroundColor': '#342F31',  # el panel, más claro que el fondo
+    'theme.sidebar.secondaryBackgroundColor': '#3D383A',
+    'theme.sidebar.borderColor': '#554D50',
 }
 
 
@@ -1891,7 +1917,7 @@ if _poner_tema() and not st.session_state.get('_tema_puesto'):
 
 # Lo que el tema no cubre: el panel lateral con sombra (la autora: «se confunde con la
 # pantalla principal»), la letra blanca de los botones verdes, las cifras grandes en
-# Space Grotesk y las tarjetas del Inicio.
+# Montserrat y las tarjetas del Inicio.
 st.html('<style>' + '''
 section[data-testid="stSidebar"]{box-shadow:6px 0 18px rgba(0,0,0,.35)}
 button[data-testid^="stBaseButton-primary"]{background-color:#2A7048;border-color:#2A7048}
@@ -1900,7 +1926,7 @@ button[data-testid^="stBaseButton-primary"],
 button[data-testid^="stBaseButton-primary"] p{color:#FFFFFF;font-weight:700}
 /* Las «?» de Streamlit, como las de la demo: un círculo de 22 px con «?». */
 [data-testid="stTooltipIcon"] button:not([data-testid]){width:22px;height:22px;min-height:0;border-radius:50%;
-  border:1px solid #46505A;background:#262B2F;display:inline-flex;align-items:center;
+  border:1px solid #60575A;background:#393335;display:inline-flex;align-items:center;
   justify-content:center;padding:0;margin-left:4px}
 [data-testid="stTooltipIcon"] button:not([data-testid]) svg{display:none}
 [data-testid="stTooltipIcon"] button:not([data-testid])::after{content:"?";font:700 12px/1 Inter,system-ui,sans-serif;
@@ -1908,12 +1934,12 @@ button[data-testid^="stBaseButton-primary"] p{color:#FFFFFF;font-weight:700}
 [data-testid="stTooltipIcon"] button:not([data-testid]):hover{border-color:#7CC496}
 [data-testid="stTooltipIcon"] button:not([data-testid]):hover::after{color:#7CC496}
 [data-testid="stTooltipContent"]{font-size:13px;line-height:1.5;color:#CDD3D9;
-  background:#191C1F;border:1px solid #3E6B4F;border-radius:10px}
+  background:#292627;border:1px solid #3E6B4F;border-radius:10px}
 [data-testid="stHeaderActionElements"] a{display:none}
 /* Casillas, en el verde claro de la demo. */
 label[data-baseweb="checkbox"]:has(input:checked)>span{background-color:#7CC496;
   border-color:#7CC496}
-.separador{border:0;border-top:1px solid #2C3237;margin:4px 0}
+.separador{border:0;border-top:1px solid #403A3C;margin:4px 0}
 .leido-ok{font-size:13px;color:#A3D9B5;margin:0}
 .ayuda-aviso{font-size:12px;color:#F5B83D}
 /* 1 · Analizar, como en la demo: etiquetas de 13 px, títulos con su «?», enlaces verdes. */
@@ -1930,7 +1956,7 @@ label[data-baseweb="checkbox"]:has(input:checked)>span{background-color:#7CC496;
   text-underline-offset:3px;white-space:nowrap}
 .st-key-nota_modelo{flex-wrap:wrap;gap:2px 6px}
 .st-key-nota_modelo [data-testid="stCaptionContainer"]{width:auto}
-.st-key-sugerencias_panel details{border:1px solid #505A63;background:#323940;
+.st-key-sugerencias_panel details{border:1px solid #6A6063;background:#484143;
   border-radius:12px}
 .st-key-sugerencias_panel summary p{font-size:14px;font-weight:600}
 .st-key-tit_principal h3{font-size:22px !important;font-weight:700 !important;padding:0 !important}
@@ -1950,9 +1976,9 @@ label[data-baseweb="checkbox"]:has(input:checked)>span{background-color:#7CC496;
 .st-key-modo_umbral>div,.st-key-origen_puntos [role="radiogroup"],
 .st-key-zona_modo [role="radiogroup"],.st-key-imagen_aerea [role="radiogroup"],
 .st-key-cuenta [role="radiogroup"],.st-key-modo_umbral [role="radiogroup"]{width:100%}
-[data-testid="stMetricValue"]{font-family:"Space Grotesk",Inter,system-ui,sans-serif}
-[data-testid="stMetric"]{background:#1D2124;border:1px solid #2C3237;border-radius:16px;padding:14px 18px}
-[class*="st-key-tarjeta_"]{background:#1D2124;border:1px solid #2C3237;
+[data-testid="stMetricValue"]{font-family:Montserrat,Inter,system-ui,sans-serif}
+[data-testid="stMetric"]{background:#2E2A2B;border:1px solid #403A3C;border-radius:16px;padding:14px 18px}
+[class*="st-key-tarjeta_"]{background:#2E2A2B;border:1px solid #403A3C;
   border-radius:16px;padding:18px 20px}
 [class*="st-key-tarjeta_"] h4{color:#7CC496;font-size:15px}
 /* Las tres tarjetas del Inicio, con la letra y el espacio de la demo. */
@@ -1971,15 +1997,15 @@ div.inicio .ceja{display:inline-block;font-size:12px;font-weight:600;letter-spac
   text-transform:uppercase;color:#7CC496;background:#1E3327;border:1px solid #3E6B4F;
   border-radius:999px;padding:4px 12px}
 div.inicio h1 [data-testid="stHeaderActionElements"]{display:none}
-div.inicio h1{font-size:clamp(30px,3.6vw,46px) !important;line-height:1.08 !important;letter-spacing:-.02em;
+div.inicio h1{font-size:clamp(28px,3.1vw,40px) !important;line-height:1.08 !important;letter-spacing:-.02em;
   color:#F5F7F8;margin:16px 0 12px !important;padding:0 !important}
 div.inicio .entrada{font-size:18px;line-height:1.55;color:#B9C1C8;margin:0 0 14px}
 div.inicio a.obsnev{display:inline-block;color:#7CC496;font-size:15px;font-weight:600;
   text-decoration:none;border-bottom:1px solid #3E6B4F;margin-bottom:18px}
 div.inicio a.obsnev:hover{color:#A3D9B5}
-.st-key-panel_analizar{background:#22272B;border:1px solid #3C444B;border-radius:16px;
+.st-key-panel_analizar{background:#342F31;border:1px solid #534B4E;border-radius:16px;
   padding:16px;box-shadow:6px 0 18px rgba(0,0,0,.35)}
-[class*="st-key-seccion_"]{background:#2A3034;border:1px solid #3E464D;
+[class*="st-key-seccion_"]{background:#3D383A;border:1px solid #554D50;
   border-radius:14px;padding:14px 16px}
 [class*="st-key-seccion_"] h3{font-family:Inter,system-ui,sans-serif !important;font-size:15px !important;
   font-weight:700 !important;padding:0 0 2px !important}
@@ -1990,7 +2016,7 @@ div.inicio a.obsnev:hover{color:#A3D9B5}
 .st-key-panel_analizar [data-testid="stRadio"] [role="radiogroup"]{gap:6px;flex-wrap:wrap}
 .st-key-panel_analizar [data-testid="stRadio"] label[data-baseweb="radio"]{
   flex:1 1 0;min-width:max-content;justify-content:center;margin:0;min-height:44px;
-  padding:8px 12px;border:1px solid #48525B;background:#323940;border-radius:10px}
+  padding:8px 12px;border:1px solid #62585B;background:#484143;border-radius:10px}
 .st-key-panel_analizar [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked){
   border:1.5px solid #7CC496;background:#244A33}
 .st-key-panel_analizar [data-testid="stRadio"] label[data-baseweb="radio"]>div:first-of-type{
@@ -2003,35 +2029,35 @@ div.inicio a.obsnev:hover{color:#A3D9B5}
 /* Ayuda, como en la demo. */
 .ayuda-tarjetas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:760px){.ayuda-tarjetas{grid-template-columns:1fr}}
-.ayuda-tarjeta{text-decoration:none;background:#1D2124;border:1px solid #2C3237;
+.ayuda-tarjeta{text-decoration:none;background:#2E2A2B;border:1px solid #403A3C;
   border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:6px;color:#ECEFF1}
 .ayuda-tarjeta:hover{border-color:#3E6B4F}
 .ayuda-tarjeta .t{font-weight:700;font-size:16px;color:#ECEFF1}
 .ayuda-tarjeta .d{font-size:13px;color:#AEB6BE}
 .ayuda-caja,.ayuda-sug,.ayuda-inst{display:flex;flex-direction:column;gap:10px;
   font-size:14px;color:#CDD3D9}
-.ayuda-caja{background:#1D2124;border:1px solid #2C3237;border-radius:16px;padding:20px}
+.ayuda-caja{background:#2E2A2B;border:1px solid #403A3C;border-radius:16px;padding:20px}
 .ayuda-caja .t,.ayuda-sug .t,.ayuda-inst .t{font-weight:700;font-size:16px;color:#ECEFF1}
 .ayuda-caja table{border-collapse:collapse;font-size:13px;min-width:560px}
 .ayuda-caja th{color:#AEB6BE;text-align:left;font-weight:500;padding:6px 16px 6px 0}
-.ayuda-caja td{border-top:1px solid #2C3237;padding:6px 16px 6px 0}
+.ayuda-caja td{border-top:1px solid #403A3C;padding:6px 16px 6px 0}
 .ayuda-inst{gap:8px}
 .ayuda-inst .nota{font-size:13px;color:#AEB6BE}
-.ayuda-sug .enlace{display:block;border:1px solid #46505A;background:#262B2F;
+.ayuda-sug .enlace{display:block;border:1px solid #60575A;background:#393335;
   border-radius:12px;padding:12px 14px;text-decoration:none;color:#ECEFF1}
 .ayuda-sug .enlace:hover{border-color:#7CC496}
 .ayuda-sug .enlace span{font-size:13px;color:#AEB6BE}
 .ayuda-aviso{font-size:12px;color:#F5B83D}
-.st-key-tarjeta_ayuda_sugerir,.st-key-tarjeta_ayuda_instalacion{background:#1D2124;
-  border:1px solid #2C3237;border-radius:16px;padding:20px;height:100%}
+.st-key-tarjeta_ayuda_sugerir,.st-key-tarjeta_ayuda_instalacion{background:#2E2A2B;
+  border:1px solid #403A3C;border-radius:16px;padding:20px;height:100%}
 .st-key-registros_documentacion button{display:block;width:100%;text-align:left;
-  border:1px solid #46505A;background:#262B2F;border-radius:12px;padding:12px 14px}
+  border:1px solid #60575A;background:#393335;border-radius:12px;padding:12px 14px}
 .st-key-registros_documentacion button:hover{border-color:#7CC496}
 .st-key-registros_documentacion button p{margin:0;text-align:left;color:#ECEFF1;font-size:14px}
 .st-key-registros_documentacion button p+p{font-size:13px;color:#AEB6BE;font-weight:400}
 /* Las «?» de la demo (ayuda_q): un botón redondo de 22 px que abre el texto. */
 [class*="st-key-q_"] button{width:22px;height:22px;min-height:0;padding:0;border-radius:50%;
-  border:1px solid #46505A;background:#262B2F;justify-content:center}
+  border:1px solid #60575A;background:#393335;justify-content:center}
 [class*="st-key-q_"] button p{font-size:12px;font-weight:700;color:#CDD3D9;margin:0}
 [class*="st-key-q_"] button:hover{border-color:#7CC496}
 [class*="st-key-q_"] button:hover p{color:#7CC496}
@@ -2041,7 +2067,7 @@ div.inicio a.obsnev:hover{color:#A3D9B5}
 [class*="st-key-q_"] button>div>div:last-child:not(:first-child){display:none}
 [class*="st-key-q_"] button p{line-height:1}
 [data-testid="stPopoverBody"]{max-width:34em;font-size:13px;line-height:1.5;
-  background:#181B1E;border:1px solid #3E6B4F}
+  background:#282526;border:1px solid #3E6B4F}
 /* Los dos botones grandes del Inicio, de dos líneas y con el texto a la izquierda. */
 .st-key-botones_inicio{flex-wrap:wrap;gap:12px}
 .st-key-probar_ejemplo button,.st-key-analizar_mis_puntos button{min-height:64px;
@@ -2054,14 +2080,14 @@ div.inicio a.obsnev:hover{color:#A3D9B5}
 .st-key-bajar_plantilla button p{font-size:14px;color:#7CC496;text-decoration:underline;
   text-underline-offset:3px}
 .st-key-probar_ejemplo button p+p{font-size:13px;font-weight:400;color:#E2F0E6}
-.st-key-analizar_mis_puntos button{background:#1D2124;border:1.5px solid #46505A}
+.st-key-analizar_mis_puntos button{background:#2E2A2B;border:1.5px solid #60575A}
 .st-key-analizar_mis_puntos button p+p{font-size:13px;font-weight:400;color:#98A2AB}
 /* Revisar: «¿Es borreguil?» y la certeza como botones grandes (la demo). */
 [class*="st-key-rev_es_"] [role="radiogroup"],.st-key-rev_certidumbre [role="radiogroup"]{
   gap:6px;flex-wrap:wrap}
 [class*="st-key-rev_es_"] label[data-baseweb="radio"],
 .st-key-rev_certidumbre label[data-baseweb="radio"]{flex:1 1 0;justify-content:center;
-  margin:0;min-height:46px;padding:8px 12px;border:1.5px solid #46505A;background:#262B2F;
+  margin:0;min-height:46px;padding:8px 12px;border:1.5px solid #60575A;background:#393335;
   border-radius:12px}
 [class*="st-key-rev_es_"] label[data-baseweb="radio"]:has(input:checked){
   background:#2A7048;border:2px solid #7CC496}
@@ -2173,28 +2199,28 @@ header[data-testid="stHeader"] [role="button"],[data-testid="stMainMenu"],
 .st-key-pantalla{max-width:1180px;width:100%;margin:0 auto;padding:16px 32px 48px;
   box-sizing:border-box}
 .st-key-pantalla>div>[data-baseweb="tab-border"]{display:none}
-.st-key-cabecera{background:#181B1E;border-bottom:1px solid #2C3237;
+.st-key-cabecera{background:#282526;border-bottom:1px solid #403A3C;
   padding:12px 64px 12px 32px;flex-wrap:wrap;justify-content:space-between;
   row-gap:10px;column-gap:24px}
 .st-key-cabecera>div:has(>.st-key-marca){flex:1 1 260px}
 .st-key-ir_inicio button{padding:0;min-height:0;border:none;background:none}
-.st-key-ir_inicio button p{font-family:"Space Grotesk",Inter,system-ui,sans-serif;
+.st-key-ir_inicio button p{font-family:Montserrat,Inter,system-ui,sans-serif;
   font-size:18px;font-weight:700;letter-spacing:-.01em;color:#ECEFF1;white-space:nowrap}
 .st-key-subtitulo p{font-size:12px;color:#98A2AB;margin:-4px 0 0;white-space:nowrap}
 .st-key-pasos{flex-wrap:wrap}
 .st-key-pasos>div,.st-key-cab_der>div{flex-shrink:0}
 .st-key-pasos button{border-radius:999px;min-height:0;padding:8px 14px;
-  border:1px solid #343B41;background:#1D2124;color:#CDD3D9}
+  border:1px solid #494245;background:#2E2A2B;color:#CDD3D9}
 .st-key-pasos button p{font-size:14px;font-weight:500;color:inherit;white-space:nowrap}
 .st-key-pasos .sep{color:#5E6871;font-size:16px}
 .st-key-ir_sugerencias button,.st-key-ir_ayuda button{padding:0;min-height:0}
 .st-key-ir_sugerencias button p,.st-key-ir_ayuda button p{font-size:14px;font-weight:500;
   color:#7CC496;white-space:nowrap}
 .st-key-ir_sugerencias button:hover p,.st-key-ir_ayuda button:hover p{color:#A3D9B5}
-.st-key-ui_lang [data-testid="stButtonGroup"]>div{gap:0;border:1px solid #343B41;
+.st-key-ui_lang [data-testid="stButtonGroup"]>div{gap:0;border:1px solid #494245;
   border-radius:8px;overflow:hidden}
 .st-key-ui_lang button{border:0;border-radius:0;min-height:0;padding:6px 10px;
-  background:#1D2124}
+  background:#2E2A2B}
 .st-key-ui_lang button p{font-size:13px;font-weight:600;color:#CDD3D9}
 .st-key-ui_lang button[kind$="Active"]{background:#2A7048}
 .st-key-ui_lang button[kind$="Active"] p{color:#FFFFFF;font-weight:700}
@@ -2258,9 +2284,10 @@ def _rotulo_modelo(nombre):
 def _rotulo_modelo_de(ruta, mtime, idioma):
     mb = bp.load_model_bundle(ruta)
     feats = mb.get('features', [])
-    zona = str(mb.get('training_zone', '?')).split(' (')[0]
-    if any(f.startswith('cir_') for f in feats):
-        zona += ' with infrared orthophoto' if idioma == 'en' else ' con ortofoto infrarroja'
+    zona = nombre_modelo(mb.get('training_zone'))
+    if (any(f.startswith('cir_') for f in feats)
+            and 'sierra nevada (andaluc' not in str(mb.get('training_zone', '')).lower()):
+        zona += ' with infrared' if idioma == 'en' else ' con infrarrojo'
     auc = mb.get('auc_groupkfold')
     datos = f'{len(feats)} variables' + (f' · AUC {_n3(auc)}'
                                          if isinstance(auc, (int, float)) else '')
@@ -2272,8 +2299,8 @@ def _css_caja_subir(key, titulo, detalle='', pequena=False):
     idioma de la app) en vez del de Streamlit; toda la caja abre el selector."""
     s = f'.st-key-{key} [data-testid="stFileUploaderDropzone"]'
     i = f'{s} [data-testid="stFileUploaderDropzoneInstructions"]'
-    return (f'{s}{{position:relative;border:1px dashed #46505A;border-radius:'
-            f'{10 if pequena else 12}px;padding:{10 if pequena else 14}px;background:#191C1F;'
+    return (f'{s}{{position:relative;border:1px dashed #60575A;border-radius:'
+            f'{10 if pequena else 12}px;padding:{10 if pequena else 14}px;background:#292627;'
             'display:flex;flex-direction:column;align-items:flex-start;cursor:pointer}'
             f'{s}>span{{position:absolute;inset:0;opacity:0;z-index:1}}'
             f'{s}>span button{{width:100%;height:100%}}'
@@ -2294,7 +2321,7 @@ _CSS_ANALIZAR_ANCHO = '''
 [data-testid="stColumn"]:has(.st-key-panel_analizar){flex:0 1 420px !important;
   min-width:340px;max-width:440px}
 .st-key-panel_analizar{border-radius:0 !important;border:0 !important;
-  border-right:1px solid #3C444B !important;padding:22px !important;
+  border-right:1px solid #534B4E !important;padding:22px !important;
   min-height:calc(100vh - 62px)}
 [data-testid="stColumn"]:has(.st-key-analizar){padding:24px}
 '''
@@ -3116,34 +3143,91 @@ def _puntos_vista(partes):
 SIERRA_NEVADA_CAJA = (-3.55, 36.95, -2.85, 37.20)      # oeste, sur, este, norte
 
 
-@st.cache_data(show_spinner=False)
-def _cauces_vista(caja):
-    """Los ríos y arroyos de la capa que va con la app (OpenStreetMap) cerca de la caja,
-    simplificados, como GeoJSON para el mapa de «Tus puntos y tu zona»."""
-    try:
-        from shapely.geometry import box as _box, mapping as _mapping
-        lineas, _cob = _capa_cauces_app()
-        if not lineas:
-            return None
-        marco = _box(caja[0] - 0.02, caja[1] - 0.02, caja[2] + 0.02, caja[3] + 0.02)
-        cerca = [l.simplify(0.0001) for l in lineas if l.intersects(marco)][:4000]
-        return {'type': 'FeatureCollection',
-                'features': [{'type': 'Feature', 'geometry': _mapping(l), 'properties': {}}
-                             for l in cerca]} if cerca else None
-    except Exception:                                   # noqa: BLE001
-        return None
+def capas_oscuras(fm, abiertas=True, nota_id=None, nota_capa=None):
+    """El control de capas como el panel «Capas» de la demo (Revisar.dc.html): en
+    oscuro, con su título («▾ Capas», que pliega y despliega la lista) y los dos
+    grupos, FONDO (las capas de fondo) y ENCIMA (las que se encienden encima); los
+    créditos, en una etiqueta oscura y sin el «Leaflet» delante; y los botones del
+    zoom, oscuros. Se llama después de añadir el folium.LayerControl(collapsed=False).
+    `nota_id`/`nota_capa`: un elemento del mapa que se ve solo mientras esté
+    encendida la capa cuyo nombre contiene `nota_capa` (la parte de los ríos en la
+    leyenda del mapa de 2 · Revisar)."""
+    import json as _json
+    from branca.element import MacroElement
+    from jinja2 import Template
+    fondo, encima = i18n.pick('Fondo', 'Base'), i18n.pick('Encima', 'On top')
+    fm.get_root().header.add_child(folium.Element(
+        '<style>'
+        '.leaflet-container{background:#2E2A2B;font-family:Inter,system-ui,sans-serif}'
+        '.leaflet-control-layers,.leaflet-control-layers-expanded{'
+        'background:#282526F2;border:1px solid #524A4D!important;border-radius:12px;'
+        'padding:6px 12px 8px;color:#CDD3D9;font:12px/1.25 Inter,system-ui,sans-serif;'
+        'box-shadow:0 6px 18px rgba(0,0,0,.35)!important;max-width:260px}'
+        # (sin la barra de desplazamiento que Leaflet le pone si al crearse no cabe)
+        '.leaflet-control-layers-list,.leaflet-control-layers-scrollbar{margin:0;'
+        'height:auto!important;overflow:visible!important;padding-right:0!important}'
+        '.leaflet-control-layers .capas-tit{display:flex;align-items:center;gap:8px;'
+        'border:0;background:transparent;color:#ECEFF1;font:700 13px Inter,system-ui,'
+        'sans-serif;padding:4px 0;cursor:pointer;width:100%;text-align:left}'
+        '.leaflet-control-layers .capas-tit span{color:#7CC496;width:12px}'
+        '.leaflet-control-layers-base::before,.leaflet-control-layers-overlays::before{'
+        'display:block;font-size:11px;font-weight:700;letter-spacing:.06em;'
+        'text-transform:uppercase;color:#98A2AB;margin:2px 0 1px}'
+        f'.leaflet-control-layers-base::before{{content:{_json.dumps(fondo)}}}'
+        '.leaflet-control-layers-overlays::before{'
+        f'content:{_json.dumps(encima)};margin-top:6px}}'
+        '.leaflet-control-layers-separator{display:none}'
+        # sin capas «encima» (el mapa de Analizar), sin su título
+        '.leaflet-control-layers-overlays:empty{display:none}'
+        '.leaflet-control-layers label{margin:0;cursor:pointer}'
+        '.leaflet-control-layers label>span,.leaflet-control-layers label>div{'
+        'display:flex;align-items:center;gap:8px;min-height:21px}'
+        '.leaflet-control-layers-selector{accent-color:#7CC496;width:14px;height:14px;'
+        'margin:0!important;top:0!important;flex:none}'
+        '.leaflet-bar{border:0!important;border-radius:10px!important;'
+        'box-shadow:0 4px 12px rgba(0,0,0,.35)!important}'
+        '.leaflet-bar a,.leaflet-bar a:hover{width:40px!important;height:40px!important;'
+        'line-height:38px!important;background:#2E2A2B!important;color:#ECEFF1!important;'
+        'border:1px solid #60575A!important;font-size:20px!important}'
+        '.leaflet-bar a:first-child{border-radius:10px 10px 0 0!important}'
+        '.leaflet-bar a:last-child{border-radius:0 0 10px 10px!important;'
+        'border-top:0!important}'
+        '.leaflet-control-attribution{background:#221F20B3!important;'
+        'color:#AEB6BE!important;border-radius:6px;font-size:11px!important;'
+        'padding:3px 8px!important;margin:0 12px 14px 0!important}'
+        '.leaflet-control-attribution a{color:#AEB6BE!important}'
+        '</style>'))
+    js = (
+        'setTimeout(function(){'
+        f'var mapa={fm.get_name()};'
+        'try{mapa.attributionControl.setPrefix(false);}catch(e){}'
+        'var c=document.querySelector(".leaflet-control-layers");'
+        'if(c&&!c.querySelector(".capas-tit")){'
+        'var l=c.querySelector(".leaflet-control-layers-list");'
+        'var b=document.createElement("button");b.type="button";b.className="capas-tit";'
+        f'var abierta={"true" if abiertas else "false"};'
+        f'var t={_json.dumps(i18n.pick("Capas", "Layers"))};'
+        'var pon=function(){l.style.display=abierta?"":"none";'
+        'b.innerHTML="<span>"+(abierta?"\\u25be":"\\u25b8")+"</span>"+t;'
+        'b.setAttribute("aria-expanded",abierta?"true":"false");};'
+        'b.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();'
+        'abierta=!abierta;pon();});'
+        'pon();c.insertBefore(b,c.firstChild);'
+        'if(window.L){L.DomEvent.disableClickPropagation(c);'
+        'L.DomEvent.disableScrollPropagation(c);}}'
+        + ('' if not (nota_id and nota_capa) else
+           f'var n=document.getElementById({_json.dumps(nota_id)});'
+           f'var k={_json.dumps(nota_capa)};'
+           'if(n){mapa.on("overlayadd",function(e){if(e.name.indexOf(k)>=0)'
+           'n.style.display="";});'
+           'mapa.on("overlayremove",function(e){if(e.name.indexOf(k)>=0)'
+           'n.style.display="none";});}')
+        + '},0);')
 
-
-@st.cache_data(show_spinner=False)
-def _lagunas_vista(caja):
-    """Las lagunas de la capa que va con la app (lon, lat) cerca de la caja."""
-    try:
-        lag = APP_DIR / 'lagunas_sierra_nevada.kml'
-        return [(float(r['lon']), float(r['lat'])) for r in bp.read_points(str(lag))
-                if caja[0] - 0.02 <= float(r['lon']) <= caja[2] + 0.02
-                and caja[1] - 0.02 <= float(r['lat']) <= caja[3] + 0.02]
-    except Exception:                                   # noqa: BLE001
-        return []
+    class _Js(MacroElement):
+        _template = Template('{% macro script(this, kwargs) %}' + js
+                             + '{% endmacro %}')
+    _Js().add_to(fm)
 
 
 def _zoom_para(caja, ancho=800, alto=680, margen=60):
@@ -3160,9 +3244,9 @@ def _zoom_para(caja, ancho=800, alto=680, margen=60):
 
 
 def _mapa_previo(puntos, rectangulo):
-    """El mapa de «Tus puntos y tu zona», como en la demo: relieve oscuro de fondo, los
-    ríos y arroyos y las lagunas, tus puntos (círculos blancos), tu zona si es el
-    rectángulo que los rodea (verde, discontinuo) y la leyenda dentro del mapa. Sin
+    """El mapa de «Tus puntos y tu zona»: la ortofoto de fondo (ESRI de entrada; PNOA,
+    Google u OpenStreetMap en el panel «Capas»), tus puntos (círculos blancos), tu zona si es
+    el rectángulo que los rodea (verde, discontinuo) y la leyenda dentro del mapa. Sin
     puntos, Sierra Nevada."""
     if puntos:
         lons = [p[0] for p in puntos]
@@ -3174,39 +3258,31 @@ def _mapa_previo(puntos, rectangulo):
     # pantalla escondida (tamaño 0), y fit_bounds lo dejaría en el zoom máximo.
     m = folium.Map(location=[(caja[1] + caja[3]) / 2, (caja[0] + caja[2]) / 2],
                    zoom_start=_zoom_para(caja), tiles=None, control_scale=False)
+    # Fondos (la autora, 27-11-2026): los del panel «Capas» de Resultados, en su orden
+    # (Ortofoto PNOA, ESRI World Imagery, Google Satélite, OpenStreetMap), con la de ESRI
+    # de entrada; sin ríos ni lagunas.
+    folium.raster_layers.WmsTileLayer(
+        url='https://www.ign.es/wms-inspire/pnoa-ma', layers='OI.OrthoimageCoverage',
+        fmt='image/jpeg', transparent=False, attr='IGN · PNOA',
+        name=i18n.pick('Ortofoto PNOA', 'PNOA orthophoto'),
+        overlay=False, control=True, show=False, max_zoom=22).add_to(m)
     folium.TileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade_Dark/'
-        'MapServer/tile/{z}/{y}/{x}', attr='Esri', name=i18n.pick('Relieve', 'Terrain'),
-        max_zoom=19, max_native_zoom=16).add_to(m)
-    folium.TileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/'
-        'tile/{z}/{y}/{x}', attr='Esri', name=i18n.pick('Ortofoto (ESRI)', 'Orthophoto (ESRI)'),
-        show=False).add_to(m)
-    folium.TileLayer('OpenStreetMap', name='OpenStreetMap', show=False).add_to(m)
-    # Los ríos y arroyos y las lagunas van apagados de entrada (la autora, 27-11-2026:
-    # «no cargues las lagunas y arroyos por defecto»): se encienden en las capas.
-    _cauces = _cauces_vista(tuple(round(x, 4) for x in caja))
-    if _cauces:
-        folium.GeoJson(_cauces, name=i18n.pick('Ríos y arroyos', 'Rivers and streams'),
-                       style_function=lambda _f: {'color': '#3B82B5', 'weight': 1.5,
-                                                  'opacity': 0.75},
-                       interactive=False, show=False).add_to(m)
-    _lag_vista = _lagunas_vista(tuple(round(x, 4) for x in caja))
-    if _lag_vista:
-        _g_lag = folium.FeatureGroup(name=i18n.pick('Lagunas', 'Lakes'), show=False)
-        for lon, lat in _lag_vista:
-            folium.CircleMarker([lat, lon], radius=5, color='#4FC3F7', weight=0, fill=True,
-                                fill_color='#4FC3F7', fill_opacity=0.95,
-                                interactive=False).add_to(_g_lag)
-        _g_lag.add_to(m)
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/'
+        'tile/{z}/{y}/{x}', attr='Esri World Imagery', name='ESRI World Imagery',
+        max_zoom=22, max_native_zoom=19, show=True).add_to(m)
+    folium.TileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', attr='Google',
+                     name=i18n.pick('Google Satélite (más zoom)', 'Google Satellite (more zoom)'),
+                     max_zoom=22, max_native_zoom=21, show=False).add_to(m)
+    folium.TileLayer('OpenStreetMap', name='OpenStreetMap', max_zoom=19, show=False).add_to(m)
     if puntos and rectangulo and len(puntos) > 1:
         folium.Rectangle([[caja[1], caja[0]], [caja[3], caja[2]]],
                          color='#7CC496', weight=2.5, dash_array='8 6', fill=True,
                          fill_color='#7CC496', fill_opacity=0.07).add_to(m)
     for lon, lat in puntos:
-        folium.CircleMarker([lat, lon], radius=6, color='#131517', weight=2,
+        folium.CircleMarker([lat, lon], radius=6, color='#221F20', weight=2,
                             fill=True, fill_color='#ECEFF1', fill_opacity=1).add_to(m)
-    folium.LayerControl(collapsed=True).add_to(m)
+    folium.LayerControl(collapsed=False).add_to(m)
+    capas_oscuras(m)                # el panel «Capas» oscuro, como en Resultados
     # La leyenda, dentro del mapa (abajo a la izquierda), como en la demo.
     filas = []
     if puntos:
@@ -3218,7 +3294,7 @@ def _mapa_previo(puntos, rectangulo):
     if filas:                       # sin puntos, sin leyenda
         m.get_root().html.add_child(folium.Element(
             '<div style="position:fixed;left:16px;bottom:16px;z-index:9999;'
-            'background:rgba(29,33,36,.9);border:1px solid #343B41;border-radius:10px;'
+            'background:rgba(46,42,43,.9);border:1px solid #494245;border-radius:10px;'
             'padding:10px 12px;display:flex;flex-direction:column;gap:6px;'
             'font:12px Inter,system-ui,sans-serif;color:#CDD3D9">' + ''.join(filas)
             + '</div>'))
@@ -3343,10 +3419,10 @@ def render_ayuda():
         '</a>' for ti, tx, u in _tarjetas) + '</div>')
 
     # Qué modelo elegir según tu zona: el resumen; el detalle, en la documentación de abajo.
-    _filas = [(i18n.pick('Sierra Nevada', 'Sierra Nevada'), '27',
+    _filas = [(i18n.pick('General', 'General'), '27',
                i18n.pick('0,847 (0,833 sin radar)', '0.847 (0.833 without radar)'),
                i18n.pick('En cualquier zona', 'Anywhere')),
-              (i18n.pick('Sierra Nevada con infrarrojo', 'Sierra Nevada with infrared'), '32',
+              (i18n.pick('Con infrarrojo', 'With infrared'), '32',
                i18n.pick('0,945 (0,937 sin radar)', '0.945 (0.937 without radar)'),
                i18n.pick('Andalucía, Cataluña y Canarias',
                          'Andalusia, Catalonia and the Canary Islands'))]
@@ -3986,7 +4062,7 @@ with col_principal:
                                       state='complete')
                     else:
                         status.update(label='⚠ Sin ortofoto IR WMS para esta zona '
-                                      '(Andalucía/Cataluña/Canarias): mejor el modelo base',
+                                      '(Andalucía/Cataluña/Canarias): mejor el modelo «General»',
                                       state='error')
                 except Exception as e:
                     status.update(label=f'⚠ CIR falló (se continúa sin IR): {e}',
@@ -4280,7 +4356,7 @@ with pant_resultados:
         # ================================================================
         st.html('<style>' + '''
 .res-titulo{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin:2px 0 0}
-.res-titulo h1{margin:0!important;padding:0!important;font-family:"Space Grotesk",Inter,
+.res-titulo h1{margin:0!important;padding:0!important;font-family:Montserrat,Inter,
   sans-serif!important;font-size:28px!important;font-weight:700!important;
   letter-spacing:-.01em;color:#F5F7F8!important;line-height:1.25!important}
 .res-titulo span{font-size:14px;color:#AEB6BE}
@@ -4313,27 +4389,27 @@ with pant_resultados:
 .res-proceso th+th,.res-proceso td+td{text-align:right;padding-right:0}
 .res-proceso td{padding:4px 10px 4px 0}
 .res-proceso .nota{flex:1 1 100%;font-size:12px;color:#E9DDBF}
-.res-tarjeta{background:#1D2124;border:1px solid #2C3237;border-radius:16px;padding:18px;
+.res-tarjeta{background:#2E2A2B;border:1px solid #403A3C;border-radius:16px;padding:18px;
   display:flex;flex-direction:column;gap:4px;min-height:132px;box-sizing:border-box}
 .res-tarjeta .r{font-size:13px;color:#AEB6BE;font-weight:500}
-.res-tarjeta .v{font-family:"Space Grotesk",Inter,sans-serif;font-size:40px;
+.res-tarjeta .v{font-family:Montserrat,Inter,sans-serif;font-size:40px;
   font-weight:700;line-height:1.1;white-space:nowrap}
 .res-tarjeta .s{font-size:13px;color:#AEB6BE}
 .st-key-res_modelo button{width:100%;min-height:132px;display:flex;
   flex-direction:column;align-items:flex-start;justify-content:flex-start;
-  background:#1D2124;border:1px solid #2C3237;border-radius:16px;padding:18px;
+  background:#2E2A2B;border:1px solid #403A3C;border-radius:16px;padding:18px;
   text-align:left}
-.st-key-res_modelo button:hover{border-color:#3E6B4F;background:#1D2124}
+.st-key-res_modelo button:hover{border-color:#3E6B4F;background:#2E2A2B}
 .st-key-res_modelo button>div{width:100%;justify-content:flex-start}
 .st-key-res_modelo button>div>span{width:100%}
 .st-key-res_modelo button [data-testid="stMarkdownContainer"]{text-align:left;width:100%}
 .st-key-res_modelo button p{margin:0 0 4px!important;text-align:left;font-size:13px;
   font-weight:500;color:#AEB6BE;line-height:1.4}
-.st-key-res_modelo button p:nth-of-type(2){font-family:"Space Grotesk",Inter,sans-serif;
+.st-key-res_modelo button p:nth-of-type(2){font-family:Montserrat,Inter,sans-serif;
   font-size:22px;font-weight:700;color:#ECEFF1;line-height:1.25}
 .st-key-res_modelo button p:nth-of-type(3){color:#7CC496;font-weight:400}
 .st-key-res_modelo_abierto details:not([open]){display:none}
-.st-key-res_modelo_abierto details{background:#1D2124;border:1px solid #2C3237;
+.st-key-res_modelo_abierto details{background:#2E2A2B;border:1px solid #403A3C;
   border-radius:16px}
 .st-key-res_modelo_abierto summary p{font-weight:700;font-size:15px;color:#ECEFF1}
 .st-key-res_modelo_abierto [data-testid="stMarkdownContainer"] p,
@@ -4347,35 +4423,35 @@ with pant_resultados:
 .st-key-res_cert summary{padding:6px 0;min-height:32px}
 .st-key-res_cert summary p{font-size:13px!important;font-weight:600!important;
   color:#A3D9B5!important}
-.st-key-res_cert table{border:1px solid #2C3237;border-radius:10px;width:100%}
-.st-key-res_cert th{padding:7px 10px;border-bottom:1px solid #2C3237}
-.st-key-res_cert td{padding:7px 10px;border-bottom:1px solid #262B2F}
-.st-key-res_reentrenar{border-top:1px solid #2C3237;padding-top:10px}
-.st-key-res_quien{background:#181B1E;border:1px solid #2C3237;border-radius:14px;
+.st-key-res_cert table{border:1px solid #403A3C;border-radius:10px;width:100%}
+.st-key-res_cert th{padding:7px 10px;border-bottom:1px solid #403A3C}
+.st-key-res_cert td{padding:7px 10px;border-bottom:1px solid #393335}
+.st-key-res_reentrenar{border-top:1px solid #403A3C;padding-top:10px}
+.st-key-res_quien{background:#282526;border:1px solid #403A3C;border-radius:14px;
   padding:12px 16px}
 .st-key-res_quien [data-testid="stCaptionContainer"] p{font-size:12px;color:#AEB6BE}
 .st-key-vistas_resultados [data-baseweb="tab-list"]{gap:6px;flex-wrap:wrap}
 .st-key-vistas_resultados [data-baseweb="tab-highlight"],
 .st-key-vistas_resultados [data-baseweb="tab-border"]{display:none}
-.st-key-vistas_resultados button[data-baseweb="tab"]{border:1px solid #343B41;
-  background:#1D2124;border-radius:999px;padding:8px 16px;min-height:40px;height:auto;
+.st-key-vistas_resultados button[data-baseweb="tab"]{border:1px solid #494245;
+  background:#2E2A2B;border-radius:999px;padding:8px 16px;min-height:40px;height:auto;
   margin:0}
 .st-key-vistas_resultados button[data-baseweb="tab"] p{font-size:14px;font-weight:500;
   color:#CDD3D9}
 .st-key-vistas_resultados button[data-baseweb="tab"][aria-selected="true"]{
   background:#ECEFF1;border-color:#ECEFF1}
 .st-key-vistas_resultados button[data-baseweb="tab"][aria-selected="true"] p{
-  color:#131517;font-weight:700}
+  color:#221F20;font-weight:700}
 .st-key-res_aside{margin-top:var(--res-aside, 58px)}
 .st-key-res_siguiente{background:#1B2B21;border:1.5px solid #7CC496;border-radius:16px;
   padding:20px}
 .res-sig .e{font-size:13px;font-weight:600;color:#7CC496}
-.res-sig .t{font-family:"Space Grotesk",Inter,sans-serif;font-size:20px;font-weight:700;
+.res-sig .t{font-family:Montserrat,Inter,sans-serif;font-size:20px;font-weight:700;
   color:#F5F7F8;margin:8px 0 6px}
 .res-sig .d{font-size:14px;line-height:1.5;color:#CDD3D9}
 .st-key-ir_revisar button{min-height:48px;border-radius:12px}
 .st-key-ir_revisar button p{font-size:15px}
-.st-key-res_despues{background:#1D2124;border:1px solid #2C3237;border-radius:16px;
+.st-key-res_despues{background:#2E2A2B;border:1px solid #403A3C;border-radius:16px;
   padding:18px}
 .res-des .t{font-weight:700;font-size:15px;color:#ECEFF1;margin-bottom:6px}
 .res-des .d{font-size:13px;color:#CDD3D9}
@@ -4385,28 +4461,28 @@ with pant_resultados:
   font-size:13px;font-weight:600;color:#7CC496}
 .st-key-remove_map_pt button p{font-size:13px;font-weight:600;color:#E8A3A3}
 .st-key-ir_mapa button:hover p,.st-key-res_revisarlo button:hover p{color:#A3D9B5}
-[class*="st-key-res_tarjeta_"]{background:#1D2124;border:1px solid #2C3237;
+[class*="st-key-res_tarjeta_"]{background:#2E2A2B;border:1px solid #403A3C;
   border-radius:16px;padding:16px}
 .res-t{font-weight:700;font-size:14px;color:#ECEFF1}
 .res-t15{font-weight:700;font-size:15px;color:#ECEFF1}
 .res-ej{display:block;font-size:12px;line-height:1.5;color:#98A2AB}
 .res-muted{font-size:12px;line-height:1.5;color:#AEB6BE}
-.st-key-res_anadir{background:#1D2124;border:1px solid #2C3237;border-radius:14px;
+.st-key-res_anadir{background:#2E2A2B;border:1px solid #403A3C;border-radius:14px;
   padding:14px 16px}
 .st-key-modo_anadir label p{font-size:14px;font-weight:600}
 .st-key-res_anadir [data-testid="stMarkdownContainer"] p{font-size:13px;color:#CDD3D9}
-.st-key-res_respuestas button{min-height:44px;border-radius:10px;border:1px solid #46505A;
-  background:#262B2F}
+.st-key-res_respuestas button{min-height:44px;border-radius:10px;border:1px solid #60575A;
+  background:#393335}
 .st-key-res_respuestas button p{font-size:13px;font-weight:600;color:#ECEFF1}
 .st-key-mapa_si button{border:1.5px solid #7CC496;background:#1E3327}
 .st-key-mapa_cancelar button,.st-key-mapa_deshacer button{min-height:40px;
-  border-radius:10px;border:1px solid #46505A;background:#262B2F}
+  border-radius:10px;border:1px solid #60575A;background:#393335}
 .st-key-mapa_cancelar button p,.st-key-mapa_deshacer button p{font-size:13px;
   font-weight:500;color:#CDD3D9}
 .st-key-dist_vista [data-testid="stButtonGroup"]>div,
 .st-key-dist_comparar [data-testid="stButtonGroup"]>div{gap:6px;flex-wrap:wrap}
-.st-key-dist_vista button,.st-key-dist_comparar button{border:1px solid #343B41!important;
-  background:#262B2F;border-radius:10px!important;min-height:44px;padding:9px 10px}
+.st-key-dist_vista button,.st-key-dist_comparar button{border:1px solid #494245!important;
+  background:#393335;border-radius:10px!important;min-height:44px;padding:9px 10px}
 .st-key-dist_vista button p,.st-key-dist_comparar button p{font-size:13px;font-weight:500;
   color:#CDD3D9}
 .st-key-dist_vista button[kind$="Active"],.st-key-dist_comparar button[kind$="Active"]{
@@ -4626,7 +4702,7 @@ with pant_resultados:
                                           'no field points: review some'), '#F5F7F8')
         # «Modelo usado»: la tarjeta entera es un botón que abre (y cierra) el acierto
         _im = _info_modelo or {}
-        _zm = _zona_partida(_im)
+        _zm = _nombre_partida(_im)
         if _sumado:
             _tit_m = i18n.pick(f'{_zm} + tus puntos', f'{_zm} + your points')
             _n_m = (_im.get('n_tabla') or 0) + (_im.get('n_pos') or 0) + (_im.get('n_neg') or 0)
@@ -4772,8 +4848,8 @@ with pant_resultados:
                 filas.append(('#98A2AB', i18n.pick('Sin predicción', 'No prediction')))
             html = (
                 '<div class="leyenda-res" style="position:fixed;bottom:58px;left:16px;'
-                'z-index:9999;background:rgba(29,33,36,0.92);color:#CDD3D9;'
-                'padding:10px 12px;border-radius:10px;border:1px solid #343B41;'
+                'z-index:9999;background:rgba(46,42,43,0.92);color:#CDD3D9;'
+                'padding:10px 12px;border-radius:10px;border:1px solid #494245;'
                 'font:12px Inter,system-ui,sans-serif;display:flex;flex-direction:column;'
                 'gap:5px;box-shadow:0 4px 12px rgba(0,0,0,0.35)">'
                 + ''.join('<span style="display:flex;align-items:center;gap:7px">'
@@ -4784,24 +4860,24 @@ with pant_resultados:
             _capas = i18n.pick('Capas', 'Layers')
             fmap.get_root().header.add_child(folium.Element(
                 '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-                'family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700'
+                'family=Inter:wght@400;500;600;700&family=Montserrat:wght@700'
                 '&display=swap"><style>'
-                '.leaflet-popup-content-wrapper{background:rgba(29,33,36,.96);'
-                'color:#CDD3D9;border:1px solid #46505A;border-radius:12px;'
+                '.leaflet-popup-content-wrapper{background:rgba(46,42,43,.96);'
+                'color:#CDD3D9;border:1px solid #60575A;border-radius:12px;'
                 'box-shadow:0 8px 22px rgba(0,0,0,.45)}'
                 '.leaflet-popup-content{margin:10px 12px;font-family:Inter,system-ui,'
                 'sans-serif}'
-                '.leaflet-popup-tip{background:#1D2124;border:1px solid #46505A}'
+                '.leaflet-popup-tip{background:#2E2A2B;border:1px solid #60575A}'
                 '.leaflet-container a.leaflet-popup-close-button{color:#AEB6BE;'
                 'font:700 15px Inter,sans-serif;top:8px;right:8px}'
                 '.leaflet-container a.leaflet-popup-close-button:hover{color:#ECEFF1}'
-                '.leaflet-control-layers{background:rgba(29,33,36,.9)!important;'
-                'border:1px solid #343B41!important;border-radius:10px!important;'
+                '.leaflet-control-layers{background:rgba(46,42,43,.9)!important;'
+                'border:1px solid #494245!important;border-radius:10px!important;'
                 'color:#CDD3D9;font:12px Inter,system-ui,sans-serif;'
                 'padding:10px 12px!important;box-shadow:0 4px 12px rgba(0,0,0,.35)!important}'
                 '.leaflet-control-layers-list::before{content:"' + _capas + '";'
                 'display:block;font-weight:600;color:#ECEFF1;margin-bottom:6px}'
-                '.leaflet-control-layers-separator{border-top:1px solid #343B41!important}'
+                '.leaflet-control-layers-separator{border-top:1px solid #494245!important}'
                 '.leaflet-control-layers input{accent-color:#7CC496}'
                 '.leaflet-control-layers label{margin:3px 0}'
                 '.leaflet-control-layers-list,.leaflet-control-layers-scrollbar{'
@@ -4873,89 +4949,7 @@ with pant_resultados:
                     overlay=True, show=False, max_zoom=22).add_to(fm)
             return fm
 
-        def _capas_oscuras(fm, abiertas=True, nota_id=None, nota_capa=None):
-            """El control de capas como el panel «Capas» de la demo (Revisar.dc.html): en
-            oscuro, con su título («▾ Capas», que pliega y despliega la lista) y los dos
-            grupos, FONDO (las capas de fondo) y ENCIMA (las que se encienden encima); los
-            créditos, en una etiqueta oscura y sin el «Leaflet» delante; y los botones del
-            zoom, oscuros. Se llama después de añadir el folium.LayerControl(collapsed=False).
-            `nota_id`/`nota_capa`: un elemento del mapa que se ve solo mientras esté
-            encendida la capa cuyo nombre contiene `nota_capa` (la parte de los ríos en la
-            leyenda del mapa de 2 · Revisar)."""
-            import json as _json
-            from branca.element import MacroElement
-            from jinja2 import Template
-            fondo, encima = i18n.pick('Fondo', 'Base'), i18n.pick('Encima', 'On top')
-            fm.get_root().header.add_child(folium.Element(
-                '<style>'
-                '.leaflet-container{background:#1D2124;font-family:Inter,system-ui,sans-serif}'
-                '.leaflet-control-layers,.leaflet-control-layers-expanded{'
-                'background:#181B1EF2;border:1px solid #3B434A!important;border-radius:12px;'
-                'padding:6px 12px 8px;color:#CDD3D9;font:12px/1.25 Inter,system-ui,sans-serif;'
-                'box-shadow:0 6px 18px rgba(0,0,0,.35)!important;max-width:260px}'
-                # (sin la barra de desplazamiento que Leaflet le pone si al crearse no cabe)
-                '.leaflet-control-layers-list,.leaflet-control-layers-scrollbar{margin:0;'
-                'height:auto!important;overflow:visible!important;padding-right:0!important}'
-                '.leaflet-control-layers .capas-tit{display:flex;align-items:center;gap:8px;'
-                'border:0;background:transparent;color:#ECEFF1;font:700 13px Inter,system-ui,'
-                'sans-serif;padding:4px 0;cursor:pointer;width:100%;text-align:left}'
-                '.leaflet-control-layers .capas-tit span{color:#7CC496;width:12px}'
-                '.leaflet-control-layers-base::before,.leaflet-control-layers-overlays::before{'
-                'display:block;font-size:11px;font-weight:700;letter-spacing:.06em;'
-                'text-transform:uppercase;color:#98A2AB;margin:2px 0 1px}'
-                f'.leaflet-control-layers-base::before{{content:{_json.dumps(fondo)}}}'
-                '.leaflet-control-layers-overlays::before{'
-                f'content:{_json.dumps(encima)};margin-top:6px}}'
-                '.leaflet-control-layers-separator{display:none}'
-                '.leaflet-control-layers label{margin:0;cursor:pointer}'
-                '.leaflet-control-layers label>span,.leaflet-control-layers label>div{'
-                'display:flex;align-items:center;gap:8px;min-height:21px}'
-                '.leaflet-control-layers-selector{accent-color:#7CC496;width:14px;height:14px;'
-                'margin:0!important;top:0!important;flex:none}'
-                '.leaflet-bar{border:0!important;border-radius:10px!important;'
-                'box-shadow:0 4px 12px rgba(0,0,0,.35)!important}'
-                '.leaflet-bar a,.leaflet-bar a:hover{width:40px!important;height:40px!important;'
-                'line-height:38px!important;background:#1D2124!important;color:#ECEFF1!important;'
-                'border:1px solid #46505A!important;font-size:20px!important}'
-                '.leaflet-bar a:first-child{border-radius:10px 10px 0 0!important}'
-                '.leaflet-bar a:last-child{border-radius:0 0 10px 10px!important;'
-                'border-top:0!important}'
-                '.leaflet-control-attribution{background:#131517B3!important;'
-                'color:#AEB6BE!important;border-radius:6px;font-size:11px!important;'
-                'padding:3px 8px!important;margin:0 12px 14px 0!important}'
-                '.leaflet-control-attribution a{color:#AEB6BE!important}'
-                '</style>'))
-            js = (
-                'setTimeout(function(){'
-                f'var mapa={fm.get_name()};'
-                'try{mapa.attributionControl.setPrefix(false);}catch(e){}'
-                'var c=document.querySelector(".leaflet-control-layers");'
-                'if(c&&!c.querySelector(".capas-tit")){'
-                'var l=c.querySelector(".leaflet-control-layers-list");'
-                'var b=document.createElement("button");b.type="button";b.className="capas-tit";'
-                f'var abierta={"true" if abiertas else "false"};'
-                f'var t={_json.dumps(i18n.pick("Capas", "Layers"))};'
-                'var pon=function(){l.style.display=abierta?"":"none";'
-                'b.innerHTML="<span>"+(abierta?"\\u25be":"\\u25b8")+"</span>"+t;'
-                'b.setAttribute("aria-expanded",abierta?"true":"false");};'
-                'b.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();'
-                'abierta=!abierta;pon();});'
-                'pon();c.insertBefore(b,c.firstChild);'
-                'if(window.L){L.DomEvent.disableClickPropagation(c);'
-                'L.DomEvent.disableScrollPropagation(c);}}'
-                + ('' if not (nota_id and nota_capa) else
-                   f'var n=document.getElementById({_json.dumps(nota_id)});'
-                   f'var k={_json.dumps(nota_capa)};'
-                   'if(n){mapa.on("overlayadd",function(e){if(e.name.indexOf(k)>=0)'
-                   'n.style.display="";});'
-                   'mapa.on("overlayremove",function(e){if(e.name.indexOf(k)>=0)'
-                   'n.style.display="none";});}')
-                + '},0);')
-
-            class _Js(MacroElement):
-                _template = Template('{% macro script(this, kwargs) %}' + js
-                                     + '{% endmacro %}')
-            _Js().add_to(fm)
+        _capas_oscuras = capas_oscuras      # (ahora también en el mapa de Analizar)
 
         def _add_pixel_layers(fm, pts, show=False, cap=600):
             """Capas (desactivables) con la rejilla de muestreo S2/S1 por punto:
@@ -5449,24 +5443,24 @@ with pant_resultados:
             # pueden marcar varios y revisarlos juntos) o, al entrar, el primero de la lista.
             # Los estilos van aquí, con las claves rev_… (y las clases rev-…).
             _CSS_REVISAR = '''
-.st-key-rev_lado{background:#22272B;border:1px solid #3C444B;border-radius:16px;padding:20px;
+.st-key-rev_lado{background:#342F31;border:1px solid #534B4E;border-radius:16px;padding:20px;
   box-shadow:6px 0 18px rgba(0,0,0,.35);gap:12px}
 .rev-cuenta{display:flex;flex-direction:column;gap:6px}
 .rev-cuenta b{font-size:15px;font-weight:700;color:#ECEFF1}
-.rev-barra{height:8px;border-radius:999px;background:#2C3237;overflow:hidden}
+.rev-barra{height:8px;border-radius:999px;background:#403A3C;overflow:hidden}
 .rev-barra span{display:block;height:8px;background:#7CC496}
 .st-key-rev_filtro [data-testid="stButtonGroup"]>div{gap:6px;flex-wrap:wrap}
-.st-key-rev_filtro button{border:1px solid #48525B;background:#323940;border-radius:999px;
+.st-key-rev_filtro button{border:1px solid #62585B;background:#484143;border-radius:999px;
   padding:6px 12px;min-height:0}
 .st-key-rev_filtro button p{font-size:13px;font-weight:500;color:#CDD3D9}
 .st-key-rev_filtro button[kind$="Active"]{border-color:#ECEFF1;background:#ECEFF1}
-.st-key-rev_filtro button[kind$="Active"] p{color:#131517;font-weight:700}
+.st-key-rev_filtro button[kind$="Active"] p{color:#221F20;font-weight:700}
 .st-key-rev_lista_caja{height:auto!important;max-height:620px}
 .st-key-rev_lista,.st-key-rev_lista [data-testid="stRadio"],
 .st-key-rev_lista [role="radiogroup"]{width:100%}
 .st-key-rev_lista [role="radiogroup"]{gap:6px;flex-direction:column;flex-wrap:nowrap}
 .st-key-rev_lista label[data-baseweb="radio"]{width:100%;margin:0;padding:10px 12px;
-  border-radius:10px;background:#2A3034;border:1px solid #3B434A;box-sizing:border-box}
+  border-radius:10px;background:#3D383A;border:1px solid #524A4D;box-sizing:border-box}
 .st-key-rev_lista label[data-baseweb="radio"]:hover{border-color:#5E6871}
 .st-key-rev_lista label[data-baseweb="radio"]:has(input:checked){background:#1B2B21;
   border:1.5px solid #7CC496}
@@ -5482,14 +5476,14 @@ with pant_resultados:
 .st-key-rev_lista label p em{font-style:normal;font-weight:700;font-size:15px;color:#ECEFF1}
 .st-key-rev_lado_nota p{font-size:12px;line-height:1.45;color:#98A2AB}
 .rev-titulo{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
-.rev-titulo h1{margin:0;padding:0;font-family:"Space Grotesk",Inter,sans-serif;font-size:26px;
+.rev-titulo h1{margin:0;padding:0;font-family:Montserrat,Inter,sans-serif;font-size:26px;
   font-weight:700;line-height:1.2;color:#F5F7F8;overflow-wrap:anywhere}
 .rev-titulo span{font-size:14px;color:#AEB6BE}
-.st-key-rev_mapa iframe{border-radius:18px;border:1px solid #2C3237!important;
-  background:#1D2124;display:block}
+.st-key-rev_mapa iframe{border-radius:18px;border:1px solid #403A3C!important;
+  background:#2E2A2B;display:block}
 details.rev-amarillo,details.rev-perfil{border-radius:12px;overflow:hidden}
 details.rev-amarillo{border:1px solid #5C5320;background:#221F12}
-details.rev-perfil{border:1px solid #2C3237;background:#1D2124}
+details.rev-perfil{border:1px solid #403A3C;background:#2E2A2B}
 details.rev-amarillo>summary,details.rev-perfil>summary{list-style:none;display:flex;
   align-items:center;gap:8px;padding:11px 14px;font:600 14px Inter,system-ui,sans-serif;
   min-height:44px;box-sizing:border-box;cursor:pointer}
@@ -5513,23 +5507,23 @@ details.rev-leer>summary{list-style:none;color:#A3D9B5;font:600 13px Inter,syste
 details.rev-leer>summary::before{content:"\\25B8  "}
 details.rev-leer[open]>summary::before{content:"\\25BE  "}
 details.rev-leer>summary:hover{color:#CFEBD9}
-.rev-leer-cuerpo{font-size:12.5px;line-height:1.55;color:#CDD3D9;background:#131517;
+.rev-leer-cuerpo{font-size:12.5px;line-height:1.55;color:#CDD3D9;background:#221F20;
   border:1px solid #3E6B4F;border-radius:10px;padding:10px 12px;display:flex;
   flex-direction:column;gap:6px}
 .rev-clave{display:flex;flex-direction:column;gap:8px}
 .rev-clave>.t{font-size:13px;color:#AEB6BE}
 .rev-tarjetas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.rev-tarjetas>div{background:#1D2124;border:1px solid #2C3237;border-radius:12px;padding:12px;
+.rev-tarjetas>div{background:#2E2A2B;border:1px solid #403A3C;border-radius:12px;padding:12px;
   display:flex;flex-direction:column;gap:3px}
 .rev-tarjetas .e{font-size:12px;color:#AEB6BE}
 .rev-tarjetas .v{font-weight:700;font-size:18px;color:#F5F7F8}
 .rev-tarjetas .r{font-size:12px;color:#98A2AB}
 @media (max-width:700px){.rev-tarjetas{grid-template-columns:1fr}}
 .st-key-rev_linea p{font-size:13px;color:#CDD3D9;margin:0}
-.st-key-rev_tarjeta{background:#1D2124;border:1px solid #2C3237;border-radius:18px;
+.st-key-rev_tarjeta{background:#2E2A2B;border:1px solid #403A3C;border-radius:18px;
   padding:20px;gap:16px}
 .st-key-rev_tarjeta [data-testid="stCaptionContainer"] p{font-size:12px;color:#98A2AB}
-.rev-preg{font-family:"Space Grotesk",Inter,sans-serif;font-weight:700;font-size:18px;
+.rev-preg{font-family:Montserrat,Inter,sans-serif;font-weight:700;font-size:18px;
   color:#F5F7F8}
 .rev-nota{font-size:13px;line-height:1.45;color:#E9E2C4;background:#221F12;
   border:1px solid #5C5320;border-radius:10px;padding:8px 10px}
@@ -5551,20 +5545,20 @@ details.rev-leer>summary:hover{color:#CFEBD9}
 .st-key-rev_tarjeta .st-key-rev_certidumbre [role="radiogroup"]{display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .st-key-rev_tarjeta .st-key-rev_certidumbre label[data-baseweb="radio"]{min-height:44px;
-  padding:9px 6px;margin:0;border:1px solid #343B41;border-radius:10px;background:#262B2F}
+  padding:9px 6px;margin:0;border:1px solid #494245;border-radius:10px;background:#393335}
 .st-key-rev_tarjeta .st-key-rev_certidumbre label[data-baseweb="radio"] p{font-size:13px;
   font-weight:500;color:#CDD3D9;text-align:center}
 .st-key-rev_tarjeta .st-key-rev_certidumbre label[data-baseweb="radio"]:has(input:checked){
   border:1.5px solid #7CC496;background:#1E3327}
 .st-key-rev_tarjeta .st-key-rev_certidumbre label[data-baseweb="radio"]:has(input:checked) p{
   font-weight:600;color:#ECEFF1}
-.st-key-rev_tipo{border-top:1px solid #2C3237;padding-top:14px;gap:10px}
+.st-key-rev_tipo{border-top:1px solid #403A3C;padding-top:14px;gap:10px}
 .rev-tipo-tit{font-weight:600;font-size:14px;color:#ECEFF1}
 .rev-tipo-tit span{font-weight:400;color:#AEB6BE}
 .st-key-rev_tipo [data-testid="stWidgetLabel"] p{font-size:13px;color:#CDD3D9}
-.st-key-rev_tipo [data-baseweb="select"]>div{background:#131517;border:1px solid #46505A;
+.st-key-rev_tipo [data-baseweb="select"]>div{background:#221F20;border:1px solid #60575A;
   border-radius:10px;min-height:44px}
-.rev-dudoso{font-size:13px;color:#AEB6BE;border-top:1px solid #2C3237;padding-top:14px}
+.rev-dudoso{font-size:13px;color:#AEB6BE;border-top:1px solid #403A3C;padding-top:14px}
 .st-key-rev_fila_guardar,.st-key-rev_fila_deshacer,.st-key-rev_fila_quitar{gap:6px;
   flex-wrap:nowrap}
 .st-key-rev_fila_guardar>*,.st-key-rev_fila_deshacer>*,.st-key-rev_fila_quitar>*{min-width:0}
@@ -5572,13 +5566,13 @@ details.rev-leer>summary:hover{color:#CFEBD9}
 .st-key-rev_guardar button p{font-size:15px;font-weight:700}
 .st-key-rev_deshacer button,.st-key-remove_pts button{min-height:44px;border-radius:12px;
   padding:11px}
-.st-key-rev_deshacer button{border:1px solid #343B41;background:#262B2F}
+.st-key-rev_deshacer button{border:1px solid #494245;background:#393335}
 .st-key-rev_deshacer button p{font-size:14px;font-weight:500;color:#CDD3D9}
 .st-key-remove_pts button{border:1px solid #5A2E2E;background:#241616}
 .st-key-remove_pts button:hover{border-color:#8C4A4A;background:#2E1B1B}
 .st-key-remove_pts button p{font-size:14px;font-weight:500;color:#F0B4B4;line-height:1.2}
 .rev-tabla-tit{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
-.rev-tabla-tit h2{margin:0;padding:0;font-family:"Space Grotesk",Inter,sans-serif;
+.rev-tabla-tit h2{margin:0;padding:0;font-family:Montserrat,Inter,sans-serif;
   font-size:20px;font-weight:700;color:#F5F7F8}
 .rev-tabla-tit span{font-size:13px;color:#AEB6BE}
 .st-key-rev_tabla [data-testid="stCaptionContainer"] p{font-size:12.5px;line-height:1.5;
@@ -6205,8 +6199,8 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                         + f'<span id="rev-rios">{_rios_txt}</span>')
                     fm.get_root().html.add_child(folium.Element(
                         '<div class="rev-leyenda" style="position:fixed;left:16px;bottom:14px;'
-                        'max-width:60%;z-index:9999;background:#131517E6;border:1px solid '
-                        '#343B41;border-radius:8px;padding:6px 10px;color:#CDD3D9;'
+                        'max-width:60%;z-index:9999;background:#221F20E6;border:1px solid '
+                        '#494245;border-radius:8px;padding:6px 10px;color:#CDD3D9;'
                         'font:12px/1.35 Inter,system-ui,sans-serif">' + _leyenda_mapa
                         + '</div>'))
                     _capas_oscuras(fm, nota_id='rev-rios', nota_capa=_capa_rios)
@@ -7080,7 +7074,7 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                 # comparando borreguil con no borreguil o los borreguiles por su humedad
                 # o su ambiente con los no borreguiles (25-11-2026, la autora), con los
                 # controles y los gráficos de la demo (27-11-2026).
-                st.markdown('<div style="border-top:1px solid #2C3237;margin-top:4px;'
+                st.markdown('<div style="border-top:1px solid #403A3C;margin-top:4px;'
                             'padding-top:12px"><span class="res-t15">' + i18n.pick(
                                 'Las que más pesan, grupo a grupo',
                                 'The ones that weigh most, group by group')
@@ -7213,7 +7207,7 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                                    scale=alt.Scale(paddingOuter=0.35, paddingInner=0.3))
                         _y = alt.Y('p10:Q', title=None, scale=alt.Scale(zero=False),
                                    axis=alt.Axis(labelExpr=_eje_num, tickCount=4,
-                                                 gridColor='#262B2F', domainColor='#46505A',
+                                                 gridColor='#393335', domainColor='#60575A',
                                                  labelColor='#AEB6BE'))
                         _c_b = alt.Color('grupo:N', legend=None, scale=alt.Scale(
                             domain=_gr, range=[_bord[g] for g in _gr]))
@@ -7277,7 +7271,7 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                             line={'strokeWidth': 2}).encode(
                             x=alt.X('x:Q', title=None, axis=alt.Axis(
                                 labelExpr=_eje_num, tickCount=3, grid=False,
-                                domainColor='#46505A', labelColor='#AEB6BE')),
+                                domainColor='#60575A', labelColor='#AEB6BE')),
                             y=alt.Y('d:Q', axis=None, stack=None),
                             color=alt.Color('grupo:N', legend=None, scale=alt.Scale(
                                 domain=_gr, range=[_bord[g] for g in _gr])),
@@ -7329,7 +7323,7 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                                                   labelBaseline='middle'))
                         _sx = alt.Scale(domain=[-2.5, 2.5], clamp=True, nice=False)
                         _ax = alt.Axis(values=[-2.5, -1, 0, 1, 2.5], title=None, grid=False,
-                                       domainColor='#343B41', labelColor='#AEB6BE',
+                                       domainColor='#494245', labelColor='#AEB6BE',
                                        labelLimit=0, labelOverlap=False, labelFontSize=11,
                                        labelExpr=(
                                            "datum.value == 0 ? '" + i18n.pick(
@@ -7340,7 +7334,7 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                                               "'.', ',')" if i18n.get_lang() != 'en' else
                                               "format(abs(datum.value), '.1~f')")))
                         _ch = alt.layer(
-                            alt.Chart(_dff).mark_bar(size=12, color='#23292D',
+                            alt.Chart(_dff).mark_bar(size=12, color='#363133',
                                                      cornerRadius=3).encode(
                                 y=_yv, x=alt.X('a:Q', scale=_sx, axis=_ax), x2='b:Q'),
                             alt.Chart(pd.DataFrame({'cero': [0.0]})).mark_rule(
@@ -7401,14 +7395,14 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                                 x=alt.X('x:Q', title=_tw.wrap(_etq_larga(_vx), 70),
                                         scale=alt.Scale(
                                     zero=False, nice=True), axis=alt.Axis(
-                                    labelExpr=_eje_num, gridColor='#2A3035',
+                                    labelExpr=_eje_num, gridColor='#3E383A',
                                     domainColor='#5E6871', labelColor='#AEB6BE')),
                                 # (partido en líneas: un título más largo que el gráfico lo
                                 # aplastaba)
                                 y=alt.Y('y:Q', title=_tw.wrap(_etq_larga(_vy), 42),
                                         scale=alt.Scale(
                                     zero=False, nice=True), axis=alt.Axis(
-                                    labelExpr=_eje_num, gridColor='#2A3035',
+                                    labelExpr=_eje_num, gridColor='#3E383A',
                                     domainColor='#5E6871', labelColor='#AEB6BE')),
                                 color=alt.Color('grupo:N', legend=None, scale=alt.Scale(
                                     domain=_gr, range=[_bord[g] for g in _gr])),
@@ -7439,8 +7433,8 @@ details.rev-leer>summary:hover{color:#CFEBD9}
                 if _ch is not None:
                     # Sobre el fondo de la tarjeta; cada panel, en su recuadro (la demo)
                     _ch = _ch.properties(background='transparent').configure_view(
-                        fill='#181B1E' if _vista in ('cajas', 'curvas') else None,
-                        stroke='#2C3237' if _vista in ('cajas', 'curvas') else None,
+                        fill='#282526' if _vista in ('cajas', 'curvas') else None,
+                        stroke='#403A3C' if _vista in ('cajas', 'curvas') else None,
                         cornerRadius=8)
                     st.altair_chart(_ch, width='stretch' if _vista in ('diferencias', 'dos')
                                     else 'content')
@@ -7487,7 +7481,7 @@ details.rev-leer>summary:hover{color:#CFEBD9}
 # tarjeta_mapa_…), para no tocar las demás pantallas.
 _CSS_MAPA = '''
 .st-key-mapa_pantalla{gap:16px}
-.st-key-mapa_titulo h1{font-family:"Space Grotesk",Inter,system-ui,sans-serif;font-size:28px !important;
+.st-key-mapa_titulo h1{font-family:Montserrat,Inter,system-ui,sans-serif;font-size:28px !important;
   font-weight:700;color:#F5F7F8;padding:0 !important;margin:0 !important;line-height:1.25}
 .st-key-mapa_pantalla h1 [data-testid="stHeaderActionElements"],
 .st-key-mapa_pantalla h5 [data-testid="stHeaderActionElements"]{display:none}
@@ -7503,7 +7497,7 @@ _CSS_MAPA = '''
 .st-key-mrf_paso>div>div>[data-baseweb="tab-list"],
 .st-key-mrf_paso>div>div>[data-baseweb="tab-border"]{display:none}
 [class*="st-key-mrf_ir_"] button{width:100%;min-height:64px;padding:10px 12px;border-radius:12px;
-  border:1px solid #343B41;background:#1D2124;justify-content:flex-start;align-items:flex-start}
+  border:1px solid #494245;background:#2E2A2B;justify-content:flex-start;align-items:flex-start}
 [class*="st-key-mrf_ir_"] button [data-testid="stMarkdownContainer"]{text-align:left;width:100%}
 [class*="st-key-mrf_ir_"] button>div,[class*="st-key-mrf_ir_"] button>div>span{width:100%;
   justify-content:flex-start;text-align:left}
@@ -7522,8 +7516,8 @@ _CSS_MAPA = '''
 .st-key-mrf_seleccion label[data-baseweb="radio"],.st-key-mrf_umbral_modo label[data-baseweb="radio"],
 .st-key-mrf_peso_medida label[data-baseweb="radio"],.st-key-mrf_peso_por label[data-baseweb="radio"],
 .st-key-mrf_dist_vista label[data-baseweb="radio"]{flex:1 1 0;min-width:max-content;
-  justify-content:center;margin:0;min-height:44px;padding:9px 10px;border:1px solid #343B41;
-  background:#262B2F;border-radius:10px}
+  justify-content:center;margin:0;min-height:44px;padding:9px 10px;border:1px solid #494245;
+  background:#393335;border-radius:10px}
 .st-key-mrf_peso_por label[data-baseweb="radio"],.st-key-mrf_dist_vista label[data-baseweb="radio"],
 .st-key-mrf_peso_medida label[data-baseweb="radio"]{flex:0 1 auto}
 .st-key-mrf_seleccion label[data-baseweb="radio"]:has(input:checked),
@@ -7550,7 +7544,7 @@ _CSS_MAPA = '''
 /* Las variables como fichas (st.pills): marcadas en verde, las demás tachadas */
 [class*="st-key-mrf_vars_"] [data-testid="stButtonGroup"]>div{gap:6px}
 [class*="st-key-mrf_vars_"] [data-testid="stButtonGroup"] button{border-radius:999px;
-  min-height:0;padding:5px 10px;border:1px solid #343B41;background:transparent}
+  min-height:0;padding:5px 10px;border:1px solid #494245;background:transparent}
 [class*="st-key-mrf_vars_"] [data-testid="stButtonGroup"] button p{font-size:13px;
   font-weight:600;color:#7E8891;text-decoration:line-through}
 [class*="st-key-mrf_vars_"] [data-testid="stButtonGroup"] button[kind$="Active"]{
@@ -7564,13 +7558,13 @@ _CSS_MAPA = '''
 .st-key-mapa_pantalla [data-testid="stMarkdownContainer"]:has(.mapa-f1),
 .st-key-mapa_pantalla [data-testid="stMarkdownContainer"]:has(.mapa-pixel){margin-bottom:0 !important}
 .st-key-mapa_ok_tabla{background:#1B2B21;border:1px solid #3E6B4F;border-radius:12px;padding:12px 14px;gap:8px}
-.st-key-mapa_nota_bastantes{background:#181B1E;border:1px solid #2C3237;border-radius:10px;
+.st-key-mapa_nota_bastantes{background:#282526;border:1px solid #403A3C;border-radius:10px;
   padding:9px 12px}
-.st-key-mapa_correl{border-top:1px solid #2C3237;padding-top:12px}
+.st-key-mapa_correl{border-top:1px solid #403A3C;padding-top:12px}
 .st-key-mapa_vars_cabeza{flex-wrap:wrap}
-.st-key-mapa_curva{border-top:1px solid #2C3237;padding-top:10px}
-.st-key-mapa_comparar{border-top:1px solid #2C3237;padding-top:10px}
-.st-key-mapa_grupo_a_grupo{border-top:1px solid #2C3237;padding-top:12px}
+.st-key-mapa_curva{border-top:1px solid #403A3C;padding-top:10px}
+.st-key-mapa_comparar{border-top:1px solid #403A3C;padding-top:10px}
+.st-key-mapa_grupo_a_grupo{border-top:1px solid #403A3C;padding-top:12px}
 .mapa-grupo{font-weight:600;color:#ECEFF1;font-size:13px}
 .mapa-grupo span{font-weight:400;color:#98A2AB}
 /* Las tres cifras de las muestras */
@@ -7578,16 +7572,16 @@ _CSS_MAPA = '''
   max-width:calc(var(--n,3) * 207px)}
 .mapa-cifras div{border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
 .mapa-cifras .et{font-size:12px}
-.mapa-cifras .n{font-family:"Space Grotesk",Inter,sans-serif;font-size:30px;font-weight:700;line-height:1.1}
+.mapa-cifras .n{font-family:Montserrat,Inter,sans-serif;font-size:30px;font-weight:700;line-height:1.1}
 .mapa-cifras .si{background:#1B2B21;border:1px solid #2F5A3C}
 .mapa-cifras .si .et{color:#A5D6A7}.mapa-cifras .si .n{color:#7FD483}
 .mapa-cifras .no{background:#2A1A1A;border:1px solid #5A2E2E}
 .mapa-cifras .no .et{color:#F5A3A1}.mapa-cifras .no .n{color:#F28B88}
-.mapa-cifras .tot{background:#181B1E;border:1px solid #2C3237}
+.mapa-cifras .tot{background:#282526;border:1px solid #403A3C}
 .mapa-cifras .tot .et{color:#AEB6BE}.mapa-cifras .tot .n{color:#F5F7F8}
 /* El F1 grande */
 .mapa-f1{display:flex;flex-wrap:wrap;align-items:baseline;gap:14px;font-size:13px;color:#CDD3D9}
-.mapa-f1 b{font-family:"Space Grotesk",Inter,sans-serif;font-size:30px;font-weight:700;color:#7CC496}
+.mapa-f1 b{font-family:Montserrat,Inter,sans-serif;font-size:30px;font-weight:700;color:#7CC496}
 /* Los avisos con los colores de la demo */
 .st-key-mapa_pantalla [data-testid="stAlertContainer"]{border-radius:12px;color:#CDD3D9}
 .st-key-mapa_pantalla [data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]){
@@ -7611,17 +7605,17 @@ _CSS_MAPA = '''
 .st-key-mrf_vars_volver button p{font-size:13px;font-weight:600;color:#A3D9B5}
 .st-key-mrf_vars_volver button:disabled p{color:#5E6871}
 /* Las descargas del mapa, como fichas */
-[class*="st-key-mrf_dl_mapa_"] button{min-height:36px;padding:6px 12px;border:1px solid #46505A;
-  background:#262B2F;border-radius:10px}
+[class*="st-key-mrf_dl_mapa_"] button{min-height:36px;padding:6px 12px;border:1px solid #60575A;
+  background:#393335;border-radius:10px}
 [class*="st-key-mrf_dl_mapa_"] button:hover{border-color:#7CC496}
 [class*="st-key-mrf_dl_mapa_"] button p{font-size:13px;font-weight:600;color:#ECEFF1}
 .st-key-mapa_descargas{flex-wrap:wrap;gap:8px}
 /* El hueco del mapa antes de hacerlo */
-.mapa-vacio{height:440px;border-radius:18px;border:1px solid #2C3237;background:#16191C;
+.mapa-vacio{height:440px;border-radius:18px;border:1px solid #403A3C;background:#262324;
   display:flex;align-items:center;justify-content:center;color:#98A2AB;font-size:14px}
-.st-key-mapa_visor iframe{border-radius:18px;border:1px solid #2C3237}
+.st-key-mapa_visor iframe{border-radius:18px;border:1px solid #403A3C}
 /* El píxel pinchado */
-.mapa-pixel{background:rgba(19,21,23,.94);border:1px solid #7CC496;border-radius:12px;
+.mapa-pixel{background:rgba(34,31,32,.94);border:1px solid #7CC496;border-radius:12px;
   padding:12px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:#CDD3D9;max-width:360px}
 .mapa-pixel .t{font-weight:700;color:#ECEFF1}
 .mapa-pixel b{color:#ECEFF1;font-weight:600}
@@ -7713,8 +7707,8 @@ with tab_tipos, st.container(key='mapa_pantalla'):
         coma = ("format(datum.value, '~r')" if _en
                 else "replace(format(datum.value, '~r'), '.', ',')")
         y = alt.Y('p10:Q', title=None, scale=alt.Scale(zero=False),
-                  axis=alt.Axis(labelExpr=coma, labelColor='#AEB6BE', gridColor='#262B2F',
-                                domainColor='#46505A', tickCount=4))
+                  axis=alt.Axis(labelExpr=coma, labelColor='#AEB6BE', gridColor='#393335',
+                                domainColor='#60575A', tickCount=4))
         tip = [alt.Tooltip('grupo:N', title=i18n.pick('Grupo', 'Group')),
                alt.Tooltip('med:N', title=i18n.pick('Mediana', 'Median')),
                alt.Tooltip('mitad:N', title=i18n.pick('La mitad central',
@@ -7750,7 +7744,7 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                                           "' (')), substring(datum.label, lastindexof("
                                           "datum.label, ' (') + 1)] : datum.label")),
             columns=4).resolve_scale(y='independent').configure_view(
-            fill='#181B1E', stroke='#2C3237')
+            fill='#282526', stroke='#403A3C')
 
     # El título y, a la derecha, qué se quiere cartografiar (la demo)
     _cab_mapa = st.container(key='mapa_cabeza', horizontal=True,
@@ -7790,7 +7784,10 @@ with tab_tipos, st.container(key='mapa_pantalla'):
         _niv_txt = {
             mr.NIVEL_SI_NO: i18n.pick('Borreguil sí o no', 'Borreguil yes or no'),
             'humedad': i18n.pick('Humedad (húmedo o seco)', 'Moisture (wet or dry)'),
-            'ambiente_humedad': i18n.pick('Ambiente y humedad', 'Environment and moisture'),
+            # (la autora, 27-11-2026: «humedad está repetido»: este es el tipo completo,
+            # que incluye la humedad)
+            'ambiente_humedad': i18n.pick('Tipo completo (ambiente y humedad)',
+                                          'Full type (environment and moisture)'),
         }
         # Lo que se ofrece (24-11-2026, la autora): sin «Ambiente», en el que el modelo no ve
         # dónde están las lagunas ni los cauces y puede poner «laguna» lejos de
@@ -7814,11 +7811,11 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                     'Para el tipo, entrena después una de las otras opciones: aprende el '
                     'tipo solo de los borreguiles con el tipo revisado, y en su mapa el sí '
                     'o no lo sigue decidiendo el modelo de Borreguil sí o no.\n\n'
-                    'Ambiente y humedad da el tipo completo: el modelo dice si es húmedo o '
-                    'seco, y el ambiente (arroyo, laguna o ladera) sale de la cercanía de '
-                    'cada píxel a lagunas y cauces, que se ajusta en 4 · Mapa.\n\n'
-                    'Recomendado: primero Borreguil sí o no, y después Ambiente y '
-                    'humedad.\n\n'
+                    'Humedad hace el mapa solo de húmedo o seco. Tipo completo (ambiente y '
+                    'humedad) añade el ambiente: el modelo dice si es húmedo o seco, y el '
+                    'ambiente (arroyo, laguna o ladera) sale de la cercanía de cada píxel a '
+                    'lagunas y cauces, que se ajusta en 4 · Mapa.\n\n'
+                    'Recomendado: primero Borreguil sí o no, y después Tipo completo.\n\n'
                     'No se ofrece la combinación de los tres niveles (18 categorías): no '
                     'habría puntos para casi ninguna. La pureza se añade al mapa de otra '
                     'manera, en 4 · Mapa.',
@@ -7831,12 +7828,11 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                     'the type only from the borreguiles whose type has been reviewed, and '
                     'in its map the yes or no is still decided by the Borreguil yes or no '
                     'model.\n\n'
-                    'Environment and moisture gives the full type: the model says whether '
-                    'it is wet or dry, and the environment (stream, lake or slope) comes '
-                    'from how close each pixel is to lakes and watercourses, set under '
-                    '4 · Map.\n\n'
-                    'Recommended: first Borreguil yes or no, then Environment and '
-                    'moisture.\n\n'
+                    'Moisture maps only wet or dry. Full type (environment and moisture) '
+                    'adds the environment: the model says whether it is wet or dry, and '
+                    'the environment (stream, lake or slope) comes from how close each '
+                    'pixel is to lakes and watercourses, set under 4 · Map.\n\n'
+                    'Recommended: first Borreguil yes or no, then Full type.\n\n'
                     'The combination of the three levels (18 categories) is not offered: '
                     'there would be no points for most of them. Purity is added to the '
                     'map in another way, under 4 · Map.'))
@@ -8694,8 +8690,8 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                 # nada.
                 with st.container(key='mapa_correl'):
                     _met_txt = {'ninguno': i18n.pick('No quitar ninguna', 'Remove none'),
-                                'vif': i18n.pick('Con el VIF', 'With the VIF'),
-                                'pca': i18n.pick('Con un PCA', 'With a PCA')}
+                                'vif': i18n.pick('Con VIF', 'With VIF'),
+                                'pca': i18n.pick('Con PCA', 'With PCA')}
                     _metodo = st.radio(
                         i18n.pick('Quitar las variables correlacionadas',
                                   'Remove the correlated variables'),
@@ -8704,12 +8700,12 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                         help=i18n.pick(
                             'Muchas variables dicen casi lo mismo (los índices de verdor, por '
                             'ejemplo). Hay dos formas de quedarse con menos:\n\n'
-                            'Con el VIF: el VIF de una variable dice qué parte de ella se '
+                            'Con VIF: el VIF de una variable dice qué parte de ella se '
                             'puede adivinar con todas las demás juntas (5 quiere decir el '
                             '80 %; 10, el 90 %). Se quita la más correlacionada con las '
                             'demás, se vuelve a calcular y se sigue mientras alguna pase del '
                             'umbral.\n\n'
-                            'Con un PCA: el PCA resume las variables en unos pocos ejes '
+                            'Con PCA: el PCA resume las variables en unos pocos ejes '
                             'independientes. De cada eje importante (valor propio mayor que '
                             '1) se queda una variable: entre las muy ligadas a él, la que '
                             'mejor separa las categorías por sí sola.\n\n'
@@ -8723,11 +8719,11 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                             'valide (la comparación sale al final de «3 · Modelo»).',
                             'Many variables say almost the same (the greenness indices, for '
                             'instance). There are two ways of keeping fewer:\n\n'
-                            'With the VIF: the VIF of a variable says how much of it can be '
+                            'With VIF: the VIF of a variable says how much of it can be '
                             'guessed from all the others together (5 means 80 %; 10, 90 %). '
                             'The one most correlated with the others is removed, the VIF is '
                             'computed again, and so on while any is above the threshold.\n\n'
-                            'With a PCA: the PCA summarises the variables in a few '
+                            'With PCA: the PCA summarises the variables in a few '
                             'independent axes. One variable is kept from each important axis '
                             '(eigenvalue above 1): among those strongly tied to it, the one '
                             'that best separates the categories on its own.\n\n'
@@ -9845,9 +9841,9 @@ with tab_tipos, st.container(key='mapa_pantalla'):
 
                             def _nombre_var(v):
                                 if v.get('pca'):
-                                    return i18n.pick('Con el PCA', 'With the PCA')
+                                    return i18n.pick('Con PCA', 'With PCA')
                                 if v['vif']:
-                                    return (i18n.pick('Con el VIF', 'With the VIF')
+                                    return (i18n.pick('Con VIF', 'With VIF')
                                             + (f" (≤ {v['vif']:g})" if _n_vif > 1 else ''))
                                 if v['n_var'] == len(mr.PREDICTORES):
                                     return i18n.pick('Con todas las variables',
@@ -11002,11 +10998,8 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                             + '</div>' for c in _cats_ley)
                     else:
                         _ley_html = _leyenda_cats(_cats_ley, lambda col: _marca.format(col))
-                    if _con_ag:
-                        _ley_html += ('<div style="margin:2px 0;">' + _marca.format(mra.COLOR_AGUA)
-                                      + _html.escape(i18n.pick('Agua de laguna (quitada)',
-                                                               'Lake water (removed)'))
-                                      + '</div>')
+                    # (el agua de laguna quitada ya no se pinta ni sale en la leyenda: la
+                    # autora, 27-11-2026, «quítala del todo»; sigue en las descargas)
                     _fm.get_root().html.add_child(folium.Element(
                         # Los píxeles, con los bordes nítidos; el recuadro de capas y los
                         # botones de zoom, oscuros como la app (la demo); y el recuadro de
@@ -11015,23 +11008,23 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                         'image-rendering:pixelated}'
                         '.leaflet-control-layers-scrollbar{overflow-y:visible;'
                         'padding-right:0;height:auto!important}'
-                        '.leaflet-control-layers{background:rgba(19,21,23,.92);color:#ECEFF1;'
-                        'border:1px solid #343B41!important;border-radius:10px;'
+                        '.leaflet-control-layers{background:rgba(34,31,32,.92);color:#ECEFF1;'
+                        'border:1px solid #494245!important;border-radius:10px;'
                         'font:12px Inter,system-ui,sans-serif;box-shadow:0 4px 12px '
                         'rgba(0,0,0,.35)!important}'
-                        '.leaflet-control-layers-separator{border-top-color:#343B41}'
-                        '.leaflet-bar{border:1px solid #46505A!important;border-radius:10px;'
+                        '.leaflet-control-layers-separator{border-top-color:#494245}'
+                        '.leaflet-bar{border:1px solid #60575A!important;border-radius:10px;'
                         'overflow:hidden}'
-                        '.leaflet-bar a{background:#1D2124;color:#ECEFF1;border-bottom-color:'
-                        '#46505A}.leaflet-bar a:hover{background:#262B2F;color:#7CC496}'
-                        '.leaflet-control-attribution{background:rgba(19,21,23,.75)!important;'
+                        '.leaflet-bar a{background:#2E2A2B;color:#ECEFF1;border-bottom-color:'
+                        '#60575A}.leaflet-bar a:hover{background:#393335;color:#7CC496}'
+                        '.leaflet-control-attribution{background:rgba(34,31,32,.75)!important;'
                         'color:#AEB6BE}.leaflet-control-attribution a{color:#7CC496}'
-                        '.leaflet-control-scale-line{background:rgba(19,21,23,.75);'
+                        '.leaflet-control-scale-line{background:rgba(34,31,32,.75);'
                         'color:#CDD3D9;border-color:#98A2AB}</style>'
                         # la leyenda, abajo a la izquierda, por encima de la escala
                         '<div style="position:fixed;bottom:40px;left:12px;z-index:9999;'
-                        'background:rgba(19,21,23,0.88);padding:8px 10px;border-radius:10px;'
-                        'border:1px solid #343B41;font:12px Inter,system-ui,sans-serif;'
+                        'background:rgba(34,31,32,0.88);padding:8px 10px;border-radius:10px;'
+                        'border:1px solid #494245;font:12px Inter,system-ui,sans-serif;'
                         'line-height:1.25;color:#ECEFF1;pointer-events:none;">'
                         + _ley_html
                         + ('' if not _con_pz else (
@@ -11065,8 +11058,7 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                             lambda m: mra.pintar_clases(m, _cats_v, 1.0,
                                                         tenues=mra.TENUES_VISOR),
                             categorica=True,
-                            encima=((_carp_m / mra.FICHEROS['agua'], 1, mra.pintar_agua)
-                                    if _con_ag else None)),
+                            encima=None),
                         'pmax': mra.dibujar_vista(
                             _vistas.setdefault('pmax', {}), _carp_m / mra.FICHEROS['pmax'], 1,
                             _vista, _zoom, lambda m: mra.pintar_probabilidad(m, 1.0))}
@@ -11222,59 +11214,48 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                             f'<span>{x}</span>' for x in _lin) + '</div>',
                             unsafe_allow_html=True)
 
+                    # Una línea por capa, con lo que es (la autora, 27-11-2026: «demasiado
+                    # troncho de texto, ordenado una línea por capa con su explicación»).
                     with st.expander(i18n.pick('Qué es cada capa', 'What each layer is')):
+                        _lineas_c = [i18n.pick(
+                            '**El mapa de borreguil**: la categoría de cada píxel («no '
+                            'borreguil» no se pinta, para ver el terreno).',
+                            '**The borreguil map**: the category of each pixel ("not a '
+                            'borreguil" is not painted, so the ground shows).'),
+                            i18n.pick(
+                            '**Probabilidad máxima**: lo seguro que está el modelo de la '
+                            'categoría que ha puesto, sea la que sea; cuanto más clara, más '
+                            'seguro.',
+                            '**Maximum probability**: how sure the model is of the category '
+                            'it has assigned, whichever it is; the lighter, the surer.')]
+                        if _u_mapa is not None and _con_pb:
+                            _lineas_c.append(i18n.pick(
+                                '**Probabilidad de borreguil**: la suma de la de sus tipos; '
+                                f'desde {_num(_u_mapa)}, el mapa pone borreguil.',
+                                '**Probability of borreguil**: the sum of those of its types; '
+                                f'from {_num(_u_mapa)}, the map says borreguil.'))
+                        if _con_am:
+                            _lineas_c.append(i18n.pick(
+                                '**Lagunas y cauces**: lo que se ha tomado por agua para poner '
+                                'el ambiente (turquesa, el agua que ve Sentinel-2; azul, los '
+                                'cauces; rosa, las lagunas de la capa).',
+                                '**Lakes and watercourses**: what was taken as water to set '
+                                'the environment (turquoise, the water Sentinel-2 sees; blue, '
+                                'watercourses; pink, the lakes of the layer).'))
+                        if _con_pz:
+                            _lineas_c.append(i18n.pick(
+                                '**Pureza dentro del píxel**: si el borreguil es puro o está '
+                                'mezclado con agua o con roca.',
+                                '**Purity within the pixel**: whether the borreguil is pure or '
+                                'mixed with water or rock.'))
+                        st.markdown('\n'.join('- ' + x for x in _lineas_c))
                         st.caption(i18n.pick(
-                            'Las capas se encienden y apagan en el recuadro de arriba a la '
-                            'derecha del mapa. **El mapa de borreguil** es la categoría de cada '
-                            'píxel («no borreguil» no se pinta, para ver el terreno). '
-                            '**Probabilidad máxima** es la de la categoría que el modelo ha '
-                            'puesto en cada píxel, **sea la que sea**: cuanto más clara, más '
-                            'seguro está. Donde pone «no borreguil», clara quiere decir que '
-                            'está seguro de que **no** lo es.',
-                            'Layers are switched on and off in the box at the top right of '
-                            'the map. **The borreguil map** is the category of each pixel '
-                            '("not a borreguil" is not painted, so the ground shows). '
-                            '**Maximum probability** is that of the category the model has '
-                            'assigned to each pixel, **whichever it is**: the lighter, the '
-                            'surer it is. Where it says "not a borreguil", light means it is '
-                            'sure that it is **not** one.')
-                            + ('' if _u_mapa is None or not _con_pb else ' ' + i18n.pick(
-                                '**Probabilidad de borreguil** es la suma de la de sus tipos: '
-                                f'donde llega a {_num(_u_mapa)}, el mapa pone borreguil, del '
-                                'tipo más probable. Es la capa para ver dónde hay borreguil.',
-                                '**Probability of borreguil** is the sum of those of its '
-                                f'types: where it reaches {_num(_u_mapa)}, the map says '
-                                'borreguil, of the most probable type. It is the layer to see '
-                                'where there is borreguil.'))
-                            + ('' if not _con_am else ' ' + i18n.pick(
-                                '**Lagunas y cauces** enseña lo que se ha tomado por laguna y '
-                                'por cauce para poner el ambiente (en turquesa, el agua de '
-                                'laguna que ve Sentinel-2; en azul, los cauces; en rosa, las '
-                                'lagunas de la capa): si ahí falta una laguna o sobra un '
-                                'cauce, el ambiente de alrededor saldrá mal.',
-                                '**Lakes and watercourses** shows what was taken as lake and '
-                                'as watercourse to set the environment (turquoise: the lake '
-                                'water Sentinel-2 sees; blue: watercourses; pink: the lakes of '
-                                'the layer): if a lake is missing there or a watercourse '
-                                'should not be, the environment around it will come out '
-                                'wrong.'))
-                            + ('' if not _con_pz else ' ' + i18n.pick(
-                                '**Pureza dentro del píxel** dice, de cada píxel de '
-                                'borreguil, si es puro o está mezclado con agua o con roca, '
-                                'según el verde que se estima que tiene dentro.',
-                                '**Purity within the pixel** tells, for each borreguil pixel, '
-                                'whether it is pure or mixed with water or rock, according to '
-                                'the green estimated inside it.'))
-                            + ' ' + i18n.pick(
-                                'Lo pintado son los píxeles de 10 m de Sentinel-2, cada uno en '
-                                'su sitio: acércate para verlos. Que el mapa coincida con las '
-                                'muestras con las que se entrenó el modelo no mide su acierto; '
-                                'para eso está la validación por zonas de «3 · Modelo».',
-                                'What is drawn are the 10 m Sentinel-2 pixels, each in its '
-                                'place: zoom in to see them. The map agreeing with the samples '
-                                'the model was trained with does not measure its accuracy; '
-                                'that is what the validation by zones under "3 · Model" is '
-                                'for.'))
+                            'Se encienden en el recuadro «Capas» del mapa. Cada cuadrado es un '
+                            'píxel de 10 m de Sentinel-2. El acierto del mapa está en la '
+                            'validación por zonas de «3 · Modelo».',
+                            'Switch them on in the "Layers" box of the map. Each square is a '
+                            '10 m Sentinel-2 pixel. The accuracy of the map is in the '
+                            'validation by zones under "3 · Model".'))
 
                 with _col_vi:
                     _visor_del_mapa()

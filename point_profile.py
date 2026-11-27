@@ -21,7 +21,7 @@ COL_NO = '#8E0000'     # rojo oscuro: el no borreguil típico (mediana de los no
 COL_GRIS = '#757575'   # gris neutro: líneas de referencia
 
 # La gráfica «Este punto frente a los borreguiles verdaderos» de 2 · Revisar, con los
-# colores de la demo (Revisar.dc.html, 27-11-2026): sobre el fondo oscuro (#131517) el
+# colores de la demo (Revisar.dc.html, 27-11-2026): sobre el fondo oscuro (#221F20) el
 # azul y el rojo oscuro de arriba casi no se veían. Solo para esta gráfica: las demás
 # siguen con los de arriba (el «no borreguil» #8E0000 es el de toda la app).
 PERFIL_PUNTO = '#4FA3F7'    # este punto, dentro de lo habitual
@@ -303,7 +303,7 @@ def chart_punto_vs_borreguiles(sel, ref_stats, n=8):
     # Todas las variables en su fila, también las que no tienen dato en este punto.
     y = alt.Y('label:N', sort=orden, title=None, scale=alt.Scale(domain=orden),
               axis=alt.Axis(labelLimit=260, labelFontSize=12))
-    puntos = alt.Chart(con_valor).mark_point(filled=True, size=150, stroke='#131517',
+    puntos = alt.Chart(con_valor).mark_point(filled=True, size=150, stroke='#221F20',
                                              strokeWidth=2, opacity=1).encode(
         x=alt.X('pct:Q', scale=xsc), y=y,
         color=alt.condition('datum.fuera', alt.value(PERFIL_FUERA), alt.value(PERFIL_PUNTO)),
@@ -423,7 +423,7 @@ def html_punto_vs_borreguiles(recs, n_si='?'):
             col = PERFIL_FUERA if r.get('fuera') else PERFIL_PUNTO
             marcas += (f'<span style="position:absolute;top:2px;left:calc({r["pct"]:.1f}% '
                        f'- 7px);width:14px;height:14px;border-radius:50%;background:{col};'
-                       'border:2px solid #131517;box-sizing:border-box"></span>')
+                       'border:2px solid #221F20;box-sizing:border-box"></span>')
         pos = '—' if r.get('pct') is None else f'{r["pct"]:.0f}'
         filas.append(
             '<div style="display:flex;align-items:center;gap:10px">'
@@ -431,7 +431,7 @@ def html_punto_vs_borreguiles(recs, n_si='?'):
             f'line-height:1.3;color:#ECEFF1">{_esc(r["label"])}</span>'
             '<div style="flex:1;height:18px;position:relative;min-width:80px">'
             '<div style="position:absolute;left:0;right:0;top:8px;height:2px;'
-            'background:#343B41"></div>'
+            'background:#494245"></div>'
             '<div style="position:absolute;left:25%;width:50%;top:3px;height:12px;'
             f'background:{PERFIL_FRANJA};border-radius:4px"></div>'
             '<div style="position:absolute;left:50%;top:1px;width:2px;height:16px;'
@@ -448,8 +448,8 @@ def html_punto_vs_borreguiles(recs, n_si='?'):
            ('Variable', 'Este punto', 'Borreguiles (mitad central)', 'No borreguil típico',
             'Peso'))
     h = ('padding:8px 10px;color:#AEB6BE;font-weight:500;font-size:12.5px;'
-         'border-bottom:1px solid #2C3237;white-space:nowrap')
-    c = 'padding:7px 10px;font-size:12.5px;border-bottom:1px solid #262B2F;white-space:nowrap'
+         'border-bottom:1px solid #403A3C;white-space:nowrap')
+    c = 'padding:7px 10px;font-size:12.5px;border-bottom:1px solid #393335;white-space:nowrap'
     celdas = ''.join(f'<span style="{h}">{t}</span>' for t in cab)
     for r in recs:
         val = (f'color:{PERFIL_VALOR_FUERA};font-weight:700' if r.get('fuera')
@@ -461,8 +461,8 @@ def html_punto_vs_borreguiles(recs, n_si='?'):
                    f'<span style="{c};color:#CDD3D9">{r["rango"]}</span>'
                    f'<span style="{c};color:#CDD3D9">{_tres(r.get("no_med"))}</span>'
                    f'<span style="{c};color:#CDD3D9">{r["peso_txt"]}</span>')
-    tabla = ('<div style="overflow-x:auto;border:1px solid #2C3237;border-radius:12px;'
-             'background:#1D2124"><div style="display:grid;grid-template-columns:'
+    tabla = ('<div style="overflow-x:auto;border:1px solid #403A3C;border-radius:12px;'
+             'background:#2E2A2B"><div style="display:grid;grid-template-columns:'
              'minmax(150px,1.4fr) minmax(90px,0.8fr) minmax(150px,1.2fr) '
              'minmax(110px,0.9fr) minmax(60px,0.5fr);min-width:600px">'
              + celdas + '</div></div>')

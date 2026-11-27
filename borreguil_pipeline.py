@@ -3755,7 +3755,7 @@ def _globo_oscuro(r, t, tv, esc, nombre, variables, num, es_borreguil):
         f'<span style="margin-top:4px;color:#AEB6BE">'
         f"{esc(t.get('prob', 'Probabilidad de borreguil'))}</span>",
         '<span style="display:flex;align-items:baseline;gap:8px">'
-        f'<span style="font-family:\'Space Grotesk\',Inter,sans-serif;font-size:34px;'
+        f'<span style="font-family:\'Montserrat\',Inter,sans-serif;font-size:34px;'
         f'font-weight:700;line-height:1.05;color:{c_pct}">'
         + (f'{rf * 100:.0f} %' if hay_p else '—') + '</span>'
         f'<span style="color:#AEB6BE">{num(rf) if hay_p else ""}</span></span>',

@@ -2,8 +2,8 @@
 [theme]
 base = "dark"
 primaryColor = "#7CC496"
-backgroundColor = "#131517"
-secondaryBackgroundColor = "#1D2124"
+backgroundColor = "#221F20"
+secondaryBackgroundColor = "#2E2A2B"
 textColor = "#ECEFF1"
 linkColor = "#7CC496"
 

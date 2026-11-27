@@ -95,7 +95,8 @@ def test_sin_radar_dice_que_modelo_se_ha_usado():
     tabla = bp.leer_tabla_entrenamiento(APP / bp.TABLA_ENTRENAMIENTO)
     rows = [{k: v for k, v in r.items() if k not in S1} for r in tabla[:40]]
     assert not bp.hay_radar(rows)
-    ns = funciones_de_app('_zona_partida', '_titulo_modelo', '_es_sin_radar')
+    ns = funciones_de_app('_zona_partida', '_titulo_modelo', '_es_sin_radar',
+                          'nombre_modelo', '_nombre_partida')
     ruta = bp.ruta_sin_radar(APP / 'rf_sierra_nevada.joblib')
     proba, info = bp.train_rf(rows, default_model_path=ruta)
     assert proba is not None and len(proba) == 40 and all(0 <= p <= 1 for p in proba)

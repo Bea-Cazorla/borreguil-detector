@@ -1969,8 +1969,8 @@ def guion_tabla(lang):
     caja = control(at, 'radio', 'mrf_seleccion')
     comprobar(caja is not None and caja.value == 'ninguno'
               and list(caja.options) == [T('No quitar ninguna', 'Remove none'),
-                                         T('Con el VIF', 'With the VIF'),
-                                         T('Con un PCA', 'With a PCA')]
+                                         T('Con VIF', 'With VIF'),
+                                         T('Con PCA', 'With PCA')]
               and control(at, 'number_input', 'mrf_vif_umbral') is None
               and T('Recomendado:', 'Recommended:') in (caja.help or ''),
               'la opción de las variables correlacionadas (VIF o PCA) está; de entrada no se '
@@ -2107,7 +2107,7 @@ def guion_tabla(lang):
               and list(comp.iloc[:, 1]) == [T('Con todas las variables', 'With all the variables'),
                                             T('Con las marcadas a mano',
                                               'With the ones selected by hand'),
-                                            T('Con el VIF', 'With the VIF')]
+                                            T('Con VIF', 'With VIF')]
               and list(comp.iloc[:, 2]) == [34, 20, len(quedan)]
               and list(comp.iloc[:, 3])[1:] == [N(en=en, v=mod['macro_f1']),
                                                 N(en=en, v=mod_v['macro_f1'])],
@@ -2194,7 +2194,7 @@ def guion_tabla(lang):
     comp = tabla_con_columna(at, 'F1 medio', 'Mean F1')
     filas = [] if comp is None else comp.values.tolist()
     comprobar(mod_p['predictores'] == quedan_p and mod_p['variables']['metodo'] == 'pca'
-              and any(f[0] == '▶' and f[1] == T('Con el PCA', 'With the PCA')
+              and any(f[0] == '▶' and f[1] == T('Con PCA', 'With PCA')
                       and f[2] == len(quedan_p) for f in filas),
               'el modelo usa solo las del PCA y sale en la comparación', str(filas))
     # Con el PCA aplicado, el VIF se vuelve a aplicar desde las 20 de antes, no desde
@@ -2723,16 +2723,15 @@ def _pasos_del_mapa(at, T, en):
         'y los colores de la pureza')
     # (la frase de debajo del visor; la del mapa pequeño de la zona sí habla de sus puntos)
     debajo = [str(c.value) for c in at.caption
-              if T('Lo pintado son los píxeles', 'What is drawn are the') in str(c.value)]
+              if T('Cada cuadrado es un píxel', 'Each square is a') in str(c.value)]
     comprobar('circle_marker' not in h and T('mapa y muestras', 'map and samples') not in h
               and len(debajo) == 1
               and T('Los puntos son las muestras', 'The points are the samples') not in debajo[0]
-              and T('Que el mapa coincida con las muestras',
-                    'The map agreeing with the samples') in debajo[0]
+              and T('El acierto del mapa está en la validación por zonas',
+                    'The accuracy of the map is in the validation by zones') in debajo[0]
               and 'Esri' in h and 'Google' in h,
-              'el visor ya no pinta las muestras (ni las nombra la leyenda), sigue el aviso '
-              'de que coincidir con ellas no mide el acierto, y va sobre la ortofoto con su '
-              'atribución')
+              'el visor ya no pinta las muestras (ni las nombra la leyenda), dice dónde está '
+              'el acierto del mapa, y va sobre la ortofoto con su atribución')
     # Lo que cambia: la imagen de cada capa para lo que se está viendo.
     cambia = v['cambia'] if v else None
     comprobar(cambia is not None
@@ -2758,20 +2757,20 @@ def _pasos_del_mapa(at, T, en):
         'además se puede pedir la probabilidad de una categoría concreta',
         str(capa.options) if capa else 'no está')
     comprobar(any(all(x in str(c.value) for x in (
-        T('**Probabilidad máxima**', '**Maximum probability**'),
-        T('sea la que sea', 'whichever it is'),
-        T('está seguro de que **no** lo es', 'sure that it is **not** one')))
-        for c in at.caption),
-        'debajo se explica la probabilidad máxima: en «no borreguil», seguro de que no lo es')
+        T('- **Probabilidad máxima**: lo seguro que está el modelo',
+          '- **Maximum probability**: how sure the model is'),
+        T('sea la que sea', 'whichever it is')))
+        for c in at.markdown),
+        'en «Qué es cada capa», una línea para la probabilidad máxima')
     comprobar(any(all(x in str(c.value) for x in (
-        T('**Probabilidad de borreguil** es la suma de la de sus tipos',
-          '**Probability of borreguil** is the sum of those of its types'),
-        N(u_mod, en))) for c in at.caption),
-        'y la probabilidad de borreguil: la suma de los tipos, con su umbral')
-    comprobar(any(T('**Pureza dentro del píxel** dice, de cada píxel de borreguil',
-                    '**Purity within the pixel** tells, for each borreguil pixel')
-                  in str(c.value) for c in at.caption),
-              'y la pureza: si cada píxel de borreguil es puro o está mezclado')
+        T('- **Probabilidad de borreguil**: la suma de la de sus tipos',
+          '- **Probability of borreguil**: the sum of those of its types'),
+        N(u_mod, en))) for c in at.markdown),
+        'otra para la probabilidad de borreguil: la suma de los tipos, con su umbral')
+    comprobar(any(T('- **Pureza dentro del píxel**: si el borreguil es puro',
+                    '- **Purity within the pixel**: whether the borreguil is pure')
+                  in str(c.value) for c in at.markdown),
+              'y otra para la pureza: si cada píxel de borreguil es puro o está mezclado')
     comprobar(hay(at, T('Pincha en el mapa para ver la categoría, la probabilidad, la pureza y '
                         'el ambiente de un píxel.',
                         'Click on the map to see the category, the probability, the purity and '
@@ -3319,8 +3318,10 @@ def _pasos_del_mapa(at, T, en):
                   and sorted(v['cambia']['datos']) == ['clase', 'pborr', 'pmax', 'pureza', 'refs']
                   and T('laguna de la capa', 'lake of the layer') not in v['html']
                   and 'agua de laguna' not in v['html'] and 'lake water' not in v['html']
-                  and any(T('en turquesa, el agua de laguna', 'turquoise: the lake water')
-                          in str(c.value) for c in at.caption),
+                  # («Qué es cada capa», una línea por capa desde el 27-11-2026)
+                  and any(T('turquesa, el agua que ve Sentinel-2',
+                            'turquoise, the water Sentinel-2 sees')
+                          in str(c.value) for c in at.markdown),
                   'y el visor tiene la capa «Lagunas y cauces»; no ocupa sitio en la leyenda '
                   'del mapa: sus colores se dicen debajo')
         opciones = list(control(at, 'selectbox', 'mrf_ver_prob').options)
