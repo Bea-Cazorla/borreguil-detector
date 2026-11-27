@@ -1,25 +1,25 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.5",
-  "commit": "1438dbb67ad548956d7bafff4c2f5616b6f7c9de",
-  "fecha": "2026-11-26",
+  "version": "1.0.6",
+  "commit": "d3edb28a4071cd12901c1c1bb57c791747f71b1e",
+  "fecha": "2026-11-27",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "96499b7c855474d7f2faed208022dc31851a437310f3b9d2daf25e14cdeb4859",
-      "bytes": 600805
+      "sha256": "0862231464d1f12cdc1698c947d916a58f1c7f678c0b2c17017a781a6a1df44f",
+      "bytes": 789701
     },
     {
       "ruta": "borreguil_pipeline.py",
-      "sha256": "d3136376f7ebe72871e381f793d33bae9b912e26bb406de8cbb7724cbd4833e0",
-      "bytes": 187751
+      "sha256": "ee46b05ccd5c75091afdde916d057b85c1de3b38ddef383159ed5f24c3ac638d",
+      "bytes": 190651
     },
     {
       "ruta": "point_profile.py",
-      "sha256": "e7c817dc526c1dfa2c34b4cf15c7f2e25ecc7535266c1181547cc47dc4d78ed2",
-      "bytes": 59961
+      "sha256": "15a0b0d209a2b3f7a52be628b08ac753011b7fd8e6e496b960a823b27b209c63",
+      "bytes": 68306
     },
     {
       "ruta": "i18n.py",
@@ -43,13 +43,13 @@
     },
     {
       "ruta": "mapeo_rf.py",
-      "sha256": "9408c46f94e8fe641245503da91d035c866f5e75448f0475173c821ac0d953ba",
-      "bytes": 114578
+      "sha256": "3b703c72c7f80a6bed64d80aadbb72eacf79def9a73bd13375d4937c2028cf4f",
+      "bytes": 124578
     },
     {
       "ruta": "mapeo_raster.py",
-      "sha256": "99ccccde135b740bf036fd96f961c7e75a7099f0004e99c30423b788f6b0a1fb",
-      "bytes": 72081
+      "sha256": "77cbdbfd78970962b21e49f76ed7185d90b98af55836e966da471de979566f4e",
+      "bytes": 75000
     },
     {
       "ruta": "mapeo_tif.py",
@@ -78,13 +78,13 @@
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "e9bceecd1f57e8df1624d3d0a83e40d03eba88e4b3bc513af8abb8f07000b96c",
-      "bytes": 20369
+      "sha256": "20d006ef0618e2892dcca5b81aeeb9fe1b2480de760af903cbc013d199e2f572",
+      "bytes": 20343
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "2aad9cddb4994c9ce8e1a43eb457ff5270459a80eff252b3d26fa4490640d618",
-      "bytes": 3073
+      "sha256": "e74ce397c9aa49dde81c4043bcdb84723b7d85c4277d3e31fdc2276111a22f3b",
+      "bytes": 3923
     },
     {
       "ruta": "LICENSE",
@@ -120,6 +120,31 @@
       "ruta": "plantilla/field_points_template.xlsx",
       "sha256": "4945157c8e4d8dc22e7d8401e76be7dbeb4cc2b6ccaf9abe120e6ad64fc173cd",
       "bytes": 7698
+    },
+    {
+      "ruta": "imagenes/borreguil_cerro_del_caballo.jpg",
+      "sha256": "4d1e6f0286b36428e04b8b94903d1eb274660aef9903ce6c9167167af3b9d974",
+      "bytes": 225552
+    },
+    {
+      "ruta": "imagenes/logo_biodiversa.png",
+      "sha256": "d33cd34c0e07886a1b06494bb2764fc62599664d5511c74007a9ad10870c522d",
+      "bytes": 41557
+    },
+    {
+      "ruta": "imagenes/logo_miciu_ue_aei.png",
+      "sha256": "0b5a0753474aed93ea85dcee99a39170819cd921118e335318a2fa4f2bebb4be",
+      "bytes": 14931
+    },
+    {
+      "ruta": "imagenes/logo_obsnev.png",
+      "sha256": "fd778cad728ac2a02052814294d048c2828213afcdff8e91d5323afedce92df3",
+      "bytes": 21034
+    },
+    {
+      "ruta": "imagenes/logo_ugr.png",
+      "sha256": "954a0e2d478c9d15170beb012fdad340f6597ef9adcc1add5d010f203c598b70",
+      "bytes": 20376
     }
   ]
 }
