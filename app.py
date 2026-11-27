@@ -2160,6 +2160,13 @@ _CSS_PASOS = {
 # pantalla va centrada con un ancho de 1180 px como mucho.
 st.html('<style>' + '''
 header[data-testid="stHeader"]{background:transparent;height:0;overflow:visible}
+/* La barra de Streamlit ocupa todo el ancho de arriba, encima de la cabecera: que deje
+   pasar los clics (los pasos, Ayuda, ES|EN), salvo en sus propios botones (el menú ⋮). */
+header[data-testid="stHeader"],header[data-testid="stHeader"] *{pointer-events:none}
+header[data-testid="stHeader"] button,header[data-testid="stHeader"] a,
+header[data-testid="stHeader"] [role="button"],[data-testid="stMainMenu"],
+[data-testid="stMainMenu"] *,[data-testid="stStatusWidget"],
+[data-testid="stStatusWidget"] *{pointer-events:auto}
 [data-testid="stAppDeployButton"]{display:none}
 [data-testid="stToolbar"]{top:14px;right:10px}
 [data-testid="stMainBlockContainer"]{padding:0;max-width:none}
