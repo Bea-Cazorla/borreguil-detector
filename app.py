@@ -112,7 +112,7 @@ def modelo_sin_radar(ruta):
     """Versión SIN radar de un modelo incluido en la app o descargado de GitHub (su
     carpeta sin_radar/), o None.
 
-    Con Planetary Computer (o «Saltar Sentinel-2») el radar no se lee. El modelo con
+    Con Microsoft Planetary Computer (o «Saltar Sentinel-2») el radar no se lee. El modelo con
     radar, si le falta, acierta bastante menos (AUC 0,793 frente a 0,847) que uno
     entrenado desde el principio sin él (0,833). Solo los modelos que vienen con la app
     o de GitHub tienen esta versión; los que guarda quien usa la app, no."""
@@ -677,7 +677,7 @@ def render_docs(con_sugerencias=True):
         'Úsalo siempre que trabajes en Andalucía, Cataluña o Canarias.\n'
         '- **En el resto de España y fuera** usa el modelo «General» '
         '(AUC 0,847).\n'
-        '- **Sin Earth Engine** (Planetary Computer) no se lee el radar y la app usa sola '
+        '- **Con Microsoft Planetary Computer** no se lee el radar y la app usa sola '
         'la versión de cada modelo entrenada sin él: AUC 0,833 el «General» y 0,937 el '
         '«Con infrarrojo».\n'
         '- Al abrirse, la app trae de GitHub los modelos nuevos o actualizados; la última '
@@ -687,7 +687,7 @@ def render_docs(con_sugerencias=True):
         'Islands.\n'
         '- **Elsewhere in Spain and abroad** use the "General" model '
         '(AUC 0.847).\n'
-        '- **Without Earth Engine** (Planetary Computer) the radar is not read and the '
+        '- **With Microsoft Planetary Computer** the radar is not read and the '
         'app automatically uses the version of each model trained without it: AUC 0.833 '
         'for "General" and 0.937 for "With infrared".\n'
         '- When it opens, the app fetches new or updated models from GitHub; the last '
@@ -737,9 +737,11 @@ def render_docs(con_sugerencias=True):
                          'Texture, colour, pattern and alpine context (% rock)'),
         'topo': i18n.pick('Altitud, pendiente y curvatura', 'Elevation, slope and curvature'),
         's2': i18n.pick('Verdor, humedad de la vegetación y agua (NDVI, NDMI, NDWI…) de '
-                        'inicio y fin de verano, y cómo varían en el verano',
+                        'inicio (15 jun – 25 jul) y fin de verano (1 ago – 30 sep), y cómo '
+                        'varían en el verano (1 jun – 30 sep)',
                         'Greenness, vegetation moisture and water (NDVI, NDMI, NDWI…) of '
-                        'early and late summer, and how they vary over the summer'),
+                        'early (15 Jun – 25 Jul) and late summer (1 Aug – 30 Sep), and how '
+                        'they vary over the summer (1 Jun – 30 Sep)'),
         's1': i18n.pick('Humedad y estructura del suelo, con el relieve corregido; atraviesa '
                         'las nubes', 'Soil moisture and structure, with the relief '
                         'corrected; it goes through clouds'),
@@ -768,13 +770,13 @@ def render_docs(con_sugerencias=True):
                      **{t: f'**{len(v)}**' for t, v in _cols_m}, _k_a: ''})
     st.table(pd.DataFrame(_tabla_f).set_index(_k_f))
     st.caption(i18n.pick(
-        'Cada modelo usa una variable por grupo de las que dicen lo mismo. Sin Earth Engine '
-        '(Planetary Computer) no se lee el Radar Sentinel-1 y la app usa sola la versión «sin '
+        'Cada modelo usa una variable por grupo de las que dicen lo mismo. Con Microsoft '
+        'Planetary Computer no se lee el Radar Sentinel-1 y la app usa sola la versión «sin '
         'radar». El «Con infrarrojo» añade la ortofoto infrarroja: su variable más '
         'informativa es el **contraste del verdor a 25 cm**, justo el borde nítido del '
         'borreguil contra la roca, que el Óptico Sentinel-2 (10 m) promedia y pierde.',
-        'Each model uses one variable per group of those that say the same. Without Earth '
-        'Engine (Planetary Computer) the Radar Sentinel-1 is not read and the app uses the '
+        'Each model uses one variable per group of those that say the same. With Microsoft '
+        'Planetary Computer the Radar Sentinel-1 is not read and the app uses the '
         '"without radar" version on its own. "With infrared" adds the infrared orthophoto: '
         'its most informative variable is the **greenness contrast at 25 cm**, precisely the '
         'sharp edge of the alpine wet meadow against the rock, which the Optical Sentinel-2 '
@@ -829,7 +831,7 @@ def render_docs(con_sugerencias=True):
             'variable. '
             'Cambia según el modelo: en el «Con infrarrojo» manda el **contraste del NDVI a 0,25 m**; '
             'en el «General», la **altitud**, la **caída estacional del NDVI**, la '
-            '**diferencia VV–VH del radar**, el **NDVI de inicio de verano** y la '
+            '**diferencia VV–VH del radar**, el **NDVI de inicio de verano** (15 jun – 25 jul) y la '
             '**variación del NDWI**. Cada modelo usa una '
             'sola variable de cada grupo de las que dicen lo mismo, así que el peso no se '
             'reparte entre variables correlacionadas.',
@@ -837,7 +839,7 @@ def render_docs(con_sugerencias=True):
             'variable. It '
             'changes with the model: in "With infrared" the **NDVI contrast at 0.25 m** '
             'leads; in "General", **elevation**, the **seasonal NDVI drop**, the '
-            '**radar VV–VH difference**, **early-summer NDVI** and the **NDWI '
+            '**radar VV–VH difference**, **early-summer NDVI** (15 Jun – 25 Jul) and the **NDWI '
             'variability**. Each model uses a single '
             'variable from each group of those that say the same, so the weight is not '
             'shared among correlated ones.'))
@@ -1004,7 +1006,7 @@ def _titulo_modelo(info):
     """Una línea: qué modelo ha dado la probabilidad de los puntos."""
     if not info:
         return i18n.pick('No se ha podido ejecutar el modelo.', 'The model could not be run.')
-    # Sin radar (Planetary Computer): se usa la versión del modelo entrenada sin él
+    # Sin radar (Microsoft Planetary Computer): se usa la versión del modelo entrenada sin él
     sr = _es_sin_radar(info)
     if info.get('sumado'):
         z = _nombre_partida(info)
@@ -1427,7 +1429,7 @@ def leer_variables_puntos(nuevos, work, backend, years, img_src='esri', skip_img
                           consola=None):
     """Lee las variables del detector SOLO para los puntos `nuevos` (los añadidos
     pinchando en el mapa), con las mismas fuentes que la ejecución. Con Earth Engine
-    tarda unos segundos, radar incluido; con Planetary Computer el radar no se lee (si
+    tarda unos segundos, radar incluido; con Microsoft Planetary Computer el radar no se lee (si
     el análisis tampoco lo leyó, se usa la versión del modelo sin radar).
     `consola`: dónde se ven en vivo los mensajes de la lectura (un st.status).
     Devuelve la lista de fuentes que fallaron (vacía si todo fue bien)."""
@@ -1593,16 +1595,16 @@ def render_extraction_report(rows, skip_s2=False, skip_imgs=False, skip_s1=False
             f'`{_backend.upper()}`). Earth Engine corta la consulta por límite de '
             'tiempo/memoria y, antes, el fallo no se mostraba. → **Reduce el nº de '
             'puntos** (p. ej. 200–300 por ejecución) **o cambia el backend a Microsoft '
-            'Planetary Computer (MPC)** en «1 · Analizar», «Datos de satélite».\n'
+            'Microsoft Planetary Computer (MPC)** en «1 · Analizar», «Datos de satélite».\n'
             '- Caída temporal del servicio satelital → **reintenta** en unos minutos.\n'
             '- Años sin escenas con poca nube → amplía el **rango de años**.')
     elif problems:
         st.caption(i18n.pick(
             'Sugerencia: reintenta (caídas temporales de los servicios), reduce el nº de '
-            'puntos, o cambia la fuente de datos (Earth Engine ↔ Planetary Computer) en '
+            'puntos, o cambia la fuente de datos (Earth Engine ↔ Microsoft Planetary Computer) en '
             '«1 · Analizar», «Datos de satélite».',
             'Tip: retry (temporary service outages), reduce the number of points, or switch '
-            'the data source (Earth Engine ↔ Planetary Computer) in "1 · Analyse", '
+            'the data source (Earth Engine ↔ Microsoft Planetary Computer) in "1 · Analyse", '
             '"Satellite data".'))
 
 
@@ -2999,100 +3001,38 @@ with col_panel, st.container(key='panel_analizar'):
                 {'ok': _linea_ok, 'info': st.info, 'aviso': st.warning,
                  'falta': st.error}[_niv_et](_txt_et)
         truth_train_only = st.checkbox(
-            i18n.pick('Usarlos solo para medir y entrenar (no en el mapa)',
-                      'Use them only to measure and train (not on the map)'),
+            i18n.pick('No mostrarlos en el mapa, la tabla ni las descargas',
+                      'Do not show them on the map, table or downloads'),
             value=False, disabled=(f_truth is None),
             help=i18n.pick(
-                'Tus puntos de campo sirven para medir cuánto acierta el modelo (y, si marcas '
-                '«Sumar mis puntos a los del modelo y reentrenarlo», para entrenarlo), pero NO se '
-                'añaden al mapa, la tabla ni las descargas: solo verás tus puntos. '
-                'Útil cuando subes muchos borreguiles verificados y no quieres que saturen el '
-                'resultado. Los puntos que coincidan (a menos de 20 m) con un punto de '
-                'campo sí se marcan como verificados y se muestran.',
-                'Your field points are used to measure how well the model does (and, if you '
-                'tick "Add my points to the model\'s and retrain it", to train it), but they are NOT '
-                'added to the map, table or downloads: you will only see your candidate '
-                'points. Useful when you upload many verified borreguiles and do not want '
-                'them to swamp the result. Candidates that match (<20 m) a field point are '
+                'Con la casilla o sin ella, tus puntos ya verificados sirven igual para medir '
+                'cuánto acierta el modelo (y, si marcas «Sumar mis puntos a los del modelo y '
+                'reentrenarlo», para entrenarlo). Marcada, además no salen en el mapa, la '
+                'tabla ni las descargas: solo verás los puntos que estás revisando. Útil '
+                'cuando subes muchos borreguiles verificados y no quieres que tapen el '
+                'resultado. Los puntos tuyos que caigan a menos de 20 m de uno verificado sí '
+                'se marcan como verificados y se muestran.',
+                'With or without the box, your already verified points are used just the same '
+                'to measure how well the model does (and, if you tick "Add my points to the '
+                'model\'s and retrain it", to train it). Ticked, they are also left out of the '
+                'map, table and downloads: you will only see the points you are reviewing. '
+                'Useful when you upload many verified alpine wet meadows and do not want them '
+                'to swamp the result. Your points that fall within 20 m of a verified one are '
                 'marked as verified and shown.'))
-        # «Cómo preparar tus puntos de campo» es un enlace a la Ayuda, como en la demo (el
+        # «Cómo preparar tus puntos» es un enlace a la Ayuda, como en la demo (el
         # texto está allí, en texto_puntos_campo).
-        st.button(i18n.pick('Cómo preparar tus puntos de campo',
-                            'How to prepare your field points'),
+        st.button(i18n.pick('Cómo preparar tus puntos',
+                            'How to prepare your points'),
                   key='ir_puntos_campo', type='tertiary', on_click=ir_a, args=('ayuda',))
 
-    with st.container(key='seccion_satelite'):
-        st.subheader(i18n.pick('Datos de satélite', 'Satellite data'), help=i18n.pick('Cuenta compartida: la app calcula en Earth Engine con la cuenta compartida de MonitorEO (cuenta UGR), sin iniciar sesión ni tener cuenta propia. Es para uso no comercial.\n\nMi cuenta: con tu proyecto de Google Cloud registrado en Earth Engine (por ejemplo ee-tunombre), calcula con tu cuenta de Google y gasta la cuota de ese proyecto. Se recuerda para la próxima vez. «Entrar con Google» abre el navegador; solo hace falta una vez en cada ordenador. «Probar conexión» comprueba que funciona; no es obligatorio.\n\nSin Earth Engine: Planetary Computer, sin cuenta, más lento y sin radar.', 'Shared account: the app computes in Earth Engine with the MonitorEO shared account (UGR account), with no sign-in and no account of your own. It is for non-commercial use.\n\nMy account: with your Google Cloud project registered in Earth Engine (for instance ee-yourname), it computes with your Google account and uses the quota of that project. It is remembered for the next time. "Sign in with Google" opens the browser; it is only needed once on each computer. "Test connection" checks that it works; it is not required.\n\nWithout Earth Engine: Planetary Computer, no account, slower and without radar.'))
-        # Tres maneras de calcular (la autora, 26-11-2026: «que use la cuenta de servicio de
-        # monitoreo, que esté por defecto y que el usuario pueda elegir su propia cuenta»):
-        # la cuenta compartida de MonitorEO, la cuenta de Google de quien usa la app con su
-        # proyecto (arranca en ella si es la última que funcionó) o Planetary Computer.
-        _cuentas = {'compartida': i18n.pick('Cuenta compartida', 'Shared account'),
-                    'mia': i18n.pick('Mi cuenta', 'My account'),
-                    'mpc': i18n.pick('Sin Earth Engine', 'Without Earth Engine')}
-        cuenta = st.radio(i18n.pick('Cuenta', 'Account'), list(_cuentas), horizontal=True,
-                          index=1 if leer_ajuste('gee_project', '') else 0, key='cuenta',
-                          format_func=_cuentas.get, label_visibility='collapsed')
-        backend = 'mpc' if cuenta == 'mpc' else 'gee'
-        gee_project = ''
-        if cuenta == 'mpc':
-            st.caption(i18n.pick(
-                'Planetary Computer: sin cuenta, más lento y sin radar. La app usa la versión '
-                'del modelo sin radar.',
-                'Planetary Computer: no account, slower and without radar. The app uses the '
-                'version of the model without radar.'))
-        elif cuenta == 'compartida':
-            if leer_ajuste('gee_project', ''):
-                guardar_ajuste('gee_project', '')        # ha vuelto a la cuenta compartida
-            _uso = _uso_cuenta_compartida()
-            _txt_uso = i18n.pick(
-                'Earth Engine con la cuenta compartida de MonitorEO (cuenta UGR), sin iniciar '
-                'sesión.',
-                'Earth Engine with the MonitorEO shared account (UGR account), with no '
-                'sign-in.')
-            st.caption(_txt_uso)
-            if _uso and _uso.get('restricted'):
-                st.warning(i18n.pick(
-                    'Earth Engine ha limitado ahora la cuenta compartida (ha gastado su '
-                    'cuota de este mes): los cálculos irán lentos y alguno puede fallar. '
-                    'Si tienes cuenta propia, elige «Mi cuenta».',
-                    'Earth Engine is now limiting the shared account (it has spent its '
-                    'quota for this month): computations will be slow and some may fail. '
-                    'If you have your own account, choose "My account".'))
-        else:
-            gee_project = st.text_input(
-                i18n.pick('Tu proyecto de Google Cloud', 'Your Google Cloud project'),
-                value=leer_ajuste('gee_project', ''), placeholder='ee-tunombre',
-                key='gee_proyecto')
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button(i18n.pick('Entrar con Google', 'Sign in with Google'),
-                             key='entrar_google', width='stretch'):
-                    try:
-                        import gee_backend as geb
-                        geb.authenticate()
-                        st.success('Autenticación lanzada (revisa el navegador).')
-                    except Exception as e:
-                        st.error(f'Error de autenticación: {e}')
-            with c2:
-                if st.button(i18n.pick('Probar conexión', 'Test connection'),
-                             key='probar_conexion', width='stretch'):
-                    try:
-                        import gee_backend as geb
-                        ok, msg = geb.initialize(gee_project.strip() or None)
-                        (st.success if ok else st.error)(msg)
-                        if ok and gee_project.strip():
-                            guardar_ajuste('gee_project', gee_project.strip())
-                    except Exception as e:
-                        st.error(str(e))
-        # Los años de las imágenes van en esta tarjeta (la autora, 27-11-2026: «si ahí pone
-        # datos de satélite, debería estar con la de abajo»); se rellena más abajo.
-        _hueco_anios = st.container()
-
+    # El modelo, antes de «Datos de satélite» (la autora, 27-11-2026). Lo que necesita
+    # de allí (si se lee el radar) sale de lo que ya está elegido.
+    _backend_elegido = 'mpc' if st.session_state.get('cuenta') == 'mpc' else 'gee'
     with st.container(key='seccion_modelo'):
         # Como en la demo: la «?» en el título, el desplegable con el nombre de cada modelo
         # y una sola nota gris con el enlace a «Qué modelo elegir».
-        st.subheader(i18n.pick('Modelo', 'Model'), help=i18n.pick(
+        st.subheader(i18n.pick('Modelos para obtener puntos candidatos de entrenamiento',
+                                'Models to get candidate training points'), help=i18n.pick(
             'Es el que da la probabilidad de cada punto, aunque tus puntos traigan etiquetas de '
             'campo (con ellas la app mide cuánto acierta). Para entrenar además uno con tus '
             'puntos, marca la casilla de abajo. Un modelo entrenado en tu zona se puede guardar '
@@ -3115,7 +3055,7 @@ with col_panel, st.container(key='panel_analizar'):
                 _n_m = _mb.get('training_n')
                 # Sin Earth Engine no se lee el radar: la app usa la versión del modelo
                 # entrenada sin él, y la nota dice cuánto acierta.
-                _sr = modelo_sin_radar(start_model_path) if backend != 'gee' else None
+                _sr = modelo_sin_radar(start_model_path) if _backend_elegido != 'gee' else None
                 _auc_sr = (_auc_modelo(str(_sr), _sr.stat().st_mtime)
                            if _sr is not None else None)
                 with st.container(horizontal=True, vertical_alignment='center',
@@ -3124,18 +3064,22 @@ with col_panel, st.container(key='panel_analizar'):
                         (f'Entrenado con {_n_m} puntos de {_zona_m}. ' if _n_m else
                          f'Entrenado en {_zona_m}. ')
                         + 'En otra zona, revisa los puntos antes de fiarte.'
-                        + ('' if _sr is None else ' Sin Earth Engine se usa su versión '
+                        + ('' if _sr is None else ' Con Microsoft Planetary Computer se usa su versión '
                            'entrenada sin radar' + ('' if _auc_sr is None else
                                                     f' (AUC {_n3(_auc_sr)})') + '.'),
                         (f'Trained with {_n_m} points from {_zona_m}. ' if _n_m else
                          f'Trained in {_zona_m}. ')
                         + 'In another area, review the points before trusting them.'
-                        + ('' if _sr is None else ' Without Earth Engine its version '
+                        + ('' if _sr is None else ' With Microsoft Planetary Computer its version '
                            'trained without radar is used' + ('' if _auc_sr is None else
                                                               f' (AUC {_n3(_auc_sr)})') + '.')))
-                    st.button(i18n.pick('Qué modelo elegir', 'Which model to choose'),
-                              key='ir_modelos', type='tertiary', on_click=ir_a,
-                              args=('ayuda',))
+                    # Abre la wiki, en el apartado «Qué modelo elegir» (la autora, 27-11-2026)
+                    with st.container(key='ir_modelos'):
+                        st.markdown(
+                            '[' + i18n.pick('Qué modelo elegir', 'Which model to choose')
+                            + ' ↗](' + i18n.pick(WIKI_URL + '#qué-modelo-elegir',
+                                                  WIKI_URL + '/English#which-model-to-choose')
+                            + ')')
                 # Un modelo con PlanetScope sin la clave de Planet: sus variables irían vacías.
                 if (any(f.startswith('ps_') for f in _sel_feats)
                         and not (get_secret('PL_API_KEY', None)
@@ -3178,62 +3122,6 @@ with col_panel, st.container(key='panel_analizar'):
                 'running and when verifying or adding points; there is no need to run again.'))
 
         # El umbral es el corte del modelo: va en esta tarjeta, «Modelo» (27-11-2026).
-        with _hueco_anios:
-            st.html('<hr class="separador">')
-            # Como en la demo: el título con su «?», la descripción y después el control.
-            with st.container(key='titb_anios'):
-                st.markdown(i18n.pick('Años de las imágenes de satélite',
-                                      'Years of the satellite images'),
-                            help=i18n.pick(
-                    'Para qué: las imágenes de Óptico Sentinel-2 de los veranos de estos años son con las '
-                    'que se calculan las variables de satélite de cada punto: el verdor, la humedad '
-                    'de la vegetación, el agua. Cada variable junta todos los veranos (por ejemplo, '
-                    'la mediana de las imágenes del inicio de verano (15 jun – 25 jul) y del fin de '
-                    'verano (1 ago – 30 sep) de todos los años).\n\n'
-                    'Con más años los valores son más estables (pesan menos las nubes, la nieve o '
-                    'un verano raro), pero un cambio reciente del borreguil se diluye. Los mismos '
-                    'años se usan para leer las variables del mapa, en «3 · Hacer el mapa». El '
-                    'Radar Sentinel-1 usa siempre los veranos de 2019 a 2024.\n\n'
-                    'Calidad de las imágenes: solo entran escenas de Sentinel-2 con menos del 30 % '
-                    'de nubes, y en cada píxel se quitan las nubes, las sombras de nube, los cirros '
-                    'y los píxeles oscuros o saturados (con la clasificación SCL de Sentinel-2, '
-                    'mirando también los píxeles de alrededor). En las variables de junio a '
-                    'septiembre (WAVI, albedo, NDMI y NDWI: media, mínimo, máximo y variabilidad) '
-                    'se quita también la nieve; en las de inicio y fin de verano, no. El radar no '
-                    'lo necesita: atraviesa las nubes.\n\n'
-                    'Recomendado: 2017-2025, los años con los que se entrenó el modelo de Sierra '
-                    'Nevada; con otros, sus valores pueden no ser comparables.',
-                    'What for: the Optical Sentinel-2 images of the summers of these years are the ones '
-                    'used to compute the satellite variables of each point: greenness, vegetation '
-                    'moisture, water. Each variable pools all the summers (for instance, the median '
-                    'of the images of early summer (15 Jun – 25 Jul) and late summer (1 Aug – '
-                    '30 Sep) of all the years).\n\n'
-                    'With more years the values are more stable (clouds, snow or an odd summer '
-                    'weigh less), but a recent change of the borreguil gets diluted. The same years '
-                    'are used to read the map variables, in "3 · Make the map". The Radar '
-                    'Sentinel-1 always uses the summers of 2019 to 2024.\n\n'
-                    'Image quality: only Sentinel-2 scenes with less than 30 % clouds are used, '
-                    'and in each pixel clouds, cloud shadows, cirrus and dark or saturated pixels '
-                    'are removed (with the Sentinel-2 SCL classification, also looking at the '
-                    'surrounding pixels). In the June to September variables (WAVI, albedo, NDMI '
-                    'and NDWI: mean, minimum, maximum and variability) snow is removed too; in the '
-                    'early and late summer ones, it is not. The radar does not need it: it goes '
-                    'through clouds.\n\n'
-                    'Recommended: 2017-2025, the years the Sierra Nevada model was trained with; '
-                    'with others, its values may not be comparable.'))
-            st.caption(i18n.pick(
-                'De qué veranos se toman las imágenes de Óptico Sentinel-2 con las que se calculan las '
-                'variables de satélite de cada punto (el verdor, la humedad, el agua). Antes se '
-                'quitan las nubes, sus sombras y, en algunas variables, la nieve. Son también los '
-                'del mapa; el Radar Sentinel-1 usa siempre 2019-2024.',
-                'Which summers the Optical Sentinel-2 images come from, used to compute the satellite '
-                'variables of each point (greenness, moisture, water). Clouds, their shadows and, '
-                'in some variables, snow are removed first. They are also the map years; the '
-                'Radar Sentinel-1 always uses 2019-2024.'))
-            years_str = st.text_input(
-                i18n.pick('Años (admite rangos, p. ej. 2017-2025)',
-                          'Years (ranges allowed, e.g. 2017-2025)'),
-                value='2017-2025', key='anios')
         st.html('<hr class="separador">')
         with st.container(key='titb_umbral'):
             st.markdown(i18n.pick('Umbral para BORREGUIL', 'Threshold for BORREGUIL'),
@@ -3293,6 +3181,137 @@ with col_panel, st.container(key='panel_analizar'):
                                   0.30, 0.80, 0.50, 0.01, key='umbral_manual', format='%.3f')
         else:
             threshold = st.session_state.get('umbral_manual', 0.50)
+    with st.container(key='seccion_satelite'):
+        st.subheader(i18n.pick('Datos de satélite', 'Satellite data'), help=i18n.pick('Cuenta compartida: la app calcula en Earth Engine con la cuenta compartida de MonitorEO (cuenta UGR), sin iniciar sesión ni tener cuenta propia. Es para uso no comercial.\n\nMi cuenta: con tu proyecto de Google Cloud registrado en Earth Engine (por ejemplo ee-tunombre), calcula con tu cuenta de Google y gasta la cuota de ese proyecto. Se recuerda para la próxima vez. «Entrar con Google» abre el navegador; solo hace falta una vez en cada ordenador. «Probar conexión» comprueba que funciona; no es obligatorio.\n\nMicrosoft Planetary Computer: sin cuenta, más lento y sin radar.', 'Shared account: the app computes in Earth Engine with the MonitorEO shared account (UGR account), with no sign-in and no account of your own. It is for non-commercial use.\n\nMy account: with your Google Cloud project registered in Earth Engine (for instance ee-yourname), it computes with your Google account and uses the quota of that project. It is remembered for the next time. "Sign in with Google" opens the browser; it is only needed once on each computer. "Test connection" checks that it works; it is not required.\n\nMicrosoft Planetary Computer: no account, slower and without radar.'))
+        # Tres maneras de calcular (la autora, 26-11-2026: «que use la cuenta de servicio de
+        # monitoreo, que esté por defecto y que el usuario pueda elegir su propia cuenta»):
+        # la cuenta compartida de MonitorEO, la cuenta de Google de quien usa la app con su
+        # proyecto (arranca en ella si es la última que funcionó) o Microsoft Planetary Computer.
+        _cuentas = {'compartida': i18n.pick('Cuenta compartida', 'Shared account'),
+                    'mia': i18n.pick('Mi cuenta', 'My account'),
+                    'mpc': 'Microsoft Planetary Computer'}
+        cuenta = st.radio(i18n.pick('Cuenta', 'Account'), list(_cuentas), horizontal=True,
+                          index=1 if leer_ajuste('gee_project', '') else 0, key='cuenta',
+                          format_func=_cuentas.get, label_visibility='collapsed')
+        backend = 'mpc' if cuenta == 'mpc' else 'gee'
+        gee_project = ''
+        if cuenta == 'mpc':
+            st.caption(i18n.pick(
+                'Microsoft Planetary Computer: sin cuenta, más lento y sin radar. La app usa la versión '
+                'del modelo sin radar.',
+                'Microsoft Planetary Computer: no account, slower and without radar. The app uses the '
+                'version of the model without radar.'))
+        elif cuenta == 'compartida':
+            if leer_ajuste('gee_project', ''):
+                guardar_ajuste('gee_project', '')        # ha vuelto a la cuenta compartida
+            _uso = _uso_cuenta_compartida()
+            _txt_uso = i18n.pick(
+                'Earth Engine con la cuenta compartida de MonitorEO (cuenta UGR), sin iniciar '
+                'sesión.',
+                'Earth Engine with the MonitorEO shared account (UGR account), with no '
+                'sign-in.')
+            st.caption(_txt_uso)
+            if _uso and _uso.get('restricted'):
+                st.warning(i18n.pick(
+                    'Earth Engine ha limitado ahora la cuenta compartida (ha gastado su '
+                    'cuota de este mes): los cálculos irán lentos y alguno puede fallar. '
+                    'Si tienes cuenta propia, elige «Mi cuenta».',
+                    'Earth Engine is now limiting the shared account (it has spent its '
+                    'quota for this month): computations will be slow and some may fail. '
+                    'If you have your own account, choose "My account".'))
+        else:
+            gee_project = st.text_input(
+                i18n.pick('Tu proyecto de Google Cloud', 'Your Google Cloud project'),
+                value=leer_ajuste('gee_project', ''), placeholder='ee-tunombre',
+                key='gee_proyecto')
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button(i18n.pick('Entrar con Google', 'Sign in with Google'),
+                             key='entrar_google', width='stretch'):
+                    try:
+                        import gee_backend as geb
+                        geb.authenticate()
+                        st.success('Autenticación lanzada (revisa el navegador).')
+                    except Exception as e:
+                        st.error(f'Error de autenticación: {e}')
+            with c2:
+                if st.button(i18n.pick('Probar conexión', 'Test connection'),
+                             key='probar_conexion', width='stretch'):
+                    try:
+                        import gee_backend as geb
+                        ok, msg = geb.initialize(gee_project.strip() or None)
+                        (st.success if ok else st.error)(msg)
+                        if ok and gee_project.strip():
+                            guardar_ajuste('gee_project', gee_project.strip())
+                    except Exception as e:
+                        st.error(str(e))
+        # Los años de las imágenes van en esta tarjeta (la autora, 27-11-2026: «si ahí pone
+        # datos de satélite, debería estar con la de abajo»); se rellena más abajo.
+        # Los años, aquí, en «Datos de satélite» (antes se escribían desde la
+        # tarjeta del modelo en un hueco de esta; ahora el modelo va antes).
+        with st.container():
+            st.html('<hr class="separador">')
+            # Como en la demo: el título con su «?», la descripción y después el control.
+            with st.container(key='titb_anios'):
+                st.markdown(i18n.pick('Años de las imágenes de satélite',
+                                      'Years of the satellite images'),
+                            help=i18n.pick(
+                    'Para qué: las imágenes de Óptico Sentinel-2 de los veranos (1 jun – 30 sep) de estos años son con las '
+                    'que se calculan las variables de satélite de cada punto: el verdor, la humedad '
+                    'de la vegetación, el agua. Cada variable junta todos los veranos (por ejemplo, '
+                    'la mediana de las imágenes del inicio de verano (15 jun – 25 jul) y del fin de '
+                    'verano (1 ago – 30 sep) de todos los años).\n\n'
+                    'Con más años los valores son más estables (pesan menos las nubes, la nieve o '
+                    'un verano raro), pero un cambio reciente del borreguil se diluye. Los mismos '
+                    'años se usan para leer las variables del mapa, en «3 · Hacer el mapa». El '
+                    'Radar Sentinel-1 usa siempre los veranos (1 jun – 30 sep) de 2019 a 2024.\n\n'
+                    'Calidad de las imágenes: solo entran escenas de Sentinel-2 con menos del 30 % '
+                    'de nubes, y en cada píxel se quitan las nubes, las sombras de nube, los cirros '
+                    'y los píxeles oscuros o saturados (con la clasificación SCL de Sentinel-2, '
+                    'mirando también los píxeles de alrededor). En las variables de junio a '
+                    'septiembre (WAVI, albedo, NDMI y NDWI: media, mínimo, máximo y variabilidad) '
+                    'se quita también la nieve; en las de inicio (15 jun – 25 jul) y fin de verano (1 ago – 30 sep), no. El radar no '
+                    'lo necesita: atraviesa las nubes.\n\n'
+                    'Escribe «2017-actualidad» (o «2017-present») para llegar hasta el último '
+                    'verano terminado, o años sueltos y rangos: «2017-2025», «2019,2021».\n\n'
+                    'Recomendado: 2017-2025, los años con los que se entrenó el modelo de Sierra '
+                    'Nevada; con otros, sus valores pueden no ser comparables.',
+                    'What for: the Optical Sentinel-2 images of the summers (1 Jun – 30 Sep) of these years are the ones '
+                    'used to compute the satellite variables of each point: greenness, vegetation '
+                    'moisture, water. Each variable pools all the summers (for instance, the median '
+                    'of the images of early summer (15 Jun – 25 Jul) and late summer (1 Aug – '
+                    '30 Sep) of all the years).\n\n'
+                    'With more years the values are more stable (clouds, snow or an odd summer '
+                    'weigh less), but a recent change of the borreguil gets diluted. The same years '
+                    'are used to read the map variables, in "3 · Make the map". The Radar '
+                    'Sentinel-1 always uses the summers (1 Jun – 30 Sep) of 2019 to 2024.\n\n'
+                    'Image quality: only Sentinel-2 scenes with less than 30 % clouds are used, '
+                    'and in each pixel clouds, cloud shadows, cirrus and dark or saturated pixels '
+                    'are removed (with the Sentinel-2 SCL classification, also looking at the '
+                    'surrounding pixels). In the June to September variables (WAVI, albedo, NDMI '
+                    'and NDWI: mean, minimum, maximum and variability) snow is removed too; in the '
+                    'early (15 Jun – 25 Jul) and late summer (1 Aug – 30 Sep) ones, it is not. The radar does not need it: it goes '
+                    'through clouds.\n\n'
+                    'Write "2017-present" to go up to the last summer that has ended, or single '
+                    'years and ranges: "2017-2025", "2019,2021".\n\n'
+                    'Recommended: 2017-2025, the years the Sierra Nevada model was trained with; '
+                    'with others, its values may not be comparable.'))
+            st.caption(i18n.pick(
+                'De qué veranos (1 jun – 30 sep) se toman las imágenes de Óptico Sentinel-2 con las que se calculan las '
+                'variables de satélite de cada punto (el verdor, la humedad, el agua). Antes se '
+                'quitan las nubes, sus sombras y, en algunas variables, la nieve. Son también los '
+                'del mapa; el Radar Sentinel-1 usa siempre 2019-2024.',
+                'Which summers (1 Jun – 30 Sep) the Optical Sentinel-2 images come from, used to compute the satellite '
+                'variables of each point (greenness, moisture, water). Clouds, their shadows and, '
+                'in some variables, snow are removed first. They are also the map years; the '
+                'Radar Sentinel-1 always uses 2019-2024.'))
+            # «2017-present» (la autora, 27-11-2026): hasta el último verano terminado
+            # (bp.anio_presente); también vale «2017-2025», «2019,2021»…
+            years_str = st.text_input(
+                i18n.pick('Años (p. ej. de 2017 a la actualidad)',
+                          'Years (e.g. from 2017 to present)'),
+                value=i18n.pick('2017-actualidad', '2017-present'), key='anios')
+
     with st.container(key='seccion_imagenes'):
         st.subheader(i18n.pick('Imágenes', 'Images'))
         with st.container(key='titb_imagen'):
@@ -3604,8 +3623,8 @@ with col_principal:
              i18n.pick('Analizar', 'Analyse')),
             type='primary', disabled=not can_run, key='analizar', width='stretch')
         if backend != 'gee':
-            _txt_cuenta = i18n.pick('Planetary Computer: más lento y sin radar.',
-                                    'Planetary Computer: slower and without radar.')
+            _txt_cuenta = i18n.pick('Microsoft Planetary Computer: más lento y sin radar.',
+                                    'Microsoft Planetary Computer: slower and without radar.')
         elif gee_project:
             _txt_cuenta = i18n.pick('Earth Engine con tu proyecto.',
                                     'Earth Engine with your project.')
@@ -3694,7 +3713,7 @@ def render_ayuda():
          i18n.pick('Instalar, abrir y hacer la primera prueba.',
                    'Install, open and run the first test.'),
          WIKI_URL + i18n.pick('/Primeros-pasos', '/Getting-started')),
-        (i18n.pick('Cómo preparar tus puntos de campo', 'How to prepare your field points'),
+        (i18n.pick('Cómo preparar tus puntos', 'How to prepare your points'),
          i18n.pick('La plantilla, las columnas y por qué incluir ausencias.',
                    'The template, the columns and why to include absences.'),
          WIKI_URL + i18n.pick('/Puntos-de-campo', '/Field-points'))]
@@ -3822,8 +3841,8 @@ def render_ayuda():
                             'Borreguil --navegador.')
                 + '</span></div>')
     st.write('')
-    st.markdown('### ' + i18n.pick('Cómo preparar tus puntos de campo',
-                                   'How to prepare your field points'))
+    st.markdown('### ' + i18n.pick('Cómo preparar tus puntos',
+                                   'How to prepare your points'))
     st.markdown(texto_puntos_campo())
     render_docs(con_sugerencias=False)
 
@@ -4382,7 +4401,7 @@ with col_principal:
                         'purity proposal'), state='error')
 
         # Sentinel-1 (radar): solo con Earth Engine, en segundos (los modelos de partida
-        # se entrenaron con esos valores). Con Planetary Computer no se lee y se usa la
+        # se entrenaron con esos valores). Con Microsoft Planetary Computer no se lee y se usa la
         # versión del modelo sin radar (ver modelo_segun_radar). Si falla, igual.
         skip_s1 = skip_s2 or active_backend != 'gee'
         if not skip_s1:
@@ -4444,7 +4463,7 @@ with col_principal:
 
         # RF
         with st.status('Random Forest…', expanded=True) as status:
-            # Sin radar (Planetary Computer, o falló): la versión del modelo sin radar
+            # Sin radar (Microsoft Planetary Computer, o falló): la versión del modelo sin radar
             st.session_state.radar_leido = bp.hay_radar(rows)
             _smp = modelo_segun_radar(
                 st.session_state.get('start_model_path') or str(model_path('rf_sierra_nevada.joblib')),
@@ -4554,9 +4573,13 @@ with col_principal:
             rows = [r for r in rows if r.get('source') != 'truth']
             _n_hidden = _n0 - len(rows)
             if _n_hidden:
-                st.info(f'🎓 {_n_hidden} puntos de verdad-terreno usados **solo para '
-                        f'entrenar** (ocultos del mapa, la tabla y las descargas). '
-                        f'Se muestran tus {len(rows)} candidatos.')
+                st.info(i18n.pick(
+                    f'🎓 {_n_hidden} puntos ya verificados no se muestran en el mapa, la tabla '
+                    f'ni las descargas (sí cuentan para medir el acierto). Se muestran tus '
+                    f'{len(rows)} puntos.',
+                    f'🎓 {_n_hidden} already verified points are not shown on the map, table '
+                    f'or downloads (they do count to measure the accuracy). Your {len(rows)} '
+                    f'points are shown.'))
 
         # Save outputs
         bp.save_csv(rows, work / 'classification.csv')
@@ -4934,9 +4957,8 @@ with pant_resultados:
                            else 'shared account') + ')'))
                 else:
                     pasos.append(i18n.pick(
-                        'Puntos leídos; satélite de Planetary Computer (sin Earth Engine)',
-                        'Points read; satellite data from Planetary Computer (no Earth '
-                        'Engine)'))
+                        'Puntos leídos; satélite de Microsoft Planetary Computer',
+                        'Points read; satellite data from Microsoft Planetary Computer'))
                 if _diag.get('skip_imgs'):
                     pasos.append(i18n.pick('Imagen aérea: no se ha leído',
                                            'Aerial image: not read'))
@@ -9254,7 +9276,7 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                 'pixel that is classified afterwards. It uses the Earth Engine account and the '
                 'years of the analysis panel.'))
             # El proyecto de Earth Engine es el del panel lateral (ya no se vuelve a pedir
-            # aquí, 24-11-2026). Si allí está elegido Planetary Computer, el último con
+            # aquí, 24-11-2026). Si allí está elegido Microsoft Planetary Computer, el último con
             # el que Earth Engine funcionó. Vacío: la cuenta compartida de MonitorEO
             # (26-11-2026), que también vale para leer las variables y hacer el mapa.
             _proy = gee_project.strip() or leer_ajuste('gee_project', '')
@@ -10614,14 +10636,14 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                                     help=i18n.pick(
                                         'Un píxel es de laguna si está a esta distancia o '
                                         'menos de la orilla de una laguna que se ve en '
-                                        'Sentinel-2: píxeles con NDWI medio de verano mayor de '
+                                        'Sentinel-2: píxeles con NDWI medio de verano (1 jun – 29 sep) mayor de '
                                         '0,05, en terreno casi llano y en manchas de 3 o más. '
                                         'Vale en cualquier sitio, aunque no haya capa de '
                                         'lagunas.\n\n'
                                         'Recomendado: 100 m.',
                                         'A pixel is a lake one if it is within this distance '
                                         'of the shore of a lake that shows in Sentinel-2: '
-                                        'pixels with a mean summer NDWI above 0.05, on nearly '
+                                        'pixels with a mean summer (1 Jun – 29 Sep) NDWI above 0.05, on nearly '
                                         'flat ground and in patches of 3 or more. It works '
                                         'anywhere, even with no lake layer.\n\n'
                                         'Recommended: 100 m.'))
@@ -10719,14 +10741,14 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                                     'El agua abierta de una laguna se parece a un borreguil '
                                     'muy húmedo, y el modelo la puede dar por borreguil. Con '
                                     'esto, los píxeles de agua que se ven en Sentinel-2 (NDWI '
-                                    'medio de verano mayor de 0,05, en terreno casi llano y en '
+                                    'medio de verano (1 jun – 29 sep) mayor de 0,05, en terreno casi llano y en '
                                     'manchas de 3 o más píxeles) pasan a «no borreguil». El '
                                     'agua se guarda además en su propio fichero. Las '
                                     'probabilidades no cambian.\n\n'
                                     'Recomendado: marcado.',
                                     'The open water of a lake looks like a very wet borreguil, '
                                     'and the model may call it one. With this, the water '
-                                    'pixels that show in Sentinel-2 (mean summer NDWI above '
+                                    'pixels that show in Sentinel-2 (mean summer (1 Jun – 29 Sep) NDWI above '
                                     '0.05, on nearly flat ground and in patches of 3 or more '
                                     'pixels) become "not a borreguil". The water is also saved '
                                     'in its own file. The probabilities do not change.\n\n'
@@ -11901,7 +11923,7 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                         'biodiversidad (EBV, Essential Biodiversity Variables, de GEO BON) que '
                         'miden de la vegetación o del agua: productividad y vigor (NDVI, EVI, '
                         'WAVI), contenido de agua de la vegetación (NDMI), clorofila (borde del '
-                        'rojo), fenología (la caída del NDVI a lo largo del verano), agua en '
+                        'rojo), fenología (la caída del NDVI del inicio de verano, 15 jun – 24 jul, al fin de verano, 1 ago – 29 sep), agua en '
                         'superficie (NDWI), cubierta y brillo del suelo (albedo) y '
                         'perturbaciones (NBR). El relieve va aparte: no es una EBV, es el '
                         'contexto físico. El peso de un grupo es la suma del de sus '
@@ -11916,7 +11938,7 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                         'biodiversity variable (EBV, from GEO BON) they measure of the '
                         'vegetation or the water: productivity and vigour (NDVI, EVI, WAVI), '
                         'vegetation water content (NDMI), chlorophyll (red edge), phenology '
-                        '(the NDVI drop over the summer), surface water (NDWI), ground cover '
+                        '(the NDVI drop from early summer, 15 Jun – 24 Jul, to late summer, 1 Aug – 29 Sep), surface water (NDWI), ground cover '
                         'and brightness (albedo) and disturbance (NBR). Terrain goes apart: it '
                         'is not an EBV, it is the physical context. The weight of a group is '
                         'the sum of its variables.\n\n'

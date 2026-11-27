@@ -2435,7 +2435,7 @@ def _pasos_del_mapa(at, T, en):
     at.run()
     sin_error(at, 'P1 · entrenar')
     mod = at.session_state['mrf_modelos']['humedad']
-    comprobar(mod.get('lectura') == {'anios': list(range(2017, 2026)), 'epsg': 32630,
+    comprobar(mod.get('lectura') == {'anios': list(bp.parse_years('2017-present')), 'epsg': 32630,
                                      'version': geb.VERSION_PILA}
               and len(mod['muestras']) == 22,
               'el modelo recuerda de qué años y rejilla salió su tabla, cómo se calcularon '
@@ -2625,7 +2625,7 @@ def _pasos_del_mapa(at, T, en):
               'su tipo más probable')
     comprobar(meta['pixeles_clasificados'] == meta['pixeles'] == rej['ancho'] * rej['alto']
               and [c['categoria'] for c in meta['categorias']] == ['no borreguil', 'húmedo', 'seco']
-              and meta['firma_modelo'] == mod['firma'] and meta['anios'] == list(range(2017, 2026))
+              and meta['firma_modelo'] == mod['firma'] and meta['anios'] == list(bp.parse_years('2017-present'))
               and meta['sin_clase_no_borreguil'] is False,
               'la ficha dice qué se ha clasificado, con qué modelo y qué años')
     comprobar(meta.get('pila') == {'version': geb.VERSION_PILA,
@@ -3554,7 +3554,7 @@ def guion_sin_puntos(lang):
         _dg = ae.session_state['diag_analisis'] if 'diag_analisis' in ae.session_state else {}
         comprobar(_dg.get('ejemplo') is True and _dg.get('backend') == 'gee'
                   and _dg.get('cauces_ok') and _dg.get('n_cauces')
-                  and _dg.get('anios') == 9 and _dg.get('umbral') is not None,
+                  and _dg.get('anios') == len(bp.parse_years('2017-present')) and _dg.get('umbral') is not None,
                   'y guarda cómo ha ido la lectura, para el resumen de Resultados',
                   str(_dg))
         ae.run()

@@ -1025,13 +1025,29 @@ def merge_truth_points(rows, truth_rows, match_m=20, info=None):
     return n_match, n_add, n_pos, n_neg
 
 
+PALABRAS_PRESENTE = ('present', 'presente', 'actualidad', 'hoy', 'now', 'today')
+
+
+def anio_presente(hoy=None):
+    """El último año con el verano (1 jun – 30 sep) ya terminado: el de este año a partir
+    de octubre y, antes, el del año pasado (un verano a medias no se compararía)."""
+    import datetime
+    hoy = hoy or datetime.date.today()
+    return hoy.year if (hoy.month, hoy.day) > (9, 30) else hoy.year - 1
+
+
 def parse_years(spec):
-    """Acepta '2023,2024', '2017-2025' o combinaciones '2017-2020,2024'.
+    """Acepta '2023,2024', '2017-2025' o combinaciones '2017-2020,2024', y «present»
+    (o «actualidad», «hoy»…) por el último verano terminado: '2017-present'.
     Devuelve una tupla de enteros ordenada y sin duplicados."""
     if spec is None:
         return tuple()
     if not isinstance(spec, str):
         return tuple(spec)
+
+    def anio(texto):
+        texto = texto.strip()
+        return anio_presente() if texto.lower() in PALABRAS_PRESENTE else int(texto)
     years = set()
     for part in spec.split(','):
         part = part.strip()
@@ -1039,9 +1055,9 @@ def parse_years(spec):
             continue
         if '-' in part:
             a, b = part.split('-', 1)
-            years.update(range(int(a), int(b) + 1))
+            years.update(range(anio(a), anio(b) + 1))
         else:
-            years.add(int(part))
+            years.add(anio(part))
     return tuple(sorted(years))
 
 
