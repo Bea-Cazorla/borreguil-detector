@@ -3176,16 +3176,22 @@ def _mapa_previo(puntos, rectangulo):
         'tile/{z}/{y}/{x}', attr='Esri', name=i18n.pick('Ortofoto (ESRI)', 'Orthophoto (ESRI)'),
         show=False).add_to(m)
     folium.TileLayer('OpenStreetMap', name='OpenStreetMap', show=False).add_to(m)
+    # Los ríos y arroyos y las lagunas van apagados de entrada (la autora, 27-11-2026:
+    # «no cargues las lagunas y arroyos por defecto»): se encienden en las capas.
     _cauces = _cauces_vista(tuple(round(x, 4) for x in caja))
     if _cauces:
         folium.GeoJson(_cauces, name=i18n.pick('Ríos y arroyos', 'Rivers and streams'),
                        style_function=lambda _f: {'color': '#3B82B5', 'weight': 1.5,
                                                   'opacity': 0.75},
-                       interactive=False).add_to(m)
-    for lon, lat in _lagunas_vista(tuple(round(x, 4) for x in caja)):
-        folium.CircleMarker([lat, lon], radius=5, color='#4FC3F7', weight=0, fill=True,
-                            fill_color='#4FC3F7', fill_opacity=0.95,
-                            interactive=False).add_to(m)
+                       interactive=False, show=False).add_to(m)
+    _lag_vista = _lagunas_vista(tuple(round(x, 4) for x in caja))
+    if _lag_vista:
+        _g_lag = folium.FeatureGroup(name=i18n.pick('Lagunas', 'Lakes'), show=False)
+        for lon, lat in _lag_vista:
+            folium.CircleMarker([lat, lon], radius=5, color='#4FC3F7', weight=0, fill=True,
+                                fill_color='#4FC3F7', fill_opacity=0.95,
+                                interactive=False).add_to(_g_lag)
+        _g_lag.add_to(m)
     if puntos and rectangulo and len(puntos) > 1:
         folium.Rectangle([[caja[1], caja[0]], [caja[3], caja[2]]],
                          color='#7CC496', weight=2.5, dash_array='8 6', fill=True,
@@ -3202,12 +3208,13 @@ def _mapa_previo(puntos, rectangulo):
         if rectangulo:
             filas.append('<span style="color:#7CC496">┄ ' + i18n.pick('Tu zona', 'Your area')
                          + '</span>')
-    filas.append('<span style="color:#4FC3F7">● ' + i18n.pick('Lagunas', 'Lakes') + '</span>')
-    m.get_root().html.add_child(folium.Element(
-        '<div style="position:fixed;left:16px;bottom:16px;z-index:9999;'
-        'background:rgba(29,33,36,.9);border:1px solid #343B41;border-radius:10px;'
-        'padding:10px 12px;display:flex;flex-direction:column;gap:6px;'
-        'font:12px Inter,system-ui,sans-serif;color:#CDD3D9">' + ''.join(filas) + '</div>'))
+    if filas:                       # sin puntos, sin leyenda
+        m.get_root().html.add_child(folium.Element(
+            '<div style="position:fixed;left:16px;bottom:16px;z-index:9999;'
+            'background:rgba(29,33,36,.9);border:1px solid #343B41;border-radius:10px;'
+            'padding:10px 12px;display:flex;flex-direction:column;gap:6px;'
+            'font:12px Inter,system-ui,sans-serif;color:#CDD3D9">' + ''.join(filas)
+            + '</div>'))
     return m
 
 
