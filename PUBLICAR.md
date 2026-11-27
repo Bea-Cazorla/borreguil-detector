@@ -11,7 +11,8 @@ Solo hay que hacerlo **una vez**. Después, cada nueva versión obtiene su DOI s
 
 ```
    Publicas una etiqueta          GitHub Actions compila            Zenodo archiva
-   (git tag v1.0.0)      ───►     Windows / macOS / Linux    ───►   y asigna el DOI
+   (git tag v1.0.0)      ───►     Windows / Linux, prueba    ───►   y asigna el DOI
+                                  el instalador de macOS
                                   y los adjunta a la Release
 ```
 
@@ -112,8 +113,8 @@ git push origin v1.0.0
 
 Esto dispara automáticamente:
 
-1. **GitHub Actions** compila los ejecutables de Windows, Mac (Apple Silicon) y Linux
-   (unos 10 min). Puedes seguirlo en la pestaña **Actions**.
+1. **GitHub Actions** compila los ejecutables de Windows y Linux y prueba el
+   instalador de Mac (unos 15 min). Puedes seguirlo en la pestaña **Actions**.
 2. Si los tres salen bien, crea la **Release** `v1.0.0` con los tres archivos **como
    borrador** (*Draft*). Desde el 26-11-2026 es así para poder probarla antes: solo
    la ven quienes tienen permiso en el repositorio, y Zenodo no archiva los
@@ -228,7 +229,7 @@ subas después no les llega hasta que vuelvas a publicar.
 |---|---|
 | Comprobar que la lista coincide con lo publicado | `py publicar_codigo.py --comprobar` |
 | Dar marcha atrás | Vuelve al commit bueno (`git checkout <commit>`), publica y sube `codigo.json` |
-| Código que necesita una librería nueva | Sube `INSTALADOR` en `actualizador.py`, compila el instalador nuevo y publica con `--instalador-minimo <ese número>` |
+| Código que necesita una librería nueva | Añádela a `requirements.txt` y a `environment.yml` (Mac), sube `INSTALADOR` en `actualizador.py`, compila el instalador nuevo y publica con `--instalador-minimo <ese número>`. En Mac, que vuelvan a ejecutar el instalador: instala el código publicado y, como `environment.yml` ha cambiado, reinstala el entorno. Los programas instalados lo dicen al abrirse, en un cuadro con las instrucciones de su sistema (desde el 27-11-2026; los de antes, solo en la consola) |
 
 Qué se actualiza: los módulos de la app (`app.py`, `borreguil_pipeline.py`…; la lista
 está en `actualizador.py`), el manual, el tutorial, `CITATION.cff`, la plantilla y las
@@ -238,6 +239,32 @@ falta un instalador nuevo) ni los modelos, que tienen su propia lista (`modelos.
 Cuando compiles un instalador nuevo, publica también su código. Si no lo haces y la
 lista publicada es más vieja que el instalador (según `CITATION.cff`), el programa usa
 el código del instalador.
+
+### El instalador de Mac
+
+Desde el 27-11-2026, en Mac no hay ejecutable de PyInstaller sino un instalador, como
+los de MonitorEO y eHabitat+: `instalador/macos/instalar.command`. Quien lo usa pega en
+la Terminal la línea del TUTORIAL (2.2), que descarga ese fichero **de `main`**, o abre
+`Instalar Borreguil.command` de `Borreguil-macos.zip`, que la compilación adjunta a la
+Release. El instalador:
+
+- crea con micromamba, en `~/Borreguil/entorno`, el entorno de `environment.yml` (las
+  mismas librerías que `requirements.txt`: si cambias una, cambia las dos; lo comprueba
+  `tests/test_instalador_mac.py`);
+- instala en `~/Borreguil/programa` **el código publicado** (el commit de `codigo.json`),
+  con el `environment.yml` de ese commit o, si no lo trae, el de `main`; abierto desde
+  una copia del repositorio, el de esa copia;
+- si el entorno ya estaba, lo conserva solo si se hizo con el mismo `environment.yml`,
+  importa todas sus librerías y pasa el autodiagnóstico del programa
+  (`launcher.py --selftest`) con el código nuevo; si no, lo reinstala;
+- deja la app **Borreguil** en el Escritorio, que la crea el propio Mac y por eso no la
+  bloquea.
+
+Así, un cambio en el instalador llega a quien lo ejecute en cuanto está en `main`, y un
+cambio en el código, en cuanto se publica (como en los demás sistemas). La compilación
+lo prueba en un Mac de GitHub (trabajo «macos»: instala, arranca el servidor y abre la
+ventana desde la app del Escritorio); `prueba-macos-arm` o `prueba-macos-intel` como
+etiqueta, o «Run workflow» con ese sistema, lo prueban solo a él.
 
 > **Quién puede publicar.** El código descargado se ejecuta. El programa solo lo baja
 > de este repositorio, por HTTPS (puerto 443), y comprueba la huella de cada fichero,

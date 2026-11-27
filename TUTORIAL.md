@@ -65,8 +65,7 @@ Descarga el archivo de tu sistema:
 | Tu ordenador | Archivo a descargar |
 |---|---|
 | Windows 10/11 | `Borreguil-windows.zip` |
-| macOS (Apple Silicon: M1/M2/M3/M4), con macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
-| macOS (Intel) | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte) |
+| macOS (Apple Silicon o Intel) | Nada: se instala con una línea en la app Terminal (2.2) |
 | Linux (Ubuntu, Debian…) | `Borreguil-linux.tar.gz` |
 
 > Ocupa bastante (varios cientos de MB) porque **lleva dentro todo lo necesario**:
@@ -84,22 +83,37 @@ Descarga el archivo de tu sistema:
 
 #### 🍎 macOS
 
-1. Doble clic en el `.zip` para descomprimirlo (si dentro hay otro `.zip`, también).
-2. **La primera vez, macOS bloquea el programa** porque no está firmado. Desde macOS 15
-   ya no sirve «clic derecho → Abrir». Desbloquéalo de una de estas dos formas:
-   - **En Terminal** (la más segura: desbloquea toda la carpeta de una vez). Abre la app
-     **Terminal**, escribe esto **con un espacio al final**:
+En Mac no se descarga un programa: un instalador, como los de MonitorEO y eHabitat+,
+prepara la app en tu cuenta. Sirve para Apple Silicon (M1-M4) e Intel.
 
-     ```bash
-     xattr -dr com.apple.quarantine 
-     ```
+1. Abre la app **Terminal** (está en *Aplicaciones → Utilidades*; o pulsa **Cmd +
+   Espacio** y escribe «Terminal»).
+2. Copia esta línea, pégala en la Terminal y pulsa **Intro**:
 
-     arrastra la carpeta **`Borreguil`** a la ventana de Terminal (así se escribe su
-     ruta) y pulsa **Intro**. Después, doble clic en **`Borreguil`**.
-   - **Sin Terminal.** Doble clic en **`Borreguil`**. Cuando diga que no se puede abrir,
-     pulsa **OK**. Ve a **Ajustes del Sistema → Privacidad y seguridad**, baja hasta el
-     final, pulsa **«Abrir igualmente»** y pon tu contraseña. Si al seguir sale otro
-     aviso parecido, usa la forma de Terminal.
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/monitoreo-obsnev/borreguil-detector/main/instalador/macos/instalar.command)"
+   ```
+
+3. Espera a que termine. La primera vez tarda unos minutos: descarga unos 0,3 GB
+   (Python y las librerías científicas) y ocupa 1,4 GB. Si macOS pregunta si la Terminal
+   puede acceder al Escritorio, pulsa **Permitir**.
+4. Al acabar, la app se abre sola y queda **Borreguil** en el Escritorio. Para abrirla
+   otro día: doble clic en ella. No sale ningún aviso de seguridad, porque la app la crea
+   tu propio Mac.
+
+Todo va a la carpeta **`Borreguil`** de tu cuenta (la de tus datos, ver la sección 7), sin
+permisos de administrador. Para reinstalar o reparar, vuelve a pegar la misma línea:
+si Python y las librerías ya están bien, solo pone al día la app (unos segundos). Si
+tenías la versión anterior de Mac (la carpeta `Borreguil` descomprimida de
+`Borreguil-macos-arm64.zip`), puedes borrar esa carpeta: tus modelos guardados siguen en
+la carpeta `Borreguil` de tu cuenta.
+
+**Sin Terminal**: descarga `Borreguil-macos.zip` de
+[Releases](https://github.com/monitoreo-obsnev/borreguil-detector/releases),
+descomprímelo y haz doble clic en **`Instalar Borreguil.command`**. Como no está
+firmado, la primera vez macOS no lo deja abrir: pulsa **OK**, ve a **Ajustes del Sistema
+→ Privacidad y seguridad**, baja hasta el final, pulsa **«Abrir igualmente»** y vuelve a
+hacer doble clic. Se abre la Terminal y sigue como arriba, desde el paso 3.
 
 #### 🐧 Linux
 
@@ -113,15 +127,18 @@ cd Borreguil
 
 Se abre una **ventana negra de consola** (no la cierres: es el motor del programa)
 y, a los pocos segundos, la **ventana de la app**. Para cerrar el programa, cierra la
-ventana de la app.
+ventana de la app. En Mac, la app del Escritorio no abre consola: lo que escribiría va
+al fichero `salida.log` de la carpeta `Borreguil`.
 
 Si la ventana no se puede abrir (en Windows, si falta el motor de Edge), la app se abre
 en tu **navegador**. Si tampoco, entra en la dirección que muestra la consola,
 normalmente **http://localhost:8501**.
 
 Al abrirse, el programa mira también si hay una **versión nueva de la app**. Si la hay,
-la descarga, la comprueba y arranca con ella; la consola dice «App actualizada». Sin
-internet, abre con la que ya tenía. No hace falta volver a descargar el programa.
+la descarga, la comprueba y arranca con ella; la ventana dice «App actualizada» mientras
+se abre. Sin internet, abre con la que ya tenía. No hace falta volver a descargar el
+programa. Solo si una versión nueva necesita un programa nuevo (pasa muy pocas veces),
+la app lo dice en un cuadro al abrirse y te lleva a las instrucciones.
 
 Al abrirse, la app trae de GitHub los modelos nuevos o actualizados; la última línea
 del panel lateral dice si están al día. Todo lo que hace por internet va por HTTPS
@@ -412,7 +429,9 @@ en tu zona), **4 · Mapa** (GeoTIFF) y **5 · Peso**. Ver el
 | Síntoma | Solución |
 |---|---|
 | Windows bloquea el programa | **Más información** → **Ejecutar de todas formas**. |
-| macOS no deja abrirlo («no se puede comprobar», «no se puede abrir») | El comando `xattr` del punto 2.2, o **Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente»**. «Clic derecho → Abrir» ya no sirve desde macOS 15. |
+| macOS no deja abrir `Instalar Borreguil.command` («no se puede comprobar», «no se puede abrir») | Instálalo con la línea de la Terminal (2.2), que no lo pide, o **Ajustes del Sistema → Privacidad y seguridad → «Abrir igualmente»**. «Clic derecho → Abrir» ya no sirve desde macOS 15. |
+| El instalador de Mac dice «ERROR» | Lee lo que dice encima. Casi siempre es la conexión: vuelve a pegar la línea. Si dice que la Terminal no tiene permiso para entrar en el Escritorio: **Ajustes del Sistema → Privacidad y seguridad → Archivos y carpetas → Terminal**, activa **Escritorio** y vuelve a pegarla. |
+| En Mac, la app del Escritorio no se abre | Mira las últimas líneas de `Borreguil/salida.log` en tu carpeta personal. Vuelve a pegar la línea del instalador (2.2): repara lo que falte. |
 | La ventana de la app no se abre o sale en blanco | El programa abre entonces el navegador; si tampoco, entra en la dirección que da la consola, normalmente **http://localhost:8501**. También puedes abrirlo con `Borreguil --navegador`. |
 | **Solo detecta 1 o 2 puntos** | Casi seguro tienes el umbral en **Manual**. Cámbialo a **Otsu**. |
 | Va lentísimo | Usa **GEE** en vez de MPC y marca **⚡ Modo rápido**. |

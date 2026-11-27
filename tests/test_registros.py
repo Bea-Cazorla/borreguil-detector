@@ -254,6 +254,24 @@ def test_lo_que_sale_por_la_consola_va_al_registro():
         assert x in texto, x
 
 
+def test_lo_que_escribe_click_en_bytes_llega_sin_error():
+    """click 8.5 escribe bytes cuando la salida no es una terminal (el «Stopping...» de
+    Streamlit al pararse): no puede dar error, o el servidor no se cierra por las buenas."""
+    with tempfile.TemporaryDirectory() as d:
+        r = _en_otro_proceso('''
+            import sys
+            import registros
+            registros.empezar('9.9.9')
+            sys.stdout.write(b'en bytes \\xc3\\xb1\\n')
+            import click
+            click.secho('  Stopping...', fg='blue')
+            print('después')
+        ''', d)
+        texto = Path(d, rg.FICHERO).read_text(encoding='utf-8')
+    for x in ('en bytes ñ', 'Stopping...', 'después'):
+        assert x in texto and x in r.stdout, x
+
+
 def test_los_mensajes_de_streamlit_llegan_al_registro():
     with tempfile.TemporaryDirectory() as d:
         _en_otro_proceso('''

@@ -37,14 +37,26 @@ versiones sin radar (0,833 y 0,937). Por defecto el modelo se usa tal cual; con
 
 ## ⬇️ Descargar el programa (recomendado)
 
-**No necesitas instalar Python ni ninguna librería.** Descarga el archivo de tu
-sistema, descomprímelo y ejecuta el programa:
+**No necesitas instalar Python ni ninguna librería.**
+
+**macOS (Apple Silicon e Intel).** Abre la app **Terminal**, pega esta línea y pulsa
+Intro:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/monitoreo-obsnev/borreguil-detector/main/instalador/macos/instalar.command)"
+```
+
+Como los instaladores de MonitorEO y eHabitat+: instala en `~/Borreguil`, sin permisos
+de administrador, Python y las librerías de la app (unos 0,3 GB de descarga, solo la
+primera vez), deja la app **Borreguil** en el Escritorio y la abre. macOS no la bloquea,
+porque la crea tu propio Mac. Más detalles en el [TUTORIAL (2.2)](TUTORIAL.md#22-descomprimir-y-ejecutar).
+
+**Windows y Linux.** Descarga el archivo de tu sistema, descomprímelo y ejecuta el
+programa:
 
 | Sistema | Archivo |
 |---|---|
 | Windows 10/11 | `Borreguil-windows.zip` |
-| macOS Apple Silicon (M1-M4), con macOS 15 o posterior | `Borreguil-macos-arm64.zip` |
-| macOS Intel | `Borreguil-macos-intel.zip` (solo si se ha compilado aparte; si no, usa el código fuente) |
 | Linux x86-64 | `Borreguil-linux.tar.gz` |
 
 **Dónde está:**
@@ -78,8 +90,8 @@ ordenador»** (o «Enviar los registros», debajo del error) enseña las última
 que hizo la app, sin tu nombre, correo ni carpetas, y las envía con ese formulario, como
 en el asistente de MonitorEO.
 
-> La primera vez, Windows y macOS avisan de que el programa no está firmado (es
-> habitual en software científico). El tutorial explica cómo continuar.
+> La primera vez, Windows avisa de que el programa no está firmado (es habitual en
+> software científico). El tutorial explica cómo continuar.
 
 ---
 

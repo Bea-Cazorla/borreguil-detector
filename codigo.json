@@ -1,8 +1,8 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.9",
-  "commit": "bc4a97e982da7c67bd1b237e69b11fa9d7e4441d",
+  "version": "1.0.10",
+  "commit": "8bcc858c491e1e87c798c1d706868ea9f6173dbf",
   "fecha": "2026-11-27",
   "instalador_minimo": 1,
   "ficheros": [
@@ -68,22 +68,22 @@
     },
     {
       "ruta": "registros.py",
-      "sha256": "b674039929bbcd34abced0558dd094c9b087d619b59085e698944025c987a9ed",
-      "bytes": 27449
+      "sha256": "2cad2f4a416a1d978f53162e8ad7d1af0b06fcd351b038a7c5d458c4b9f0e78e",
+      "bytes": 27812
     },
     {
       "ruta": "MANUAL.md",
-      "sha256": "9734cf69070c19a07ce5cd72afe9df2d5e48a839eea3b19670a14ac411790921",
-      "bytes": 118542
+      "sha256": "17d98e07bb986b25b87afb217857a621e1fafa43f04a7ee650fc3c24f220eef3",
+      "bytes": 120698
     },
     {
       "ruta": "TUTORIAL.md",
-      "sha256": "20d006ef0618e2892dcca5b81aeeb9fe1b2480de760af903cbc013d199e2f572",
-      "bytes": 20343
+      "sha256": "349501303f4439796c1b64fcaf2afddb42e522d5c85d6f1349dd005dd6d80973",
+      "bytes": 22041
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "8f4af8b83ceaad5426122b5ae091597f9035f7e2b8a684b9fabe23b20fbfbeff",
+      "sha256": "1830ba48dba883143afa0ff5ff8665b479233ba6af551efc1dbb38ec966eb09e",
       "bytes": 3923
     },
     {
