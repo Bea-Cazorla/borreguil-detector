@@ -1,15 +1,15 @@
 {
   "formato": 1,
   "nota": "Código publicado que los programas instalados descargan solos al abrirse. No se edita a mano: usar publicar_codigo.py.",
-  "version": "1.0.7",
-  "commit": "7852652966cc19563751edd8ea98eeb89150839a",
+  "version": "1.0.8",
+  "commit": "939a118d6809af7b4cfb4a0c697d5d5aa029ab84",
   "fecha": "2026-11-27",
   "instalador_minimo": 1,
   "ficheros": [
     {
       "ruta": "app.py",
-      "sha256": "e84b433b3bb429841345b5576ed428232cb81f8289b6bd557348bd85a0245185",
-      "bytes": 790060
+      "sha256": "24b14dc84fc843a89fe39de3a3e456d0bd5b5499eab87f2803a62687c454d7f8",
+      "bytes": 790589
     },
     {
       "ruta": "borreguil_pipeline.py",
@@ -83,7 +83,7 @@
     },
     {
       "ruta": "CITATION.cff",
-      "sha256": "9da2af6e78a2c664499307be35d6256fcd69f47a4657ab8e05d4fd403032bc42",
+      "sha256": "da1b7ed5d0760858b577654cb7811c90fe884d78270ad74f8a5cb0bf9bb7470a",
       "bytes": 3923
     },
     {
