@@ -1546,7 +1546,7 @@ def guion_tabla(lang):
     poner_proyecto(at, 'ee-proyecto-de-prueba')
     at.run()
     msgs = pulsar(at, control(at, 'button', 'mrf_leer'), 'T2')
-    comprobar(LLAMADAS and LLAMADAS[0]['n'] == 22 and LLAMADAS[0]['years'] == tuple(range(2017, 2026))
+    comprobar(LLAMADAS and LLAMADAS[0]['n'] == 22 and LLAMADAS[0]['years'] == bp.parse_years('2017-present')
               and LLAMADAS[0]['epsg'] == 32630,
               'se piden las 22 muestras, con los años del panel lateral y la zona UTM',
               str(LLAMADAS[:1]))
@@ -2576,7 +2576,7 @@ def _pasos_del_mapa(at, T, en):
     if mapa is None:
         return
     meta, carpeta = mapa['meta'], Path(mapa['carpeta'])
-    comprobar(PILAS[0] == {'years': tuple(range(2017, 2026)), 'epsg': 32630,
+    comprobar(PILAS[0] == {'years': bp.parse_years('2017-present'), 'epsg': 32630,
                            'bandas': mod['predictores']},
               'los píxeles se piden con los años, la rejilla y las variables del modelo, '
               'en su orden', str(PILAS[0])[:120])

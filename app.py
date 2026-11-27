@@ -2051,17 +2051,17 @@ label[data-baseweb="checkbox"]:has(input:checked)>span{background-color:#7CC496;
 [data-testid="stColumn"]:has(.st-key-analizar) [data-testid="stCaptionContainer"]{
   text-align:center}
 .st-key-origen_puntos [role="radiogroup"],.st-key-zona_modo [role="radiogroup"],
-.st-key-imagen_aerea [role="radiogroup"]{display:grid !important;
+.st-key-imagen_ambito [role="radiogroup"]{display:grid !important;
   grid-template-columns:repeat(2,minmax(0,1fr))}
 .st-key-cuenta [role="radiogroup"],.st-key-modo_umbral [role="radiogroup"]{
   display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr))}
 .st-key-origen_puntos label[data-baseweb="radio"],.st-key-zona_modo label[data-baseweb="radio"],
-.st-key-imagen_aerea label[data-baseweb="radio"],.st-key-cuenta label[data-baseweb="radio"],
+.st-key-imagen_ambito label[data-baseweb="radio"],.st-key-cuenta label[data-baseweb="radio"],
 .st-key-modo_umbral label[data-baseweb="radio"]{min-width:0 !important;text-align:center}
-.st-key-origen_puntos,.st-key-zona_modo,.st-key-imagen_aerea,.st-key-cuenta,.st-key-modo_umbral,
-.st-key-origen_puntos>div,.st-key-zona_modo>div,.st-key-imagen_aerea>div,.st-key-cuenta>div,
+.st-key-origen_puntos,.st-key-zona_modo,.st-key-imagen_ambito,.st-key-cuenta,.st-key-modo_umbral,
+.st-key-origen_puntos>div,.st-key-zona_modo>div,.st-key-imagen_ambito>div,.st-key-cuenta>div,
 .st-key-modo_umbral>div,.st-key-origen_puntos [role="radiogroup"],
-.st-key-zona_modo [role="radiogroup"],.st-key-imagen_aerea [role="radiogroup"],
+.st-key-zona_modo [role="radiogroup"],.st-key-imagen_ambito [role="radiogroup"],
 .st-key-cuenta [role="radiogroup"],.st-key-modo_umbral [role="radiogroup"]{width:100%}
 [data-testid="stMetricValue"]{font-family:Montserrat,Inter,system-ui,sans-serif}
 [data-testid="stMetric"]{background:#2E2A2B;border:1px solid #403A3C;border-radius:16px;padding:14px 18px}
@@ -3313,7 +3313,7 @@ with col_panel, st.container(key='panel_analizar'):
                 value=i18n.pick('2017-actualidad', '2017-present'), key='anios')
 
     with st.container(key='seccion_imagenes'):
-        st.subheader(i18n.pick('Imágenes', 'Images'))
+        st.subheader(i18n.pick('Imágenes aéreas', 'Aerial images'))
         with st.container(key='titb_imagen'):
             st.markdown(i18n.pick('Imagen aérea', 'Aerial image'), help=i18n.pick(
                 'Para qué: de cada punto se descarga una foto de su zona (de unos 500 m de '
@@ -3321,8 +3321,11 @@ with col_panel, st.container(key='panel_analizar'):
                 'que usa el modelo: la roca de alrededor, la densidad de bordes, la fracción '
                 'verde-azulada, el contraste de la vegetación, la textura. La ortofoto que ves '
                 'al revisar se elige aparte, en las capas del mapa.\n\n'
-                'Mundial (ESRI World Imagery): ortofoto de todo el mundo, de unos 0,5 m.\n\n'
-                'España (PNOA del IGN): usa la ortofoto autonómica cuando está disponible '
+                'Mundial: ESRI World Imagery, ortofoto de todo el mundo, de unos 0,5 m; o '
+                'PlanetScope (3 m), si tienes cuenta de Planet: añade sus imágenes de 8 '
+                'bandas (sirve con los modelos de la variante Planet; tarda 10-30 minutos '
+                'más y gasta tu cuota).\n\n'
+                'Por país: España (PNOA del IGN) usa la ortofoto autonómica cuando está disponible '
                 '(Andalucía 2022, Aragón 2024, Cataluña vigente, Cantabria 2023, Castilla y León '
                 '2020, Canarias) y el PNOA nacional para el resto de España. Fuera de España usa '
                 'la mundial.',
@@ -3331,8 +3334,11 @@ with col_panel, st.container(key='panel_analizar'):
                 'model are computed: the surrounding rock, the edge density, the blue-green '
                 'fraction, the vegetation contrast, the texture. The orthophoto you see when '
                 'reviewing is chosen separately, in the map layers.\n\n'
-                'Worldwide (ESRI World Imagery): orthophoto of the whole world, about 0.5 m.\n\n'
-                'Spain (IGN PNOA): it uses the regional orthophoto when available (Andalusia '
+                'Worldwide: ESRI World Imagery, orthophoto of the whole world, about 0.5 m; or '
+                'PlanetScope (3 m), if you have a Planet account: it adds its 8-band images '
+                '(it works with the Planet variant models; it takes 10-30 minutes longer and '
+                'uses your quota).\n\n'
+                'By country: Spain (IGN PNOA) uses the regional orthophoto when available (Andalusia '
                 '2022, Aragon 2024, Catalonia current, Cantabria 2023, Castile and León 2020, '
                 'Canary Islands) and the national PNOA for the rest of Spain. Outside Spain it '
                 'uses the worldwide one.'))
@@ -3343,22 +3349,58 @@ with col_panel, st.container(key='panel_analizar'):
             'Which orthophoto the photo of each point is downloaded from; the model takes the '
             'aerial-image variables from it: the surrounding rock, the edges, the green, the '
             'texture.'))
-        _imagenes = {
-            '🌐  ESRI World Imagery (global, ~0,5 m)': i18n.pick('Mundial (ESRI)',
-                                                                'Worldwide (ESRI)'),
-            '🇪🇸  PNOA IGN + autonómica (España, 0,25 m)': i18n.pick('España (PNOA)',
-                                                                    'Spain (PNOA)')}
-        img_src_label = st.radio(
-            i18n.pick('Imagen aérea', 'Aerial image'), list(_imagenes), index=0,
-            horizontal=True, format_func=_imagenes.get, key='imagen_aerea',
-            label_visibility='collapsed')
-        img_src = 'pnoa' if 'PNOA' in img_src_label else 'esri'
-        st.caption((i18n.pick('Ortofoto de España de 0,25 m (la autonómica cuando la hay). Fuera de '
-                         'España se usa la mundial.',
-                         'Orthophoto of Spain of 0.25 m (the regional one when there is one). '
-                         'Outside Spain the worldwide one is used.') if img_src == 'pnoa' else
-               i18n.pick('Ortofoto de todo el mundo, de unos 0,5 m.',
-                         'Orthophoto of the whole world, about 0.5 m.')))
+        # Mundial (ESRI o, con cuenta de Planet, PlanetScope) o por país (de momento, el
+        # PNOA de España), cada uno con su desplegable (la autora, 27-11-2026).
+        _pl_key = get_secret('PL_API_KEY', None) or os.environ.get('PL_API_KEY', '')
+        # Las etiquetas (ocultas) no cambian con el idioma: si cambian, Streamlit lo toma
+        # por otro control y se queda sin nada elegido.
+        _ambito = st.radio(
+            'Imagen aérea / Aerial image', ['mundial', 'pais'], index=0,
+            horizontal=True, key='imagen_ambito', label_visibility='collapsed',
+            format_func=lambda a_: (i18n.pick('Mundial', 'Worldwide') if a_ == 'mundial'
+                                    else i18n.pick('Por país', 'By country')))
+        use_planet = False
+        if _ambito != 'pais':          # «Mundial» (también si no hay nada elegido)
+            _mundial = st.selectbox(
+                'Mundial / Worldwide', ['esri', 'planet'], index=0,
+                key='imagen_mundial', label_visibility='collapsed',
+                format_func=lambda o_: (
+                    i18n.pick('ESRI World Imagery (todo el mundo, ~0,5 m)',
+                              'ESRI World Imagery (whole world, ~0.5 m)') if o_ == 'esri'
+                    else 'PlanetScope (3 m)' if _pl_key
+                    else i18n.pick('PlanetScope (3 m) · necesita cuenta de Planet',
+                                   'PlanetScope (3 m) · needs a Planet account')))
+            img_src = 'esri'
+            if _mundial == 'planet':
+                if _pl_key:
+                    use_planet = True
+                    st.caption(i18n.pick(
+                        'La foto de cada punto sale de ESRI y además se piden las imágenes '
+                        'PlanetScope (3 m, 8 bandas) del área: tarda 10–30 minutos más y gasta '
+                        'la cuota de tu suscripción.',
+                        'The photo of each point comes from ESRI and the PlanetScope images '
+                        '(3 m, 8 bands) of the area are also requested: it takes 10–30 minutes '
+                        'longer and uses the quota of your subscription.'))
+                else:
+                    st.warning(i18n.pick(
+                        'PlanetScope necesita una cuenta de Planet (su clave, PL_API_KEY, en '
+                        'este ordenador). Sin ella se usa ESRI.',
+                        'PlanetScope needs a Planet account (its key, PL_API_KEY, on this '
+                        'computer). Without it, ESRI is used.'))
+            else:
+                st.caption(i18n.pick('Ortofoto de todo el mundo, de unos 0,5 m.',
+                                     'Orthophoto of the whole world, about 0.5 m.'))
+        else:
+            st.selectbox(
+                'País / Country', ['es'], index=0, key='imagen_pais',
+                label_visibility='collapsed',
+                format_func=lambda o_: i18n.pick('España · PNOA (IGN)', 'Spain · PNOA (IGN)'))
+            img_src = 'pnoa'
+            st.caption(i18n.pick(
+                'Ortofoto de España de 0,25 m (la autonómica cuando la hay). Fuera de España '
+                'se usa la mundial.',
+                'Orthophoto of Spain of 0.25 m (the regional one when there is one). Outside '
+                'Spain the worldwide one is used.'))
         # «Modo rápido» y «Saltar imágenes» se quitaron con el diseño nuevo (la autora,
         # 26-11-2026): el análisis es siempre completo, con la foto aérea de cada punto.
         fast_mode = False
@@ -3378,34 +3420,7 @@ with col_panel, st.container(key='panel_analizar'):
                 'scikit-image library). The starting model was trained with them: here they are '
                 'filled with a typical Sierra Nevada value and its probability is **less '
                 'reliable**. Use it to propose points and review them.'))
-        st.html('<hr class="separador">')
-        st.markdown('<div class="mini">' + i18n.pick('Solo si lo necesitas', 'Only if you need it')
-                    + '</div>', unsafe_allow_html=True)
-        st.caption(i18n.pick('Van sin marcar y lo normal es dejarlas así.',
-                             'They come unticked and it is normal to leave them like that.'))
-        skip_s2 = st.checkbox(i18n.pick('No leer Sentinel-2', 'Do not read Sentinel-2'),
-                              value=False, key='no_leer_s2')
-        st.caption(i18n.pick('Solo para pruebas: va más rápido, pero el modelo pierde las '
-                             'variables de verdor y acierta menos.',
-                             'Only for tests: it is faster, but the model loses the greenness '
-                             'variables and is less accurate.'))
-        _pl_key = get_secret('PL_API_KEY', None) or os.environ.get('PL_API_KEY', '')
-        use_planet = st.checkbox(
-            i18n.pick('Añadir imágenes PlanetScope (3 m)', 'Add PlanetScope images (3 m)'),
-            value=False, disabled=not _pl_key, key='planetscope',
-            help=i18n.pick(
-                'Pide imágenes PlanetScope de 3 m (8 bandas) recortadas al área de los puntos. '
-                'Consume cuota de tu suscripción a Planet (los km² pedidos) y tarda 10-30 '
-                'minutos más. Sirve con los modelos de la variante Planet (60 variables). '
-                'Necesita la clave de Planet (PL_API_KEY) en el ordenador.',
-                'Requests 3 m PlanetScope images (8 bands) clipped to the area of the points. '
-                'It uses quota of your Planet subscription (the km² requested) and takes 10-30 '
-                'minutes longer. It works with the Planet variant models (60 variables). It '
-                'needs the Planet key (PL_API_KEY) on the computer.'))
-        st.caption(i18n.pick('Necesita una suscripción de Planet. Tarda 10–30 minutos más y '
-                             'gasta su cuota.',
-                             'It needs a Planet subscription. It takes 10–30 minutes longer and '
-                             'uses its quota.'))
+        skip_s2 = False
     # Como en la demo: se despliega dentro del panel (▸ / ▾), no flota.
     with st.expander(i18n.pick('💬 Sugerir un cambio o informar de un error',
                                '💬 Suggest a change or report an error'),
@@ -12340,3 +12355,14 @@ with tab_tipos, st.container(key='mapa_pantalla'):
                 _col_p.button(f"{i18n.pick('Paso', 'Step')} {_i + 1}\n\n{_t}\n\n{_txt}",
                               key=f'mrf_ir_{_k}', on_click=_ir_paso, args=(_i,),
                               width='stretch')
+
+
+# Abajo del todo en Resultados, un botón verde para seguir (la autora, 27-11-2026).
+if PANTALLA == 'resultados' and 'rows' in st.session_state:
+    with pant_resultados, st.container(key='siguiente_revisar'):
+        st.html('<style>.st-key-siguiente_revisar{margin-top:28px}'
+                '.st-key-siguiente_revisar button{min-height:54px}'
+                '.st-key-siguiente_revisar button p{font-size:17px;font-weight:700}</style>')
+        st.button(i18n.pick('Siguiente → 2 · Revisar', 'Next → 2 · Review'), type='primary',
+                  key='boton_siguiente_revisar', on_click=ir_a, args=('revisar',),
+                  width='stretch')

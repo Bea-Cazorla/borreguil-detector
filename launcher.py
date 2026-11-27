@@ -562,8 +562,11 @@ def preparar_zoom(ventana, fichero: Path):
         except Exception:                        # noqa: BLE001
             pass
 
-    ventana.expose(zoom_ventana)
-    ventana.events.loaded += al_cargar
+    try:
+        ventana.expose(zoom_ventana)
+        ventana.events.loaded += al_cargar
+    except AttributeError:          # una ventana sin estas funciones (las pruebas): sin zoom
+        pass
 
 
 def abrir_en_ventana(url: str, port: int, out: Path, probar: bool = False, buscar=None):
